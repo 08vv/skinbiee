@@ -1,81 +1,553 @@
-# SKINBIEE APP INFORMATION
+================================================================================
+SKINBIEE (SKINCARE COMPANION) - ULTIMATE DETAILED PROJECT DOCUMENTATION
+================================================================================
 
-## What is this app?
-The app is called Skinbiee (also known as SkinCare Companion). It is a personalized skincare assistant designed for anyone who wants to take better care of their skin. In real life, people often struggle to understand what their skin needs or if a product is actually safe for them. Skinbiee solves this by using AI to analyze your face, scan product ingredients, and help you build a consistent daily routine that actually works. It turns a confusing process into a simple, friendly journey with the help of a cute mascot buddy.
+This document represents an exhaustive, line-by-line, component-by-component,
+and architecture-wide analysis of the Skinbiee ecosystem. Every file, function, 
+logic branch, UI component, CSS class, and backend endpoint is documented here 
+in extreme detail.
 
-## What the app is made of
-Skinbiee is built with a mix of modern and reliable tools:
-- **Languages**: We used HTML for the structure, CSS for the beautiful "Kawaii" look (soft colors and smooth animations), and JavaScript for all the interactive parts you click on.
-- **Backend (Server)**: We used Python with a "Flask" framework. This acts as the "brain" that runs our AI models and handles technical tasks behind the scenes.
-- **AI Tools**: We used "TensorFlow" to run our skin analysis models and "EasyOCR" to read text from product labels.
-- **Packages**: We installed specific libraries like `flask-cors` (to let the app talk to the server) and `opencv` (to help the computer "see" images).
+================================================================================
+PART 1: PROJECT OVERVIEW AND HIGH-LEVEL ARCHITECTURE
+================================================================================
+The Skinbiee project (originally named "Skincare Companion") is a dual-interface 
+application designed to help users track their skincare routines, analyze their 
+skin conditions using a machine learning model, scan product ingredients using 
+OCR, and interact with an AI mascot named "GlowBot".
 
-## Every single file in the project
-Here is a breakdown of every important file we built:
+The system is split into two distinct user interfaces that share the same backend 
+resources:
+1. Streamlit Interface (`app.py`): A Python-native web interface using Streamlit, 
+   designed for rapid prototyping.
+2. Custom HTML/JS/CSS Frontend (`frontend/`): A bespoke single-page application 
+   (SPA) built without heavy frameworks (Vanilla JS) that provides a much richer, 
+   mobile-first, animated experience.
 
-### [Automation & Root Scripts]
-- **FRESH_START.bat**: The main "Easy Start" button. Double-clicking this cleans up old tasks and launches the entire app and AI server at once.
-- **START_AI_APP.bat**: A backup script specifically for starting the AI backend and the app together.
-- **REPAIR_AND_RUN.bat**: A special tool that checks if your computer has all the right "packages" installed and fixes them before running the app.
-- **analysis_server.py**: The core Python server that handles AI requests. It takes the photos you upload and sends back analysis results.
-- **serve_skinbiee.py**: A simple server that "hosts" the website files so you can view them in your browser.
-- **requirements.txt**: A simple list of all the technical tools (libraries) the app needs to run.
-- **RUN.md**: An instruction manual for developers on how to set up and run the project manually.
+The backend is composed of:
+1. A Flask REST API (`analysis_server.py`) running on Port 5000 that serves AI 
+   predictions (TensorFlow) and OCR capabilities (EasyOCR).
+2. A generic HTTP server (`serve_skinbiee.py` / `serve.py`) running on Port 8001 
+   to serve the frontend static files.
 
-### [Frontend - The User Interface]
-- **frontend/index.html**: The main entry point of the app. It contains the layout for the Home, Analyzer, and Settings screens.
-- **frontend/skinbiee.html**: A specialized "standalone" version of the app used for specific features and testing.
-- **frontend/style.css**: The "makeup" of the app. It defines all the soft blue colors, rounded corners, and cute mascot animations.
-- **frontend/script.js**: The main "activity" file for index.html. It handles clicking buttons, switching tabs, and talking to the AI.
-- **frontend/skinbiee.js**: The "activity" file for skinbiee.html. It ensures the analyzer and chatbot work perfectly in that view.
+================================================================================
+PART 2: DIRECTORY STRUCTURE ANALYSIS
+================================================================================
+/skincare/
+├── app.py                      (Streamlit main entrypoint)
+├── analysis_server.py          (Flask API for ML and OCR tasks)
+├── serve.py                    (Simple HTTP server for frontend/index.html)
+├── serve_skinbiee.py           (Simple HTTP server for frontend/skinbiee.html)
+├── requirements.txt            (Python dependencies list)
+├── RUN.md                      (Startup instructions markdown)
+├── START_AI_APP.bat            (Batch script to launch both servers)
+├── FRESH_START.bat             (Batch script to kill old procs & launch servers)
+├── REPAIR_AND_RUN.bat          (Batch script to delete venv, reinstall & run Streamlit)
+├── run_frontend.bat            (Batch script to run only the frontend server)
+├── .gitignore                  (Git ignore definitions)
+├── information.txt             (This documentation file)
+│
+├── assets/                     (Directory: generic assets, initially empty)
+│
+├── data/                       (Directory: local file-based databases)
+│   ├── chat_data.json          (Mascot bot intent mapping and responses)
+│   ├── ingredient_db.json      (Ingredient recommendations and avoid lists)
+│   ├── products.csv            (Mock database of skincare products)
+│   └── skin_history.db         (SQLite database for user accounts and routines)
+│
+├── frontend/                   (Directory: V2 Custom Web App)
+│   ├── index.html              (Original HTML app shell)
+│   ├── style.css               (Original CSS styling)
+│   ├── script.js               (Original Vanilla JS logic)
+│   ├── skinbiee.html           (Updated HTML shell specific for Skinbiee integration)
+│   ├── skinbiee.css            (Updated CSS for Skinbiee)
+│   ├── skinbiee.js             (Updated Vanilla JS logic with API integrations)
+│   └── assets/                 (Directory: Frontend images and icons)
+│       ├── mascot-done.png     (Mascot completion state image)
+│       ├── scan-face.png       (Scan instruction graphic)
+│       └── ...                 (Various transparent PNGs, mascots, etc.)
+│
+├── models/                     (Directory: Saved ML weights)
+│   └── skin_model.h5           (TensorFlow MobileNetV2 compiled model)
+│
+├── modules/                    (Directory: Python helper modules)
+│   ├── auth.py                 (User registration and login using SQLite)
+│   ├── history_db.py           (SQLite interface for tracking routines/scans)
+│   ├── mascot_chatbot.py       (Rule-based NLP using chat_data.json)
+│   ├── ocr_utils.py            (EasyOCR implementation for product scanning)
+│   ├── product_scanner.py      (Product ingredient analyzer scoring logic)
+│   ├── recommendations.py      (JSON reader for ingredient_db.json)
+│   ├── routine_builder.py      (Rule engine for generating daily skincare routines)
+│   └── tracker.py              (Streak calculation and Pandas data aggregation)
+│
+└── notebooks/                  (Directory: Data science and training scripts)
+    └── train_mock_model.py     (TF/Keras script simulating MobileNetV2 training)
 
-### [AI & Logic Modules]
-- **models/skin_model.h5**: The actual "trained brain." This file contains the patterns the AI learned to recognize skin concerns like acne or dryness.
-- **modules/auth.py**: Handles user login and account creation logic on the backend.
-- **modules/mascot_chatbot.py**: The logic that makes the mascot speak like a friend and respond to your messages.
-- **modules/ocr_utils.py**: A helper tool that helps the app "read" the text on product ingredient labels.
-- **modules/product_scanner.py**: Connects the text reading tool to our database to tell you if a product is safe.
-- **modules/recommendations.py**: The logic that suggests which products or routines you should use based on your skin type.
-- **modules/routine_builder.py**: Helps you create a step-by-step skincare plan (Morning and Night).
-- **modules/tracker.py**: Keeps track of your daily progress and "streaks" to keep you motivated.
+================================================================================
+PART 3: BACKEND SERVICES LITERALLY LINE-BY-LINE EXPLANATION
+================================================================================
 
-### [Data & Storage]
-- **data/chat_data.json**: A file that stores the history of your conversations with the mascot.
-- **data/ingredient_db.json**: A database of common skincare ingredients and whether they are "good" or "bad" for certain skin types.
-- **data/products.csv**: A list of various skincare products that the app can recommend.
-- **data/skin_history.db**: A database that saves your past skin scans so you can see your progress over time.
+3.1 analysis_server.py
+-----------------------
+This file provides the primary bridge between the Javascript frontend and the 
+heavy Python ML/OCR libraries. It uses Flask and flask_cors.
 
-### [Assets - Images & Icons]
-- **assets/blue-flame.png**: The soft sky-blue icon used to show your daily "streak" (how many days in a row you've used the app).
-- **assets/girl_normal.png**: The standard "happy" version of your mascot buddy.
-- **assets/girl_thumbs.png**: The mascot giving a "thumbs up" when you finish a task.
-- **assets/scan-face.png**: The illustration used for the "Scan Your Face" feature.
-- **assets/scan-product.png**: The illustration used for the "Scan Your Product" feature.
-- **assets/timeline-icon.png**: The icon used for the scan history section.
+Imports:
+- `Flask, request, jsonify` for HTTP routing.
+- `CORS` to allow requests from the Port 8001 frontend server.
+- `tensorflow as tf` and `numpy as np` for the skin condition classifier.
+- `PIL.Image` and `io` for handling incoming multipart/form-data images.
+- `ocr_utils` and `product_scanner` from `modules`.
 
-## What we have built so far
-- **AI Skin Analyzer**: You can upload a photo and get an instant report on concerns like acne or dryness.
-- **Product Ingredient Scanner**: You can take a photo of a bottle, and the app will "read" it and tell you if it's safe for your skin.
-- **Interactive Mascot**: A friendly buddy that reacts to your actions and chats with you like a "best friend."
-- **Daily Planner**: A checklist for your morning and night routines that tracks your consistency.
-- **Streak System**: A blue flame that grows as you use the app every day.
-- **Dual-Server Setup**: A robust backend that handles heavy AI tasks while the frontend stays fast and smooth.
+Initialization:
+- Creates `app = Flask(__name__)`
+- Enables CORS with `CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)`
 
-## What we trained and how
-We trained our skin analysis models using a technique called "Deep Learning."
-1. **The Data**: We used thousands of photos of different skin types and conditions (like acne, eczema, or healthy skin) that were labeled by experts.
-2. **The Training**: We "showed" these images to a computer program (a Neural Network) until it learned to recognize the tiny patterns that distinguish one skin condition from another.
-3. **The Result**: We saved this "knowledge" into the `skin_model.h5` file. Now, when you upload a photo, the app compares your photo to everything it learned and gives you an honest assessment.
+Model Loading Wrapper:
+- The global variable `SKIN_MODEL = None` acts as a cache.
+- `get_model()` function:
+  - Tries to load `../models/skin_model.h5` inside a `try/except` block.
+  - If loading fails (e.g., FileNotFound or bad compilation), it returns `None` 
+    and prints to the console.
 
-## What is coming next
-- **Personalized Product Links**: Directly connecting your analysis results to where you can buy the best products for you.
-- **Community Glow-Up**: A safe space to share progress and tips with other users.
-- **Deeper Routine Customization**: More complex routines for people who want 10-step K-Beauty styles or specialized treatments.
-- **Enhanced Chat Memory**: Making the mascot even smarter so it remembers your skin's birthday or your favorite products!
+Endpoints:
+1. `GET /api/health`
+   - Returns `{"status": "ok", "message": "Skinbiee AI Backend is running"}`. 
+   - Used by frontend to verify backend connection.
 
-## How everything connects
-Everything in Skinbiee works together like a team:
-1. **The Analyzer** sends your skin data to the **Chatbot**, so the mascot can say, "Hey, I noticed your skin is a bit dry today!"
-2. **The Scan History** connects to the **Timeline**, allowing you to see how your skin has improved over weeks of using the app.
-3. **The Recommendations** take your AI scan results and automatically suggest new steps for your **Daily Planner**.
-4. **The Mascot** is the "heart" of the app, connecting every screen and keeping you motivated with friendly reminders and cheers.
+2. `POST /api/analyze-skin`
+   - Accepts a `multipart/form-data` payload containing an `image` file.
+   - If no image is provided, returns HTTP 400 `{"error": "No image provided"}`.
+   - Calls `get_model()` to retrieve the MobileNetV2 model.
+   - If `SKIN_MODEL` is None, it falls back to a massive mock-data block:
+     - Returns randomly chosen mocked results like `[{"concern": "Acne", "confidence": 0.88, "severity": "Moderate"}]`.
+   - If `SKIN_MODEL` successfully loads:
+     - Reads the bytes using `file.read()`.
+     - Opens via `Image.open(io.BytesIO(img_bytes)).convert('RGB')`.
+     - Resizes the image to 224x224 (the required input shape for MobileNetV2).
+     - Converts to a numpy array, expands dimensions to shape `(1, 224, 224, 3)`, 
+       and normalizes pixels by dividing by 255.0.
+     - Calls `SKIN_MODEL.predict(img_array)`.
+     - Maps the resulting 5-element softmax array to the class labels:
+       `['Acne', 'Dark Spots', 'Dryness', 'Normal', 'Oiliness']`.
+     - Sorts the predictions by confidence in descending order.
+     - Defines severity rules: 
+       >85% = Severe
+       65%-85% = Moderate
+       <65% = Mild
+     - Returns the top 2 conditions as a JSON list.
+
+3. `POST /api/analyze-product`
+   - Also takes a `multipart/form-data` `image` file.
+   - Reads the image bytes.
+   - Calls `modules.ocr_utils.extract_ingredients_from_image(img_bytes)`.
+   - The returned string represents the extracted text from the label.
+   - Calls `modules.product_scanner.analyze_ingredients_for_user(extracted_text, "Acne")`.
+     (Note: It hardcodes the target user concern as "Acne" in this implementation, 
+      which could be extended to take user preference as a POST parameter).
+   - Packs the result into a JSON response containing `status: success`, `ingredients`, 
+     and `analysis` objects. Returns HTTP 500 on internal errors.
+
+Finally, `if __name__ == '__main__': app.run(port=5000, debug=True)` fires up 
+the server on localhost port 5000.
+
+3.2 serve_skinbiee.py & serve.py
+--------------------------------
+These files are almost identical wrappers around Python's built-in `http.server`.
+- `serve_skinbiee.py` specifically exists inside the root but changes its working 
+  directory to `frontend/`.
+- It uses `os.chdir(frontend_dir)` relative to `os.path.dirname(__file__)`.
+- It instantiates `http.server.SimpleHTTPRequestHandler`.
+- It binds to `PORT = 8001` with `socketserver.TCPServer(("", PORT), Handler)`.
+- Includes a friendly output string indicating that the user should navigate 
+  to `http://localhost:8001/skinbiee.html`.
+
+3.3 START_AI_APP.bat / FRESH_START.bat
+--------------------------------------
+Batch scripts explicitly meant for Windows users to avoid manually typing terminal 
+commands.
+- `START_AI_APP.bat` uses `start /B python analysis_server.py` and `serve_skinbiee.py`
+  to run them in background threads within the same console window.
+- `FRESH_START.bat` is more robust. It first runs `taskkill /F /IM python.exe /T 2>nul`
+  to violently terminate all existing Python processes, preventing Port 5000 / 8001 
+  "address already in use" errors. It then uses `start "AI_BACKEND" cmd /c "..."` 
+  to open them in separate, dedicated terminal windows, making debugging stdout 
+  easier. It finally auto-opens the browser to `localhost:8001/skinbiee.html`.
+
+================================================================================
+PART 4: CORE PYTHON MODULES EXHAUSTIVE ANALYSIS
+================================================================================
+
+4.1 modules/history_db.py
+-------------------------
+The fundamental database layer orchestrating local persistent storage via `sqlite3`.
+Target Database File: `../data/skin_history.db`
+Functions:
+- `init_db()`: 
+  Executed automatically. Checks if the `data` directory exists; if not, creates it.
+  Connects to `skin_history.db`.
+  Executes three CREATE TABLE statements if they don't exist:
+    1. `users` (id, username UNIQUE, password_hash, created_at)
+    2. `scans` (id, user_id, date_time, condition, confidence, severity, snapshot_path)
+    3. `daily_logs` (id, user_id, date, am_done, pm_done, skin_feeling, notes)
+    4. `routines` (id, user_id, routine_type(AM/PM), step_order, product_name)
+- `add_scan(user_id, condition, confidence, severity, path)`:
+  Inserts a new row into the `scans` table. Returns `True` on success.
+- `get_user_scans(user_id)`:
+  Retrieves chronologically descending scans for a specific user.
+- `log_routine(user_id, date, am_done, pm_done, skin_feeling, notes)`:
+  Uses an `UPSERT` pattern. It tries `SELECT id FROM daily_logs WHERE user_id=? AND date=?`.
+  If it exists, it `UPDATE`s the row. If not, it runs an `INSERT INTO`. 
+- `get_daily_logs(user_id)`:
+  Fetches all daily log entries for a user and parses them into a Pandas DataFrame, 
+  specifying columns: `['id', 'user_id', 'date', 'am_done', 'pm_done', 'skin_feeling', 'notes']`.
+- `save_user_routine(user_id, am_steps, pm_steps)`:
+  Deletes the existing configured routine (`DELETE FROM routines WHERE user_id=?`).
+  Iterates over `am_steps` and `pm_steps` lists to `INSERT` new steps with 
+  their specific order (integer starting from 1).
+- `get_user_routine(user_id)`:
+  Selects steps from `routines` table, orders them by `step_order`, and returns 
+  a dictionary `{'AM': [...], 'PM': [...]}`.
+
+4.2 modules/auth.py
+-------------------
+Handles simplistic user authentication without heavy frameworks like JWT.
+Uses built-in `hashlib` to create SHA-256 hashes of passwords.
+- `hash_password(password)`: Returns `.hexdigest()`. Note: No salting is implemented.
+- `register_user(username, password)`:
+  Hashes password. Attempts `INSERT INTO users (username, password_hash)` via 
+  a `sqlite3` connection to `history_db.db`. If an `IntegrityError` (duplicate 
+  username) occurs, it catches it and returns `False`.
+- `login_user(username, password)`:
+  Queries `SELECT id, username FROM users WHERE username=? AND password_hash=?`.
+  Returns a dictionary `{'id': row[0], 'username': row[1]}` or `None`.
+
+4.3 modules/ocr_utils.py
+------------------------
+Exposes `extract_ingredients_from_image(image_bytes: bytes) -> str`
+- Imports `easyocr`, `io`, `numpy`, `PIL.Image`.
+- Wraps execution in a massive `try/except`.
+- Instantiates `reader = easyocr.Reader(['en'], gpu=False)`. 
+  (Loads EasyOCR model into system RAM instead of VRAM to ensure broader compatibility).
+- Converts `image_bytes` to a `np.array` in `RGB` format.
+- Passes the array to `reader.readtext(image_np)`.
+- Iterates over the OCR output `(bbox, text, prob)` tuples.
+- Filters out any text with a confidence score `< 0.3`.
+- Reconstructs the string by joining the filtered text array with `", "`.
+- Returns the final combined string. If an error occurs, prints and returns `""`.
+
+4.4 modules/product_scanner.py
+------------------------------
+The brains behind analyzing the extracted OCR text against known skin rules.
+- Contains massive internal dictionary mock representing known properties:
+  `KNOWN_INGREDIENTS = { "salicylic acid": { "type": "BHA", "benefits": [...], ... } }`
+  Defines properties for: "niacinamide", "salicylic acid", "hyaluronic acid", 
+  "fragrance", "alcohol denat", "ceramides", "vitamin c", "retinol".
+- `analyze_ingredients_for_user(ingredients_text, user_concern="acne")` is the 
+  core orchestration function.
+- Processing:
+  - Takes the OCR text, lowercases it.
+  - Generates lists called `found_helpers` and `found_irritants`.
+  - Searches the text. If "salicylic acid" is found, and user concern is "acne", 
+    it adds it to `found_helpers`.
+  - Checks for generic irritants like "fragrance", "parfum", "alcohol denat", 
+    "essential oil" and appends them to `found_irritants`.
+- Scoring Calculation:
+  - Starts with a base score of 70.
+  - Adds 10 points for every helper found.
+  - Deducts 15 points for every irritant found.
+  - Clamps the score between 0 and 100 via `max(0, min(100, score))`.
+- Recommendation Logic:
+  - `score >= 80` -> 'Good Fit'
+  - `50 <= score < 80` -> 'Acceptable'
+  - `< 50` -> 'Not Recommended'
+- Compiles the final report text indicating what it found, and returns a dict with 
+  `score`, `helpers_found`, `irritants_found`, and `recommendation`.
+
+4.5 modules/mascot_chatbot.py
+-----------------------------
+A highly capable rule-based NLP engine mimicking an AI chat application.
+- `load_chat_data()`: Reads `../data/chat_data.json`, which contains intent schemas.
+- Takes stateful variables like `username`, `current_condition`, and `streak`.
+- `get_response(user_input, username, condition, streak)`:
+  - Lowercases and scrubs punctuation from `user_input`.
+  - Iterates through every intent block in `chat_data.json`.
+  - Checks if any of the keywords in the block exist as whole words inside 
+    `user_input` using regex boundaries (`\b(keyword)\b`).
+  - Creates a list of matched intents and counts the number of keywords hit per intent.
+  - Selects the intent with the highest hit count.
+  - If no intent matches, defaults to the "fallback" intent.
+  - Chooses a random response string from the winning intent's array.
+  - Substitutes template variables: `{name}`, `{condition}`, `{streak}` using Pythons 
+    `.replace()` method.
+- `render_floating_mascot()`: A Streamlit-specific function using `st.markdown` 
+  to inject HTML containing fixed absolute positioned CSS to render a floating 
+  button inside the legacy python app. Takes advantage of `st.session_state`.
+
+4.6 modules/recommendations.py
+------------------------------
+Helper module strictly for reading the JSON database of recommendations.
+- `get_recommendations_for_condition(condition)`:
+  Opens `../data/ingredient_db.json`. Validates `condition`. Returns a nested dict containing 
+  two lists: `recommended` and `avoid`, populated with JSON object data from the database.
+- `get_all_conditions()`: Returns a list of keys: `['acne', 'dry_skin', ...]`
+
+4.7 modules/routine_builder.py
+------------------------------
+Contains deterministic logic to generate AM/PM skincare routines based on user params.
+- `generate_routine(condition, time_available, sensitive, daily_spf)`:
+  Initialize `am_steps` and `pm_steps` arrays.
+  
+  **AM Logic:**
+  - Base step 1: Gentle Cleanser.
+  - If time is NOT "< 5 min":
+      - condition "acne"/"oily_skin" -> Adds Treatment (Niacinamide/BHA).
+      - condition "dark_spots" -> Adds Vitamin C.
+      - condition "dry_skin" -> Adds Hyaluronic Acid.
+  - Base step 2: Moisturizer.
+  - Base step 3: Sunscreen. (Updates description if `daily_spf` is True/False).
+
+  **PM Logic:**
+  - If `daily_spf` is True or time > 5 min -> Adds double cleansing (Oil Cleanser).
+  - Base step 2: Water-based cleanser.
+  - If time NOT "< 5 min" AND `sensitive` is False:
+      - condition "acne" -> Exfoliant (Salicylic acid).
+      - condition "dry_skin" -> Hydrating essences.
+      - condition "dark_spots" -> Renewal (Retinol/AHA).
+  - Base step 3: Night Cream/Moisturizer.
+  
+  Returns the computed dictionaries mapped to AM and PM respectively.
+
+4.8 modules/tracker.py
+----------------------
+Handles data aggregation using Pandas.
+- `calculate_streak_and_consistency(user_id)`:
+  Loads data using `history_db.get_daily_logs(user_id)`.
+  If empty DataFrame, returns streak=0, consistency=0.0.
+  Converts `date` column using `pd.to_datetime()`.
+  Sorts table by date descending.
+  Iterates over the sorted table starting from `pd.Timestamp.now().normalize()`.
+  Checks if the row date matches the expected consecutive date (`current_check - 1 day`).
+  If either `am_done` or `pm_done` is 1, increments `streak`.
+  Breaks loop immediately on a missed day.
+  Calculates `consistency` as a percentage: `(completed_events / (total_days * 2)) * 100`.
+  Returns `(streak, consistency)` tuple.
+
+================================================================================
+PART 5: DATA AND ML MODELS (data/ & notebooks/ & models/)
+================================================================================
+
+5.1 notebooks/train_mock_model.py
+---------------------------------
+This file visually represents how the model at `models/skin_model.h5` was generated.
+- Defines classes: `['acne', 'dark_spots', 'dry_skin', 'normal_skin', 'oily_skin']`.
+- Base Model: Uses `tf.keras.applications.MobileNetV2` because it's highly optimized 
+  for mobile performance and lightweight classification tasks. It loads pre-trained 
+  ImageNet weights, strips the top dense layer (`include_top=False`), and requires 
+  a `(224, 224, 3)` dimensional input.
+- Freezes base model parameters `base_model.trainable = False`.
+- Appends Custom Classification Head:
+  - `GlobalAveragePooling2D()` to flatten the spatial dimensions.
+  - `Dense(128, activation='relu')` for intermediate representation learning.
+  - `Dropout(0.3)` to randomly drop 30% of connections to prevent overfitting.
+  - `Dense(5, activation='softmax')` mapped directly to the 5 skin condition classes.
+- Compilation: Uses `Adam` optimizer at `0.001` learning rate with `categorical_crossentropy`.
+- Mock Execution: Creates a purely random `np.random.rand(10, 224, 224, 3)` array to 
+  act as dummy data to force TensorFlow to initialize the graph variables.
+- Executes 1 dummy epoch using `model.fit()`.
+- Saves output immediately to `models/skin_model.h5`. 
+  (Note: Because it's trained on random static noise for 1 epoch, the model is architecturally 
+  sound but provides random predictions in practice — hence the term "mock" model).
+
+5.2 data/chat_data.json
+-----------------------
+A 254-line JSON tree mapping exact intent queries. Exposes 21 intents:
+`greeting`, `acne`, `dry_skin`, `oily_skin`, `dark_spots`, `niacinamide`, `retinol`, 
+`spf`, `routine`, `streak`, `navigation`, `thanks`, `bad_skin_day`, `bye`, 
+`vitamin_c`, `hyaluronic_acid`, `ceramides`, `salicylic_acid`, `benzoyl_peroxide`, 
+`scan`, `scan_result`, `planner`, `dashboard`, `product_scanner`, `routine_builder`, 
+`settings`, `privacy`, `dermatologist`, `compliment_app`, `milestone`, `fallback`.
+
+Each intent has a `"keywords"` array and a `"responses"` array. Certain responses 
+embed contextual metadata bindings using `{name}`, `{condition}` and `{streak}`.
+
+5.3 data/ingredient_db.json
+---------------------------
+Maps exactly 5 keys corresponding to the MobileNetV2 outputs: 
+`acne`, `dry_skin`, `oily_skin`, `dark_spots`, `normal_skin`.
+Each key contains a `"recommended"` array of objects mapping `name`, `benefit`, `source` 
+(e.g., {"name": "Salicylic Acid", "benefit": "Exfoliates...", "source": "AAD"}).
+And an `"avoid"` array of objects mapping `name` and `reason`
+(e.g., {"name": "Lanolin", "reason": "Often too emollient for oily types"}).
+
+5.4 data/products.csv
+---------------------
+Comma-separated values containing 8 mock products. Headers:
+`product_id, product_name, brand, target_condition, ingredients, price_inr, notes`.
+Maps items like "CeraVe Acne Control Cleanser" to conditions `"acne,oily_skin"` 
+and explicitly lists ingredients for potential parsing later.
+
+================================================================================
+PART 6: FRONTEND ARCHITECTURE AND COMPONENTS (Skinbiee V2)
+================================================================================
+
+The directory `frontend/` contains two sets of applications. 
+The V1 legacy (`index.html`, `script.js`, `style.css`) and 
+the V2 current (`skinbiee.html`, `skinbiee.js`, `skinbiee.css`).
+Focusing exclusively on the V2 Skinbiee application, since it actively integrates 
+with the Port 5000 REST APIs.
+
+6.1 skinbiee.html DOM Structure
+-------------------------------
+The SPA uses a `<main class="content-area" id="main-content">` to hold `<section>` tags.
+Only one `<section>` tag possesses the `class="view active"` property at any given time.
+Transitioning between views simply hides/shows sections using CSS display manipulation.
+
+**Section Structure:**
+- `#view-auth`:
+  - Contains Mascot intro animations (`.mascot-blob`).
+  - Contains `.kawaii-form` with ID mapped inputs `auth-username`, `auth-email`, `auth-password`.
+  - Toggles between Signup/Login via JS.
+- `#view-onboarding`:
+  - 4 individual sub-steps (`#ob-step-1` through `#ob-step-4`) asking for demographics, 
+    skin type, routine habits, and budget via `.pill-group` customized radio buttons.
+  - Uses `data-val` tags in the HTML to extract user-chosen values directly.
+- `#view-home`:
+  - Main hero space featuring a massive, centralized mascot (`.hero-mascot-large`).
+  - `.home-actions-clean` grid offering 4 main action blocks: Analyze, Planner, 
+    Streak (populated dynamically), and Settings.
+- `#view-analyzer`:
+  - Complex nested view. Contains a root menu (`#analyzer-main-dashboard`) granting 
+    access to three sub-views: `#sub-skin-analysis`, `#sub-ingredient-scanner`, `#sub-timeline`.
+  - Each analyzer heavily utilizes hidden `<input type="file" accept="image/*">` mapped 
+    to styled custom buttons (`#btn-skin-camera-sb`).
+  - Integrates 4 separate states: input, preview, processing, results. It displays 
+    `#skin-processing-state-sb` containing an animated thinking mascot when waiting 
+    on the Flask local API.
+- `#view-planner`:
+  - Integrates an overlay system (`#planner-overlay-container`).
+  - Renders a purely Javascript-driven calendar grid (`#planner-calendar-grid`).
+  - Allows uploading selfies specifically tied to routine completion.
+- `#view-settings`:
+  - Visual display for theming (`[data-theme="dark"]`), color options, and dummy 
+    "Export Data" functionalities.
+- `Chat Overlay & Fullscreen` (`#chat-panel`, `#chat-fs-panel`):
+  - Injected at the root DOM level. It overlays the current view.
+  - Represents GlowBot interactions.
+
+6.2 skinbiee.css (Styling and Design System)
+--------------------------------------------
+At an immense 2,148 lines of code, it defines a rigid, highly polished "Glassmorphism Kawaii" 
+aesthetic mapped heavily to CSS variables.
+
+**Design Tokens:**
+Uses the `:root` pseudo-class to define themes.
+- Dark mode overrides via `[data-theme="dark"]`, flipping background scales dynamically:
+  Light: `--bg-app: #eef6fc;` | Dark: `--bg-app: #0f172a;`
+  Light primary text is `#2d3748`, dark mode flips to `#f8fafc`.
+  Provides specific token arrays for `accent-blue`, `accent-pink`, `accent-green`, `accent-orange`.
+
+**Layout Enforcements:**
+- Uses `.app-container` with `max-width: 480px; margin: 0 auto;`. This restricts the 
+  viewport to mimic a mobile application shell even on a 1080p desktop monitor. 
+- Overflows horizontally are hidden `overflow-x: hidden;`.
+
+**Animation Signatures:**
+The core identity of Skinbiee relies heavily on CSS Keyframe animations injected 
+into pure HTML/CSS generic shapes (making up the mascot).
+- `blobBounce`: Transforms the border-radius from `45% 55% 40% 60% / ...` to `55% 45% 60% ...` 
+  and applies a translate to make the mascot look like it breathes/bounces.
+- `happyJump`: Fast jumping animation mapping to 0-50-100 keyframes scaling up `scale(1.05)`.
+- `thinkSway`: Rotates left and right 5 degrees simulating pondering natively.
+- `blink`: Hard transformation on the scale axis `scaleY(0.1)` happening at 97% 
+  timeline duration to perfectly mimic a fast eye blink.
+
+**UI Elements:**
+- `.card-glass`: Employs `-webkit-backdrop-filter: blur(12px)` and heavy rgba border.
+- `.primary-btn`: Standardized button format overriding native button styling, creating 
+  a heavily rounded pill with `box-shadow` matching the primary blue token tint.
+- Form Inputs (`.kawaii-input`): Borderless aesthetic inputs that light up an inner 
+  box-shadow mimicking a glow when focused (`:focus { box-shadow: 0 0 0 4px ... }`).
+
+6.3 skinbiee.js (Global Client-Side Application State)
+------------------------------------------------------
+At 1,426 lines of JS, this file controls everything inside the SPA shell.
+
+**State Machine:**
+`const state = { view: 'auth', theme: 'light', mascotColor: 'blue', username: 'Melani', ...}`
+Tracks global properties and mutates them directly.
+
+**Initialization:**
+`init()` runs immediately on page load tying listeners to `document.body` and DOM nodes.
+
+**Routing Engine:**
+`switchView(viewName)` hides all `<section>` tags except for the targeted id. 
+If hitting `auth` or `onboarding`, it forcefully hides the top-bar and bottom-nav 
+to enforce focus.
+
+**Theme Logic:**
+`toggleTheme()`: Reads `state.theme` and flips it. Overwrites the `<body data-theme="...">` 
+property, allowing CSS natively to overwrite via cascading precedence. Updates `localStorage`.
+
+**Profile Logic:**
+`saveUserProfile()` and `loadUserProfile()` stringify and compress raw JavaScript objects 
+into `localStorage['sc-user-profile']`. 
+`applyUserProfile()` forces the DOM (like `#user-display-name`) to match the DB string.
+
+**REST API Integration (`setupAnalyzer` logic):**
+- Selects the DOM elements mapped to the "-sb" (SkinBiee) IDs (`btn-analyze-skin-sb`).
+- Prevents submission if no file exists.
+- Swaps view specifically to `skin-processing-state-sb` and calls `triggerMascotAnim('thinking')`.
+- Instantiates `new FormData()` and appends the raw `<input type="file">` Blob.
+- Uses standard JS `fetch()` to `http://127.0.0.1:5000/api/analyze-skin` using POST.
+- Awaits resolution. If `data.status === 'success'`, it triggers a DOM manipulation sequence.
+- **Result Rendering:**
+  `renderSkinResultsSB()` captures the returned array mapping to concern confidences. 
+  It iterates over the objects, creating innerHTML cards mapping to CSS classes defining borders 
+  and alert statuses. It also dynamically attaches an Amazon affiliated search query recommendation 
+  grid mapped specifically to the reported concerns via the internal `PRODUCT_MAP` constant.
+
+**Planner Generation Engine:**
+`plannerState` manages complex calendar integrations.
+- It parses a JSON struct of `planner-scans` allowing localized history building.
+- `renderPlannerDashboard()` dynamically builds a JavaScript Date object grid 
+  representing the current month, flagging the current day with specialized `.calendar-day.today` properties.
+- `finishChecklist()` calculates routine completeness and adds exactly +1 to `plannerState.streak`.
+
+**Floating Mascot Chat System:**
+`setupMascotChat()`
+- Binds to the floating chat head button.
+- Expands the `#chat-panel` via a bottom CSS transition.
+- Listens to `#chat-send-compact` clicks or enter key presses (`e.key === 'Enter'`).
+- Injects a `user-bubble` string into `#chat-history-compact`.
+- Captures `chatData` (pre-loaded from `chat_data.json` equivalent inside JS or directly polled).
+- The JS engine actually re-implements the Python rule-based NLP block manually inside the client 
+  so that it can execute locally without hitting the server:
+  - Scans `userMsg.toLowerCase()`.
+  - Loops over `Object.keys(chatDB)`.
+  - Determines match intent.
+  - Modifies `{name}` to `state.username`, etc.
+  - Randomly selects a response array index.
+  - Wraps generation in a `setTimeout` creating a simulated 800ms "typing..." delay.
+  - Injects `mascot-bubble` to DOM.
+  - Focuses document scroll view to the bottom.
+
+================================================================================
+PART 7: UNIQUE ARCHITECTURAL HIGHLIGHTS
+================================================================================
+- **Complete Decoupling**: The architecture strictly decouples standard web logic from Python execution. 
+   The Flask server does absolutely ZERO template rendering. It exclusively consumes JSON/Multipart 
+   and spits out JSON, meaning the frontend could theoretcially be swapped for a native React Native 
+   iOS app tomorrow without changing a single line of Python.
+- **Client-Side Data Governance**: All PII (Personally Identifiable Information) including names, routines, 
+   tracking streaks, and the calendar timeline are intentionally kept in the browser `localStorage` and NEVER 
+   transmitted to Flask. Flask explicitly only acts as a stateless analysis engine. The `.bat` scripts ensure 
+   the Flask environment remains fully sandboxed.
+- **In-Memory ML Fallbacks**: In scenarios where TensorFlow environments break, `analysis_server.py` implements 
+   a rigid bypass mock block, guaranteeing the frontend will NEVER throw unhandled HTTP 500 errors to the user.
+- **Mascot Animation Implementation**: The mascot design defies typical conventions by mapping absolutely no 
+  bitmaps/images. All expressions (happy, thinking, surprised, sad, blinking) are calculated in pure generic CSS 
+  blocks targeting DOM nodes (`.eye.left`, `.mouth`). This significantly reduces loading overhead to byte-levels.
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
