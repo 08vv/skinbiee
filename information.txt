@@ -1,0 +1,81 @@
+# SKINBIEE APP INFORMATION
+
+## What is this app?
+The app is called Skinbiee (also known as SkinCare Companion). It is a personalized skincare assistant designed for anyone who wants to take better care of their skin. In real life, people often struggle to understand what their skin needs or if a product is actually safe for them. Skinbiee solves this by using AI to analyze your face, scan product ingredients, and help you build a consistent daily routine that actually works. It turns a confusing process into a simple, friendly journey with the help of a cute mascot buddy.
+
+## What the app is made of
+Skinbiee is built with a mix of modern and reliable tools:
+- **Languages**: We used HTML for the structure, CSS for the beautiful "Kawaii" look (soft colors and smooth animations), and JavaScript for all the interactive parts you click on.
+- **Backend (Server)**: We used Python with a "Flask" framework. This acts as the "brain" that runs our AI models and handles technical tasks behind the scenes.
+- **AI Tools**: We used "TensorFlow" to run our skin analysis models and "EasyOCR" to read text from product labels.
+- **Packages**: We installed specific libraries like `flask-cors` (to let the app talk to the server) and `opencv` (to help the computer "see" images).
+
+## Every single file in the project
+Here is a breakdown of every important file we built:
+
+### [Automation & Root Scripts]
+- **FRESH_START.bat**: The main "Easy Start" button. Double-clicking this cleans up old tasks and launches the entire app and AI server at once.
+- **START_AI_APP.bat**: A backup script specifically for starting the AI backend and the app together.
+- **REPAIR_AND_RUN.bat**: A special tool that checks if your computer has all the right "packages" installed and fixes them before running the app.
+- **analysis_server.py**: The core Python server that handles AI requests. It takes the photos you upload and sends back analysis results.
+- **serve_skinbiee.py**: A simple server that "hosts" the website files so you can view them in your browser.
+- **requirements.txt**: A simple list of all the technical tools (libraries) the app needs to run.
+- **RUN.md**: An instruction manual for developers on how to set up and run the project manually.
+
+### [Frontend - The User Interface]
+- **frontend/index.html**: The main entry point of the app. It contains the layout for the Home, Analyzer, and Settings screens.
+- **frontend/skinbiee.html**: A specialized "standalone" version of the app used for specific features and testing.
+- **frontend/style.css**: The "makeup" of the app. It defines all the soft blue colors, rounded corners, and cute mascot animations.
+- **frontend/script.js**: The main "activity" file for index.html. It handles clicking buttons, switching tabs, and talking to the AI.
+- **frontend/skinbiee.js**: The "activity" file for skinbiee.html. It ensures the analyzer and chatbot work perfectly in that view.
+
+### [AI & Logic Modules]
+- **models/skin_model.h5**: The actual "trained brain." This file contains the patterns the AI learned to recognize skin concerns like acne or dryness.
+- **modules/auth.py**: Handles user login and account creation logic on the backend.
+- **modules/mascot_chatbot.py**: The logic that makes the mascot speak like a friend and respond to your messages.
+- **modules/ocr_utils.py**: A helper tool that helps the app "read" the text on product ingredient labels.
+- **modules/product_scanner.py**: Connects the text reading tool to our database to tell you if a product is safe.
+- **modules/recommendations.py**: The logic that suggests which products or routines you should use based on your skin type.
+- **modules/routine_builder.py**: Helps you create a step-by-step skincare plan (Morning and Night).
+- **modules/tracker.py**: Keeps track of your daily progress and "streaks" to keep you motivated.
+
+### [Data & Storage]
+- **data/chat_data.json**: A file that stores the history of your conversations with the mascot.
+- **data/ingredient_db.json**: A database of common skincare ingredients and whether they are "good" or "bad" for certain skin types.
+- **data/products.csv**: A list of various skincare products that the app can recommend.
+- **data/skin_history.db**: A database that saves your past skin scans so you can see your progress over time.
+
+### [Assets - Images & Icons]
+- **assets/blue-flame.png**: The soft sky-blue icon used to show your daily "streak" (how many days in a row you've used the app).
+- **assets/girl_normal.png**: The standard "happy" version of your mascot buddy.
+- **assets/girl_thumbs.png**: The mascot giving a "thumbs up" when you finish a task.
+- **assets/scan-face.png**: The illustration used for the "Scan Your Face" feature.
+- **assets/scan-product.png**: The illustration used for the "Scan Your Product" feature.
+- **assets/timeline-icon.png**: The icon used for the scan history section.
+
+## What we have built so far
+- **AI Skin Analyzer**: You can upload a photo and get an instant report on concerns like acne or dryness.
+- **Product Ingredient Scanner**: You can take a photo of a bottle, and the app will "read" it and tell you if it's safe for your skin.
+- **Interactive Mascot**: A friendly buddy that reacts to your actions and chats with you like a "best friend."
+- **Daily Planner**: A checklist for your morning and night routines that tracks your consistency.
+- **Streak System**: A blue flame that grows as you use the app every day.
+- **Dual-Server Setup**: A robust backend that handles heavy AI tasks while the frontend stays fast and smooth.
+
+## What we trained and how
+We trained our skin analysis models using a technique called "Deep Learning."
+1. **The Data**: We used thousands of photos of different skin types and conditions (like acne, eczema, or healthy skin) that were labeled by experts.
+2. **The Training**: We "showed" these images to a computer program (a Neural Network) until it learned to recognize the tiny patterns that distinguish one skin condition from another.
+3. **The Result**: We saved this "knowledge" into the `skin_model.h5` file. Now, when you upload a photo, the app compares your photo to everything it learned and gives you an honest assessment.
+
+## What is coming next
+- **Personalized Product Links**: Directly connecting your analysis results to where you can buy the best products for you.
+- **Community Glow-Up**: A safe space to share progress and tips with other users.
+- **Deeper Routine Customization**: More complex routines for people who want 10-step K-Beauty styles or specialized treatments.
+- **Enhanced Chat Memory**: Making the mascot even smarter so it remembers your skin's birthday or your favorite products!
+
+## How everything connects
+Everything in Skinbiee works together like a team:
+1. **The Analyzer** sends your skin data to the **Chatbot**, so the mascot can say, "Hey, I noticed your skin is a bit dry today!"
+2. **The Scan History** connects to the **Timeline**, allowing you to see how your skin has improved over weeks of using the app.
+3. **The Recommendations** take your AI scan results and automatically suggest new steps for your **Daily Planner**.
+4. **The Mascot** is the "heart" of the app, connecting every screen and keeping you motivated with friendly reminders and cheers.

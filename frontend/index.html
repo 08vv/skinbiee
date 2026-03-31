@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SkinCare Companion</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:,">
+</head>
+
+<body>
+    <div class="app-container" id="app">
+        <!-- TOP BAR -->
+        <header class="top-bar" id="top-bar" style="display: none;">
+            <div class="logo-area">
+                <span class="app-name">Skinbiee</span>
+                <span id="user-display-name" style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 10px; font-weight: 500;"></span>
+            </div>
+            <button class="icon-btn dark-mode-toggle" id="theme-toggle">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+        </header>
+
+        <!-- MAIN SCROLLABLE CONTENT AREA -->
+        <main class="content-area" id="main-content">
+            <!-- SECTION 3: AUTH FLOW (LOGIN/SIGNUP) -->
+            <section id="view-auth" class="view active">
+                <div class="auth-wrapper">
+                    <div class="auth-header">
+                        <h1>Skinbiee</h1>
+                        <p class="subtitle">Your personalized skincare journey</p>
+                    </div>
+
+                    <div class="mascot-auth-container">
+                        <div class="mascot-blob idle">
+                            <div class="mascot-face">
+                                <div class="eye left"></div>
+                                <div class="eye right"></div>
+                                <div class="mouth"></div>
+                                <div class="blush left"></div>
+                                <div class="blush right"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="auth-form" class="kawaii-form">
+                        <div class="input-group" id="username-group">
+                            <input type="text" id="auth-username" placeholder="Username" required>
+                        </div>
+                        <div class="input-group signup-only">
+                            <input type="email" id="auth-email" placeholder="Email address">
+                        </div>
+                        <div class="input-group">
+                            <input type="password" id="auth-password" placeholder="Password" required>
+                            <button type="button" class="eye-toggle"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                        <div class="forgot-link login-only" style="display:none;">
+                            <a href="#">Forgot Password?</a>
+                        </div>
+
+                        <button type="submit" class="primary-btn full-width mt-4" id="auth-submit-btn">Create
+                            Account</button>
+                    </form>
+
+                    <div class="divider"><span>or</span></div>
+
+                    <button class="google-btn full-width">
+                        <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png"
+                            alt="Google" style="width: 20px; height: 20px; margin-right: 8px;">
+                        Continue with Google
+                    </button>
+
+                    <p class="auth-switch mt-4" id="auth-switch-text">
+                        Already have an account? <a href="#" id="auth-switch-link">Log In</a>
+                    </p>
+                </div>
+            </section>
+
+            <!-- SECTION 4: ONBOARDING -->
+            <section id="view-onboarding" class="view">
+                <div class="onboarding-header">
+                    <button class="icon-btn back-btn" id="ob-back" style="visibility: hidden"><i
+                            class="fa-solid fa-arrow-left"></i></button>
+                    <div class="ob-progress">Step <span id="ob-step-num">1</span> of 4</div>
+                    <div class="header-spacer"></div>
+                </div>
+
+                <div class="ob-mascot-container">
+                    <div class="mascot-blob idle smaller" id="ob-mascot">
+                        <div class="mascot-face">
+                            <div class="eye left"></div>
+                            <div class="eye right"></div>
+                            <div class="mouth"></div>
+                            <div class="blush left"></div>
+                            <div class="blush right"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ob-content">
+                    <!-- Step 1 -->
+                    <div class="ob-step active" id="ob-step-1">
+                        <h2>Let's start with basics!</h2>
+                        <div class="form-group">
+                            <label>What is your age?</label>
+                            <input type="number" id="ob-age" min="13" max="80" placeholder="e.g. 25"
+                                class="kawaii-input">
+                        </div>
+                        <div class="form-group">
+                            <label>What is your gender?</label>
+                            <div class="pill-group single-select" data-target="ob-gender">
+                                <button class="pill" data-val="Female">Female</button>
+                                <button class="pill" data-val="Male">Male</button>
+                                <button class="pill" data-val="Non-binary">Non-binary</button>
+                                <button class="pill" data-val="Prefer not to say">Prefer not to say</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="ob-step" id="ob-step-2">
+                        <h2>Skin Basics</h2>
+                        <div class="form-group">
+                            <label>What is your skin type?</label>
+                            <div class="pill-group single-select" data-target="ob-skintype">
+                                <button class="pill" data-val="Oily">Oily</button>
+                                <button class="pill" data-val="Dry">Dry</button>
+                                <button class="pill" data-val="Combination">Combination</button>
+                                <button class="pill" data-val="Normal">Normal</button>
+                                <button class="pill" data-val="Not sure">Not sure</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Main skin concern?</label>
+                            <div class="pill-group multi-select" data-target="ob-concern">
+                                <button class="pill" data-val="Acne">Acne</button>
+                                <button class="pill" data-val="Dark spots">Dark spots</button>
+                                <button class="pill" data-val="Dryness">Dryness</button>
+                                <button class="pill" data-val="Anti-aging">Anti-aging</button>
+                                <button class="pill" data-val="Redness">Redness</button>
+                                <button class="pill" data-val="None">None</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Sensitive skin?</label>
+                            <div class="pill-group single-select" data-target="ob-sensitive">
+                                <button class="pill" data-val="Yes">Yes</button>
+                                <button class="pill" data-val="No">No</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="ob-step" id="ob-step-3">
+                        <h2>Current Habits</h2>
+                        <div class="form-group">
+                            <label>Have a skincare routine?</label>
+                            <div class="pill-group single-select">
+                                <button class="pill">Yes</button>
+                                <button class="pill">No</button>
+                                <button class="pill">Sometimes</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Wear sunscreen daily?</label>
+                            <div class="pill-group single-select">
+                                <button class="pill">Yes</button>
+                                <button class="pill">No</button>
+                                <button class="pill">Sometimes</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Using active ingredients?</label>
+                            <div class="pill-group single-select" id="ob-actives-toggle">
+                                <button class="pill" data-val="Yes">Yes</button>
+                                <button class="pill" data-val="No">No</button>
+                            </div>
+                            <input type="text" id="ob-actives-text" class="kawaii-input mt-2"
+                                placeholder="Which ones? (optional)" style="display:none;">
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="ob-step" id="ob-step-4">
+                        <h2>Preferences</h2>
+                        <div class="form-group">
+                            <label>Time per session?</label>
+                            <div class="pill-group single-select">
+                                <button class="pill">Quick (< 5m)</button>
+                                        <button class="pill">Medium (5-10m)</button>
+                                        <button class="pill">Full (10m+)</button>
+                            </div>
+                        </div>
+                        <div class="form-group flex-between">
+                            <label class="mb-0">Minimal Routine</label>
+                            <label class="switch">
+                                <input type="checkbox" id="ob-routine-type">
+                                <span class="slider round"></span>
+                            </label>
+                            <label class="mb-0 text-right">Multi-step</label>
+                        </div>
+                        <div class="form-group mt-4">
+                            <label>Monthly budget?</label>
+                            <div class="pill-group single-select">
+                                <button class="pill">Low</button>
+                                <button class="pill">Medium</button>
+                                <button class="pill">High</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Completion Step -->
+                    <div class="ob-step ob-complete" id="ob-step-done">
+                        <h1>You're all set!</h1>
+                        <p>Your personalized skincare companion is ready.</p>
+                    </div>
+                </div>
+
+                <div class="ob-footer">
+                    <button class="primary-btn full-width" id="ob-next-btn">Continue</button>
+                </div>
+            </section>
+
+            <section id="view-home" class="view">
+
+                <!-- 🧸 HERO MASCOT (FULL FOCUS) -->
+                <div class="home-hero">
+                    <div class="mascot-blob idle hero-mascot-large" id="home-mascot">
+                        <div class="mascot-face">
+                            <div class="eye left"></div>
+                            <div class="eye right"></div>
+                            <div class="mouth"></div>
+                            <div class="blush left"></div>
+                            <div class="blush right"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ⚡ ACTION GRID (2x2 Symmetric) -->
+                <div class="home-actions-clean">
+                    <!-- Row 1 -->
+                    <div class="action-card clean-card" onclick="switchTab('analyzer')">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Analyze</span>
+                    </div>
+
+                    <div class="action-card clean-card" onclick="switchTab('planner')">
+                        <i class="fa-solid fa-calendar-check"></i>
+                        <span>Planner</span>
+                    </div>
+
+                    <!-- Row 2 -->
+                    <div class="home-streak-card clean-card">
+                        <img src="assets/blue-flame.png" alt="Streak" class="home-streak-icon">
+                        <div class="streak-info">
+                            <span class="count" id="home-streak-count">5</span>
+                            <span class="label">Day Streak</span>
+                        </div>
+                    </div>
+
+                    <div class="home-settings-card clean-card" onclick="switchTab('settings')">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Settings</span>
+                    </div>
+                </div>
+
+                <div class="spacer-bottom"></div>
+            </section>
+
+            <!-- SECTION 6: TAB 2 ANALYZER -->
+            <section id="view-analyzer" class="view">
+                <div class="analyzer-view-container">
+                    <!-- Analyzer Dashboard (Action Cards) -->
+                    <div id="analyzer-main-dashboard" class="analyzer-dashboard">
+                        <div class="analyzer-card" onclick="openAnalyzerDetail('sub-skin-analysis')">
+                            <img src="assets/scan-face.png" alt="Scan Face">
+                            <span>Scan Your Face</span>
+                        </div>
+                        <div class="analyzer-card" onclick="openAnalyzerDetail('sub-ingredient-scanner')">
+                            <img src="assets/scan-product.png" alt="Scan Product">
+                            <span>Scan Your Product</span>
+                        </div>
+                        <div class="analyzer-card" onclick="openAnalyzerDetail('sub-timeline')">
+                            <img src="assets/timeline-icon.png" alt="Timeline">
+                            <span>Timeline</span>
+                        </div>
+                    </div>
+
+                    <!-- Detail Views (Hidden by default) -->
+                    <div id="analyzer-detail-view" style="display: none;">
+                        
+                        <!-- Skin Analysis Sub-mode -->
+                        <div class="sub-view" id="sub-skin-analysis" style="display: none;">
+                            <div class="sub-view-back-row">
+                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+                            </div>
+
+                            <div class="sub-view-visual-header">
+                                <img src="assets/scan-face.png" class="large-scan-illustration" alt="Face Scan Header">
+                            </div>
+
+                            <div class="input-state" id="skin-input-state">
+                                <div class="instruction-section">
+                                    <h3>Upload a photo to analyze</h3>
+                                    <p>For best results, use natural lighting and no makeup.</p>
+                                </div>
+
+                                <div class="centered-action-group">
+                                    <button class="secondary-btn" id="btn-skin-camera"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
+                                    <button class="secondary-btn" id="btn-skin-gallery"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
+                                </div>
+                                <p class="micro-text text-center mt-3">Max 5MB • JPG, PNG</p>
+                                <input type="file" id="skin-file-input" accept="image/*" hidden>
+
+                                <div class="preview-zone mt-4" id="skin-preview-zone" style="display:none;">
+                                    <div class="instruction-section mb-3">
+                                        <h3>Review your photo</h3>
+                                        <p>Make sure your face is clearly visible and well-lit.</p>
+                                    </div>
+                                    <div class="img-container">
+                                        <img src="" id="skin-img-preview" alt="Preview" style="width: 100%; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
+                                        <button class="icon-btn remove-img" id="remove-skin-preview" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border-radius: 50%; width: 32px; height: 32px;"><i class="fa-solid fa-xmark"></i></button>
+                                    </div>
+                                    <button class="primary-btn full-width mt-4" id="btn-analyze-skin">Actually Analyze My Skin</button>
+                                </div>
+                            </div>
+
+                            <!-- NEW: Analysis Processing State -->
+                            <div class="processing-state text-center py-5" id="skin-processing-state" style="display:none;">
+                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto;"></div>
+                                <h3>Analyzing your skin...</h3>
+                                <p class="text-muted">Our AI is detecting concerns and patterns.</p>
+                            </div>
+
+                            <div class="results-state" id="skin-results-state" style="display:none;">
+                                <div class="sub-view-visual-header">
+                                    <img src="" id="skin-result-img" class="large-scan-illustration" alt="Analyzed Face" style="border-radius: 30px; object-fit: cover; margin-bottom: 20px;">
+                                </div>
+                                <div class="result-header text-center">
+                                    <h2 class="condition-title" id="skin-result-title">Analysis Complete</h2>
+                                    <div id="skin-result-badges" class="mt-2" style="display: flex; gap: 8px; justify-content: center;">
+                                        <!-- Badges like <span class="severity-badge badge-yellow">Moderate Acne</span> -->
+                                    </div>
+                                </div>
+
+                                <div class="explanation-box card-glass mt-4">
+                                    <p id="skin-result-desc">We've analyzed your photo. Here is what our trained models detected on your skin.</p>
+                                </div>
+
+                                <div class="detected-concerns-list mt-4" id="skin-concerns-list">
+                                    <!-- List of detected items -->
+                                </div>
+
+                                <div class="action-buttons mt-5">
+                                    <button class="primary-btn full-width" id="btn-go-products">Would you like to see recommended products?</button>
+                                    <button class="text-btn full-width mt-3" onclick="resetAnalyzer()">Scan Another Photo</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ingredient Scanner Sub-mode -->
+                        <div class="sub-view" id="sub-ingredient-scanner" style="display: none;">
+                            <div class="sub-view-back-row">
+                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+                            </div>
+
+                            <div class="sub-view-visual-header">
+                                <img src="assets/scan-product.png" class="large-scan-illustration" alt="Product Scan Header">
+                            </div>
+
+                            <div class="input-state" id="ing-input-state">
+                                <div class="instruction-section">
+                                    <h3>Scan a Product</h3>
+                                    <p>Upload a clear photo of the ingredient list for instant analysis.</p>
+                                </div>
+
+                                <div class="centered-action-group">
+                                    <button class="secondary-btn" id="btn-prod-camera"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
+                                    <button class="secondary-btn" id="btn-prod-gallery"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
+                                </div>
+                                <input type="file" id="prod-file-input" accept="image/*" hidden>
+
+                                <div class="preview-zone mt-4" id="prod-preview-zone" style="display:none;">
+                                    <div class="img-container">
+                                        <img src="" id="prod-img-preview" alt="Product Preview" style="width: 100%; border-radius: 20px;">
+                                        <button class="icon-btn remove-img" id="remove-prod-preview"><i class="fa-solid fa-xmark"></i></button>
+                                    </div>
+                                    <button class="primary-btn full-width mt-4" id="btn-analyze-prod">Analyze Ingredients</button>
+                                </div>
+                            </div>
+
+                            <div class="processing-state text-center py-5" id="prod-processing-state" style="display:none;">
+                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto;"></div>
+                                <h3>Reading ingredients...</h3>
+                                <p class="text-muted">Using trained models to extract text.</p>
+                            </div>
+
+                            <div class="results-state" id="ing-results-state" style="display:none;">
+                                <div class="result-header text-center">
+                                    <h2 id="prod-result-title">Product Analysis</h2>
+                                    <div id="prod-score-badge" class="mt-2"></div>
+                                </div>
+                                <div class="explanation-box card-glass mt-3">
+                                    <p id="prod-result-desc"></p>
+                                </div>
+                                <div class="mt-4">
+                                    <h4>Detected Ingredients</h4>
+                                    <p class="micro-text text-muted" id="prod-ingredients-text" style="font-style: italic;"></p>
+                                </div>
+                                <button class="text-btn full-width mt-4" onclick="openAnalyzerDetail('sub-ingredient-scanner')">Scan Another Product</button>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Gallery Sub-mode -->
+                        <div class="sub-view" id="sub-timeline" style="display: none;">
+                            <div class="sub-view-back-row">
+                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+                            </div>
+                            <div class="instruction-section">
+                                <h3>Scan History</h3>
+                                <p>View all your past scans and analysis results.</p>
+                            </div>
+                            <div id="timeline-gallery-grid" class="gallery-grid">
+                                <!-- Populated by JS -->
+                                <div class="gallery-item">
+                                    <img src="assets/scan-face.png" alt="Scan">
+                                    <div class="gallery-date">Mar 26, 2026</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="spacer-bottom"></div>
+            </section>
+
+            <!-- SECTION 7: TAB 3 PLANNER & TRACKER -->
+            <section id="view-planner" class="view">
+                <!-- Main Dashboard (Visible after setup/daily task) -->
+                <div id="planner-main-dashboard" style="display: none;">
+                    <!-- Card 1: Calendar -->
+                    <div class="planner-card calendar-card mb-4">
+                        <div class="flex-between align-center">
+                            <div class="streak-badge">
+                                <img src="assets/blue-flame.png" alt="Flame" style="width: 20px; height: 20px;">
+                                <span id="streak-count">5 Day Streak</span>
+                            </div>
+                        </div>
+                        
+                        <div class="calendar-header mt-3">
+                            <button class="cal-nav-btn" onclick="navMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                            <h4 id="calendar-month-year">March 2026</h4>
+                            <button class="cal-nav-btn" onclick="navMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                        
+                        <div class="calendar-days-header mt-3">
+                            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                        </div>
+                        <div class="calendar-grid mt-2" id="planner-calendar-grid">
+                            <!-- JS populated -->
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Completion Card -->
+                    <div class="planner-card completion-card">
+                        <div class="card-left">
+                            <div class="flex-between align-start">
+                                <div>
+                                    <h4 class="mb-1">Today's Routine</h4>
+                                    <span class="micro-text uppercase bold text-muted">Morning Routine</span>
+                                </div>
+                                <button class="edit-routine-btn" onclick="openRoutineEditor()">Edit</button>
+                            </div>
+                            
+                            <ul class="mini-checklist mt-3" id="main-routine-list">
+                                <!-- JS populated -->
+                            </ul>
+                            
+                            <div class="completion-status mt-3">
+                                <p class="bold mb-0">All done!</p>
+                                <p class="micro-text text-muted">Capture your glow</p>
+                                <button class="primary-btn small mt-2" onclick="openCamera()">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                    Snap a Selfie
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-right">
+                            <img src="assets/girl_thumbs.png" alt="Mascot" class="completion-mascot">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OVERLAY SYSTEM -->
+                <div id="planner-overlay-container" style="display: none;">
+                    <!-- Setup Entry Screen -->
+                    <div id="setup-entry" class="overlay-screen" style="display: none;">
+                        <div class="overlay-content text-center">
+                            <div class="char-container">
+                                <img src="assets/girl_normal.png" alt="Guide" class="setup-mascot">
+                            </div>
+                            <h2 class="mt-4">Let's build your skincare routine</h2>
+                            <button class="primary-btn mt-4 px-5" onclick="startSetup()">Start</button>
+                        </div>
+                    </div>
+
+                    <!-- Setup Questionnaire -->
+                    <div id="setup-questions" class="overlay-screen" style="display: none;">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="setup-progress"></div>
+                        </div>
+                        <div class="question-content mt-5 px-4" id="question-area">
+                            <!-- Question injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Daily Entry Screen -->
+                    <div id="daily-entry" class="overlay-screen" style="display: none;" onclick="openChecklist()">
+                        <div class="overlay-content text-center py-5">
+                            <div class="char-container">
+                                <img src="assets/girl_normal.png" alt="Guide" class="setup-mascot">
+                            </div>
+                            <h2 class="mt-4">Let's complete your skincare routine</h2>
+                            <p class="micro-text text-muted mt-2">Tap anywhere to start</p>
+                        </div>
+                    </div>
+
+                    <!-- Daily Checklist Screen -->
+                    <div id="daily-checklist" class="overlay-screen" style="display: none;">
+                        <div class="checklist-header flex-between align-center p-4">
+                            <div>
+                                <h1 class="mb-0">Today's Routine</h1>
+                                <span class="text-muted">Morning Routine</span>
+                            </div>
+                            <button class="edit-routine-btn" onclick="openRoutineEditor()">Edit</button>
+                        </div>
+                        <div class="checklist-body p-4">
+                            <div class="checklist-items" id="daily-items-list">
+                                <!-- JS populated with rows -->
+                            </div>
+                            
+                            <div id="checklist-camera-area" style="display: none;" class="mt-4 text-center">
+                                <div class="camera-action-card" onclick="openCamera()">
+                                    <p class="mb-3 bold">All steps complete!</p>
+                                    <button class="camera-svg-btn">
+                                        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                    </button>
+                                    <p class="micro-text text-muted mt-3">Tap to snap your daily progress selfie</p>
+                                </div>
+                                <input type="file" id="selfie-upload-input" accept="image/*" hidden onchange="handleSelfieUpload(this)">
+                            </div>
+                        </div>
+                        <div class="checklist-footer p-4">
+                            <button class="primary-btn full-width" id="finish-checklist-btn" onclick="finishChecklist()">Done</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROUTINE EDITOR OVERLAY -->
+                <div id="routine-editor-overlay" class="overlay-screen" style="display: none;">
+                    <div class="p-4">
+                        <div class="flex-between align-center mb-4">
+                            <h2>Edit Routine</h2>
+                            <button class="text-btn" onclick="closeRoutineEditor()">Close</button>
+                        </div>
+                        <div id="editor-items-list" class="mb-4">
+                            <!-- JS populated -->
+                        </div>
+                        <button class="secondary-btn full-width" onclick="addRoutineItem()">+ Add Step</button>
+                    </div>
+                </div>
+
+                <div class="spacer-bottom"></div>
+            </section>
+
+                <div class="spacer-bottom"></div>
+            </section>
+
+            <!-- SECTION 8: TAB 4 SETTINGS -->
+            <section id="view-settings" class="view">
+                <div class="settings-header">
+                    <h2>Settings</h2>
+                </div>
+
+                <div class="settings-list">
+                    <div class="settings-section">
+                        <h3>Profile</h3>
+                        <div class="set-item" onclick="openEditProfile()">
+                            <i class="fa-regular fa-user icon"></i>
+                            <span>Account Details</span>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
+                        </div>
+                        <div class="set-item" onclick="switchView('onboarding')">
+                            <i class="fa-solid fa-clipboard-list icon"></i>
+                            <span>Get to Know Me Better</span>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Appearance & Mascot</h3>
+                        <div class="set-item no-arrow">
+                            <i class="fa-solid fa-palette icon"></i>
+                            <span>App Theme</span>
+                            <div class="pill-group mini single-select">
+                                <button class="pill active" data-theme="light">Light</button>
+                                <button class="pill" data-theme="dark">Dark</button>
+                            </div>
+                        </div>
+                        <div class="set-item no-arrow">
+                            <i class="fa-solid fa-robot icon"></i>
+                            <span>Mascot Color</span>
+                            <div class="color-swatches">
+                                <div class="swatch active" style="background:#a5d8ff;" data-color="blue"></div>
+                                <div class="swatch" style="background:#ffc9c9;" data-color="pink"></div>
+                                <div class="swatch" style="background:#b2f2bb;" data-color="green"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Notifications</h3>
+                        <div class="set-item no-arrow">
+                            <i class="fa-regular fa-bell icon"></i>
+                            <span>Routine Reminders</span>
+                            <label class="switch">
+                                <input type="checkbox" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>Data & Privacy</h3>
+                        <div class="set-item">
+                            <i class="fa-solid fa-download icon"></i>
+                            <span>Export Data</span>
+                        </div>
+                        <div class="set-item destructive">
+                            <i class="fa-solid fa-trash icon"></i>
+                            <span>Clear All Data</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-footer text-center mt-4">
+                    <p class="micro-text">SkinCare Companion v2.0</p>
+                    <p class="micro-text mb-4">All data is stored locally. No images are uploaded to external servers.
+                    </p>
+                    <button class="secondary-btn" id="logout-btn">Log Out</button>
+                </div>
+
+                <div class="spacer-bottom"></div>
+            </section>
+        </main>
+
+        <!-- BOTTOM NAVIGATION BAR -->
+        <nav class="bottom-nav" id="bottom-nav" style="display: none;">
+            <button class="nav-item active" data-target="home">
+                <i class="fa-solid fa-house"></i>
+                <span>Home</span>
+            </button>
+            <button class="nav-item" data-target="analyzer">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>Analyzer</span>
+            </button>
+            <button class="nav-item" data-target="planner">
+                <i class="fa-solid fa-calendar-days"></i>
+                <span>Planner</span>
+            </button>
+            <button class="nav-item" data-target="settings">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </button>
+        </nav>
+
+        <!-- MASCOT FLOATING BUTTON -->
+        <button class="floating-mascot-btn" id="float-mascot-btn" style="display: none;">
+            <div class="mascot-blob idle float-size" id="mascot-head">
+                <div class="mascot-face">
+                    <div class="eye left"></div>
+                    <div class="eye right"></div>
+                    <div class="mouth"></div>
+                    <div class="blush left"></div>
+                    <div class="blush right"></div>
+                </div>
+            </div>
+        </button>
+
+        <!-- MASCOT CHAT PANEL COMPACT DIRECTORY -->
+        <div class="chat-overlay" id="chat-panel">
+            <div class="chat-header">
+                <div class="chat-header-mascot">
+                    <div class="mascot-blob idle micro">
+                        <div class="mascot-face">
+                            <div class="eye left"></div>
+                            <div class="eye right"></div>
+                        </div>
+                    </div>
+                </div>
+                <span class="mascot-name">GlowBot</span>
+                <div class="chat-actions">
+                    <button class="icon-btn expand-btn" id="chat-expand"><i class="fa-solid fa-expand"></i></button>
+                    <button class="icon-btn close-btn" id="chat-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="chat-history scrollarea" id="chat-history-compact">
+                <div class="chat-bubble mascot-bubble">
+                    Hi ${state.username}! Don't forget your sunscreen today!
+                </div>
+            </div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input-compact" placeholder="Ask GlowBot something..." class="kawaii-input">
+                <button class="icon-btn send-btn" id="chat-send-compact"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <!-- MASCOT CHAT FULLSCREEN -->
+        <div class="chat-fullscreen" id="chat-fs-panel" style="display:none;">
+            <div class="chat-fs-header">
+                <button class="icon-btn collapse-btn" id="chat-fs-collapse"><i
+                        class="fa-solid fa-compress"></i></button>
+            </div>
+            <div class="chat-fs-mascot-area">
+                <div class="mascot-blob idle large-mascot">
+                    <div class="mascot-face">
+                        <div class="eye left"></div>
+                        <div class="eye right"></div>
+                        <div class="mouth"></div>
+                        <div class="blush left"></div>
+                        <div class="blush right"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-fs-history scrollarea" id="chat-history-fs">
+                <div class="chat-bubble mascot-bubble">
+                    I can help you build your routine based on your latest scan! What do you need help with?
+                </div>
+            </div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input-fs" placeholder="Type here..." class="kawaii-input">
+                <button class="icon-btn send-btn" id="chat-send-fs"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <!-- LOADING OVERLAY -->
+        <div class="loading-overlay" id="loading-overlay" style="display:none;">
+            <div class="mascot-blob thinking">
+                <div class="mascot-face">
+                    <div class="eye left"></div>
+                    <div class="eye right"></div>
+                    <div class="mouth o-shape"></div>
+                </div>
+            </div>
+            <p class="loading-text mt-3">Analyzing...</p>
+        </div>
+
+        <!-- TOAST CONTAINER -->
+        <div id="toast-container"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,69 @@
+{
+  "acne": {
+    "recommended": [
+      {"name": "Salicylic Acid", "benefit": "Exfoliates inside the pore and reduces inflammation.", "source": "AAD"},
+      {"name": "Niacinamide", "benefit": "Reduces sebum production and redness.", "source": "PubMed"},
+      {"name": "Benzoyl Peroxide", "benefit": "Kills acne-causing bacteria.", "source": "AAD"},
+      {"name": "Tea Tree Oil", "benefit": "Natural antibacterial properties.", "source": "DermNet"},
+      {"name": "Retinol", "benefit": "Increases cell turnover and prevents clogged pores.", "source": "AAD"}
+    ],
+    "avoid": [
+      {"name": "Heavy oils (coconut)", "reason": "Highly comedogenic, can clog pores."},
+      {"name": "Fragrance", "reason": "Can irritate inflamed skin."},
+      {"name": "Comedogenic", "reason": "Contributes to acne formation."}
+    ]
+  },
+  "dry_skin": {
+    "recommended": [
+      {"name": "Hyaluronic Acid", "benefit": "Draws moisture into the skin.", "source": "PubMed"},
+      {"name": "Ceramides", "benefit": "Restores the skin barrier to prevent moisture loss.", "source": "AAD"},
+      {"name": "Glycerin", "benefit": "Excellent humectant for hydration.", "source": "DermNet"},
+      {"name": "Shea Butter", "benefit": "Rich emollient that seals in moisture.", "source": "AAD"},
+      {"name": "Squalane", "benefit": "Lightweight moisturizer that mirrors natural sebum.", "source": "PubMed"}
+    ],
+    "avoid": [
+      {"name": "Alcohol toners", "reason": "Stripping and extremely drying."},
+      {"name": "Sulfates", "reason": "Can compromise the skin barrier."},
+      {"name": "Strong exfoliants", "reason": "May cause micro-tears on thin, dry skin."}
+    ]
+  },
+  "oily_skin": {
+    "recommended": [
+      {"name": "Niacinamide", "benefit": "Regulates sebum and tightens pores.", "source": "AAD"},
+      {"name": "Salicylic Acid", "benefit": "Dissolves excess oil in pores.", "source": "PubMed"},
+      {"name": "Zinc", "benefit": "Possesses antibacterial and sebum-control properties.", "source": "DermNet"},
+      {"name": "Clay (Kaolin)", "benefit": "Absorbs excess surface oil.", "source": "AAD"},
+      {"name": "AHA/BHA", "benefit": "Gentle exfoliation without harsh scrubbing.", "source": "PubMed"}
+    ],
+    "avoid": [
+      {"name": "Heavy mineral oil", "reason": "Can trap sebum and sweat beneath the surface."},
+      {"name": "Lanolin", "reason": "Often too emollient for oily types."},
+      {"name": "Petroleum", "reason": "Creates an occlusive barrier that may trigger breakouts."}
+    ]
+  },
+  "dark_spots": {
+    "recommended": [
+      {"name": "Vitamin C", "benefit": "Potent antioxidant that brightens pigmentation.", "source": "AAD"},
+      {"name": "Alpha Arbutin", "benefit": "Suppresses melanin production.", "source": "PubMed"},
+      {"name": "Kojic Acid", "benefit": "Effectively lightens sun damage and scars.", "source": "DermNet"},
+      {"name": "Niacinamide", "benefit": "Prevents melanin transfer to skin surface.", "source": "AAD"},
+      {"name": "Retinol", "benefit": "Accelerates skin renewal to fade dark spots.", "source": "PubMed"}
+    ],
+    "avoid": [
+      {"name": "Photosensitizers w/o SPF", "reason": "Can worsen pigmentation when exposed to sun."},
+      {"name": "Undiluted essential oils", "reason": "May cause contact dermatitis and post-inflammatory hyperpigmentation."}
+    ]
+  },
+  "normal_skin": {
+    "recommended": [
+      {"name": "SPF 30+", "benefit": "Protects against UV damage and premature aging.", "source": "AAD"},
+      {"name": "Antioxidants", "benefit": "Neutralizes free radicals.", "source": "PubMed"},
+      {"name": "Lightweight moisturizer", "benefit": "Maintains balance without greasiness.", "source": "DermNet"},
+      {"name": "Gentle cleanser", "benefit": "Cleans without disrupting the barrier.", "source": "AAD"}
+    ],
+    "avoid": [
+      {"name": "Over-exfoliation", "reason": "Disrupts an already healthy skin barrier."},
+      {"name": "Unnecessary actives", "reason": "Can induce sensitivity when not needed."}
+    ]
+  }
+}

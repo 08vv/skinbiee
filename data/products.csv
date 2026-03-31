@@ -1,0 +1,8 @@
+product_id,product_name,brand,target_condition,ingredients,price_inr,notes
+1,CeraVe Acne Control Cleanser,CeraVe,"acne,oily_skin","Salicylic Acid, Niacinamide, Ceramides, Glycerin",499.00,Fragrance-free
+2,The Ordinary Niacinamide 10% + Zinc 1%,The Ordinary,"acne,oily_skin,dark_spots","Niacinamide, Zinc PCA",600.00,
+3,Neutrogena Hydro Boost Water Gel,Neutrogena,"dry_skin,normal_skin","Glycerin, Hyaluronic Acid, Dimethicone",850.00,
+4,Paula's Choice 2% BHA,Paula's Choice,"acne,oily_skin","Salicylic Acid, Green Tea Extract",2500.00,
+5,Kiehl's Ultra Facial Cream,Kiehl's,"dry_skin,normal_skin","Squalane, Glacial Glycoprotein",3000.00,
+6,Mad Hippie Vitamin C Serum,Mad Hippie,"dark_spots,normal_skin","Vitamin C, Hyaluronic Acid, Konjac Root Powder",1500.00,
+7,Simple Refreshing Facial Wash,Simple,"normal_skin","Water, Cocamidopropyl Betaine, Propylene glycol, Hydroxypropyl methyl cellulose",350.00,Gentle cleanser
