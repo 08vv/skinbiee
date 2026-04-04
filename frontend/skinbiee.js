@@ -974,7 +974,31 @@ const setupQuestions = [
     { id: 'notes', q: "Anything else we should know?", type: "text" }
 ];
 
+function checkStreakMaintenance() {
+    const lastDone = localStorage.getItem('planner-daily-done');
+    if (!lastDone) return;
+
+    const todayStr = new Date().toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+
+    if (lastDone !== todayStr && lastDone !== yesterdayStr) {
+        // More than a day missed! Reset streak.
+        console.log("Streak missed. Resetting to 0.");
+        plannerState.streak = 0;
+        localStorage.setItem('planner-streak', 0);
+    }
+}
+
 function setupPlanner() {
+    // RE-SYNC STATE WITH STORAGE TO PREVENT LOOPS
+    plannerState.hasSetup = localStorage.getItem('planner-has-setup') === 'true';
+    plannerState.dailyDone = localStorage.getItem('planner-daily-done') === new Date().toDateString();
+
+    // MAINTENANCE: Reset streak if day missed
+    checkStreakMaintenance();
+
     const overlayContainer = document.getElementById('planner-overlay-container');
     const mainDashboard = document.getElementById('planner-main-dashboard');
     const editorOverlay = document.getElementById('routine-editor-overlay');
