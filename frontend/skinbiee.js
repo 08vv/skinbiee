@@ -120,6 +120,11 @@ function switchView(viewName) {
     // Hide all views
     views.forEach(v => v.classList.remove('active'));
 
+    // Dismiss any settings overlays or modals
+    document.querySelectorAll('.sub-page-overlay, .clear-data-modal-overlay').forEach(el => {
+        el.style.display = 'none';
+    });
+
     // Show target view
     const targetView = document.getElementById(`view-${viewName}`);
     if (targetView) {
@@ -437,11 +442,16 @@ function setupOnboardingListeners() {
             document.querySelector('.ob-progress').style.display = 'none';
             backBtn.style.visibility = 'hidden';
 
-            nextBtn.textContent = 'Go to Home';
+            nextBtn.textContent = state.fromSettings ? 'Go to Settings' : 'Go to Home';
             state.onboardingStep = 5;
         } else {
             applyUserProfile(loadUserProfile());
-            switchView('home');
+            if (state.fromSettings) {
+                state.fromSettings = false;
+                switchView('settings');
+            } else {
+                switchView('home');
+            }
         }
     });
 
@@ -452,7 +462,12 @@ function setupOnboardingListeners() {
             document.getElementById(`ob-step-${state.onboardingStep}`).classList.add('active');
             document.getElementById('ob-step-num').textContent = state.onboardingStep;
 
-            if (state.onboardingStep === 1) backBtn.style.visibility = 'hidden';
+            if (state.onboardingStep === 1 && !state.fromSettings) {
+                backBtn.style.visibility = 'hidden';
+            }
+        } else if (state.fromSettings && state.onboardingStep === 1) {
+            state.fromSettings = false;
+            switchView('settings');
         }
     });
 }
@@ -463,7 +478,7 @@ function resetOnboarding() {
     document.getElementById('ob-step-1').classList.add('active');
     document.getElementById('ob-next-btn').textContent = 'Continue';
     document.getElementById('ob-step-num').textContent = '1';
-    document.getElementById('ob-back').style.visibility = 'hidden';
+    document.getElementById('ob-back').style.visibility = state.fromSettings ? 'visible' : 'hidden';
     document.querySelector('.ob-progress').style.display = 'block';
     document.getElementById('ob-mascot').classList.remove('happy');
     document.getElementById('ob-mascot').classList.add('idle');
@@ -939,9 +954,10 @@ function _productTip(isGood, isWarn, badIngredients, skinCondition) {
 
 // ── Main renderer ────────────────────────────────────────────────────────────
 function renderProdResultsSB(data) {
-    const analysis   = data.analysis   || {};
-    const breakdown  = data.ingredient_breakdown || [];
-    const skinCond   = data.skin_condition || 'general';
+    try {
+        const analysis   = data.analysis   || {};
+        const breakdown  = data.ingredient_breakdown || [];
+        const skinCond   = data.skin_condition || 'general';
 
     // Pull good/bad from breakdown (preferred) or legacy analysis lists
     const goodItems = breakdown.filter(i => i.rating === 'good');
@@ -1068,6 +1084,10 @@ function renderProdResultsSB(data) {
             ? [data.ingredients]
             : [];
         ingredientsBox.textContent = list.length ? list.join(', ') : 'No ingredient text extracted.';
+    }
+    } catch (e) {
+        console.error("UI RENDER CRASH:", e);
+        showToast("Error displaying results: " + e.message);
     }
 }
 
@@ -1474,13 +1494,31 @@ function closeRoutineEditor() { document.getElementById('routine-editor-overlay'
 function saveRoutine() { localStorage.setItem(userStorageKey('planner-routine'), JSON.stringify(plannerState.routine)); }
 
 function setupSettings() {
-    document.querySelectorAll('.swatch').forEach(sw => {
-        sw.addEventListener('click', () => {
-            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-            sw.classList.add('active');
-            changeMascotColor(sw.dataset.color);
+    // Theme Toggles
+    document.querySelectorAll('.pill[data-theme]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.pill[data-theme]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            let theme = btn.dataset.theme;
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
         });
     });
+
+    // Routine Reminders Toggle
+    const reminderSwitch = document.querySelector('.settings-section .switch input');
+    if (reminderSwitch) {
+        reminderSwitch.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                showToast('Routine reminders enabled');
+            } else {
+                showToast('Routine reminders disabled');
+            }
+        });
+    }
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
@@ -1490,7 +1528,94 @@ function setupSettings() {
         });
     }
 }
-function openEditProfile() { showToast('Edit profile clicked'); }
+function openSettingsToOnboarding() {
+    state.fromSettings = true;
+    switchView('onboarding');
+}
+
+function openSettingsSubPage(pageId) {
+    document.getElementById(`settings-${pageId}`).style.display = 'flex';
+    if (pageId === 'account-details') {
+        const input = document.getElementById('profile-edit-username');
+        if (input) input.value = state.username || '';
+    }
+}
+
+function closeSettingsSubPage(pageId) {
+    document.getElementById(`settings-${pageId}`).style.display = 'none';
+}
+
+function saveAccountDetails() {
+    const newName = document.getElementById('profile-edit-username').value.trim();
+    if (newName) {
+        state.username = newName;
+        const displayNameEl = document.getElementById('user-display-name');
+        if (displayNameEl) displayNameEl.textContent = newName;
+        localStorage.setItem(userStorageKey('data'), JSON.stringify(plannerState)); // Generic save trigger
+        showToast('Profile updated!');
+    }
+    closeSettingsSubPage('account-details');
+}
+
+function executeExportData() {
+    // Spreadsheet Header
+    let csvHeader = ["Date", "Type", "Condition/Product", "Severity/Score", "Image URL"];
+    let csvRows = [csvHeader.join(",")];
+
+    // Add Scan data
+    if (plannerState.scans && Array.isArray(plannerState.scans)) {
+        plannerState.scans.forEach(item => {
+            const row = [
+                `"${item.date || ''}"`,
+                `"${item.type || ''}"`,
+                `"${item.condition || (item.type === 'product' ? 'Product Scan' : 'Unknown')}"`,
+                `"${item.severity || item.score || ''}"`,
+                `"${item.img || ''}"`
+            ];
+            csvRows.push(row.join(","));
+        });
+    }
+
+    // Include Routine info as a separate table in the same CSV
+    csvRows.push("\n");
+    csvRows.push("--- USER PROFILE & ROUTINE ---");
+    csvRows.push("Username,Streak");
+    csvRows.push(`"${state.username || ''}","${plannerState.streak || 0}"`);
+    csvRows.push("Routine Items");
+    if (plannerState.routine && Array.isArray(plannerState.routine)) {
+        plannerState.routine.forEach(item => csvRows.push(`"${item}"`));
+    }
+
+    const csvBody = csvRows.join("\n");
+    const blob = new Blob([csvBody], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "skinbiee_data_export.csv");
+    document.body.appendChild(link); 
+    link.click();
+    link.remove();
+    
+    showToast('Spreadsheet (.csv) exported successfully!');
+    closeSettingsSubPage('export-data');
+}
+
+function openClearDataModal() {
+    document.getElementById('clear-data-modal').style.display = 'flex';
+}
+
+function closeClearDataModal() {
+    document.getElementById('clear-data-modal').style.display = 'none';
+}
+
+function executeClearData() {
+    localStorage.clear();
+    clearSession();
+    closeClearDataModal();
+    showToast('All personal data cleared.');
+    setTimeout(() => location.reload(), 1500);
+}
 
 function setupMascotChat() {
     const compactChat = document.getElementById('chat-panel');

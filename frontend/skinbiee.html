@@ -601,43 +601,31 @@
                 </div>
 
                 <div class="settings-list">
+                    <div class="settings-group-title">PROFILE</div>
                     <div class="settings-section">
-                        <h3>Profile</h3>
-                        <div class="set-item" onclick="openEditProfile()">
+                        <div class="set-item" onclick="openSettingsSubPage('account-details')">
                             <i class="fa-regular fa-user icon"></i>
                             <span>Account Details</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
                         </div>
-                        <div class="set-item" onclick="switchView('onboarding')">
+                        <div class="set-item" onclick="openSettingsSubPage('skin-profile')">
+                            <i class="fa-solid fa-face-smile icon"></i>
+                            <span>Skin Profile</span>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
+                        </div>
+                    </div>
+
+                    <div class="settings-group-title">PERSONALIZATION</div>
+                    <div class="settings-section">
+                        <div class="set-item" onclick="openSettingsToOnboarding()">
                             <i class="fa-solid fa-clipboard-list icon"></i>
                             <span>Get to Know Me Better</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
                         </div>
                     </div>
 
+                    <div class="settings-group-title">NOTIFICATIONS</div>
                     <div class="settings-section">
-                        <h3>Appearance & Mascot</h3>
-                        <div class="set-item no-arrow">
-                            <i class="fa-solid fa-palette icon"></i>
-                            <span>App Theme</span>
-                            <div class="pill-group mini single-select">
-                                <button class="pill active" data-theme="light">Light</button>
-                                <button class="pill" data-theme="dark">Dark</button>
-                            </div>
-                        </div>
-                        <div class="set-item no-arrow">
-                            <i class="fa-solid fa-robot icon"></i>
-                            <span>Mascot Color</span>
-                            <div class="color-swatches">
-                                <div class="swatch active" style="background:#a5d8ff;" data-color="blue"></div>
-                                <div class="swatch" style="background:#ffc9c9;" data-color="pink"></div>
-                                <div class="swatch" style="background:#b2f2bb;" data-color="green"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="settings-section">
-                        <h3>Notifications</h3>
                         <div class="set-item no-arrow">
                             <i class="fa-regular fa-bell icon"></i>
                             <span>Routine Reminders</span>
@@ -648,28 +636,150 @@
                         </div>
                     </div>
 
+                    <div class="settings-group-title">PREFERENCES</div>
                     <div class="settings-section">
-                        <h3>Data & Privacy</h3>
-                        <div class="set-item" onclick="exportUserData()">
+                        <div class="set-item no-arrow">
+                            <i class="fa-solid fa-palette icon"></i>
+                            <span>Theme</span>
+                            <div class="pill-group mini single-select">
+                                <button class="pill active" data-theme="light">Light</button>
+                                <button class="pill" data-theme="dark">Dark</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group-title">DATA & PRIVACY</div>
+                    <div class="settings-section">
+                        <div class="set-item" onclick="openSettingsSubPage('export-data')">
                             <i class="fa-solid fa-download icon"></i>
                             <span>Export Data</span>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
                         </div>
-                        <div class="set-item destructive" onclick="clearUserData()">
-                            <i class="fa-solid fa-trash icon"></i>
+                        <button class="settings-destructive-btn" onclick="openClearDataModal()">
+                            <i class="fa-solid fa-trash"></i>
                             <span>Clear All Data</span>
-                        </div>
+                        </button>
                     </div>
                 </div>
 
                 <div class="settings-footer text-center mt-4">
                     <p class="micro-text">SkinCare Companion v2.0</p>
-                    <p class="micro-text mb-4">All data is stored locally. No images are uploaded to external servers.
-                    </p>
+                    <p class="micro-text mb-4">All data is stored locally. No images are uploaded to external servers.</p>
                     <button class="secondary-btn" id="logout-btn">Log Out</button>
                 </div>
 
                 <div class="spacer-bottom"></div>
+
+                <!-- SETTINGS OVERLAYS (Moved inside view-settings) -->
+                <!-- Account Details -->
+                <div id="settings-account-details" class="sub-page-overlay">
+                    <div class="sub-page-header">
+                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('account-details')"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 class="sub-page-title">Account Details</h2>
+                    </div>
+                    <div class="sub-page-card">
+                        <div style="text-align: center;">
+                            <div style="width: 80px; height: 80px; background: var(--bg-app); border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--primary);">
+                                <i class="fa-regular fa-user"></i>
+                            </div>
+                            <button class="text-btn mt-2" style="color: var(--primary); font-size: 0.9rem;">Change Photo</button>
+                        </div>
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Display Name</label>
+                            <input type="text" id="profile-edit-username" class="sub-page-input" placeholder="Your Name">
+                        </div>
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Email Address</label>
+                            <input type="email" class="sub-page-input" placeholder="you@example.com">
+                        </div>
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Date of Birth</label>
+                            <input type="date" class="sub-page-input">
+                        </div>
+                        <button class="text-btn" style="color: var(--primary); align-self: flex-start; padding: 0;">Change Password</button>
+                    </div>
+                    <button class="primary-btn mt-4 full-width" onclick="saveAccountDetails()">Save Changes</button>
+                </div>
+
+                <!-- Skin Profile -->
+                <div id="settings-skin-profile" class="sub-page-overlay">
+                    <div class="sub-page-header">
+                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('skin-profile')"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 class="sub-page-title">Skin Profile</h2>
+                    </div>
+                    <div class="sub-page-card">
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Skin Type</label>
+                            <select class="sub-page-input">
+                                <option value="normal">Normal</option>
+                                <option value="oily">Oily</option>
+                                <option value="dry">Dry</option>
+                                <option value="combination">Combination</option>
+                                <option value="sensitive">Sensitive</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Skin Tone</label>
+                            <div style="display: flex; gap: 8px;">
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #FFDFC4; border: 2px solid var(--primary); cursor: pointer;"></div>
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #F0D5BE; cursor: pointer;"></div>
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #D6B89F; cursor: pointer;"></div>
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #A77C58; cursor: pointer;"></div>
+                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #5E3E26; cursor: pointer;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Primary Concerns</label>
+                            <div class="pill-group multi-select">
+                                <button class="pill active">Acne</button>
+                                <button class="pill">Dark spots</button>
+                                <button class="pill">Dryness</button>
+                                <button class="pill">Anti-aging</button>
+                                <button class="pill">Sensitivity</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Sensitivities/Allergies</label>
+                            <input type="text" class="sub-page-input" placeholder="e.g. Fragrance, Niacinamide">
+                        </div>
+                    </div>
+                    <button class="primary-btn mt-4 full-width" onclick="closeSettingsSubPage('skin-profile')">Save Skin Profile</button>
+                </div>
+
+                <!-- Export Data -->
+                <div id="settings-export-data" class="sub-page-overlay">
+                    <div class="sub-page-header">
+                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('export-data')"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 class="sub-page-title">Export Data</h2>
+                    </div>
+                    <div class="sub-page-card">
+                        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 8px;">Download a spreadsheet of all your Skinbiee data</p>
+                        <ul class="data-export-list">
+                            <li><strong>User Info</strong> — name, skin type, tone, concerns</li>
+                            <li><strong>Face Scans</strong> — dates, results, detected concerns</li>
+                            <li><strong>Product Scans</strong> — dates, product, flags, rating</li>
+                            <li><strong>Calendar</strong> — routine dates, streaks</li>
+                        </ul>
+                    </div>
+                    <button class="primary-btn mt-4 full-width" onclick="executeExportData()">Export as Spreadsheet</button>
+                </div>
+
             </section>
+
+            <!-- SETTINGS OVERLAYS (Wait, removed duplicate/misplaced section) -->
+        </main>
+
+            <!-- Clear Data Modal -->
+            <div id="clear-data-modal" class="clear-data-modal-overlay">
+                <div class="clear-data-modal-card">
+                    <h2 style="font-weight: 800; margin-bottom: 12px; color: var(--text-primary);">Clear all data?</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem;">This will permanently delete all your scans, routines, and personal information. This cannot be undone.</p>
+                    <div class="modal-actions">
+                        <button class="outline-pill-btn" onclick="closeClearDataModal()">Cancel</button>
+                        <button class="danger-pill-btn" onclick="executeClearData()">Clear Data</button>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- BOTTOM NAVIGATION BAR -->

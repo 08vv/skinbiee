@@ -88,7 +88,7 @@ def _run_ocr(img_array: np.ndarray, confidence_threshold: float) -> str:
 def _has_ingredient_header(text: str) -> bool:
     """Quick check: does the text contain a recognised ingredient header?"""
     return bool(re.search(
-        r'ingr?e?d?i?e?n?t?s?\s*[:\-]',   # tolerates partial OCR drops
+        r'ingr?e?d?i?e?n?t?s?|active\s+ing',   # much more lenient
         text, re.IGNORECASE
     ))
 
@@ -146,14 +146,14 @@ def extract_ingredients_from_image(
 # ── Ingredient-section parser ─────────────────────────────────────────────────
 
 # Fuzzy header pattern — handles OCR typos like "ngredients", "lngredients:",
-# missing colons, or ALLCAPS labels.
+# missing colons, or ALLCAPS labels. Matches even if colon is missing.
 _HEADER_PATTERN = re.compile(
-    r'\b(?:active\s+)?ing(?:r(?:e(?:d(?:i(?:e(?:n(?:ts?)?)?)?)?)?)?)?\s*[:\-\.]',
+    r'\b(?:active\s+)?[il]ng(?:r(?:e(?:d(?:i(?:e(?:n(?:ts?)?)?)?)?)?)?)?\s*[:\-\.]?',
     re.IGNORECASE
 )
 
 # Also try a simpler fallback for when the full word IS there but colon is absent
-_HEADER_FALLBACK = re.compile(r'\bingredients\b', re.IGNORECASE)
+_HEADER_FALLBACK = re.compile(r'\b(?:active\s+)?ingredients?\b', re.IGNORECASE)
 
 # Keywords that mark the END of the ingredient list on a cosmetic label.
 # Includes common Indian address / manufacturer-info tokens that OCR
@@ -200,11 +200,11 @@ def extract_ingredient_section(raw_text: str) -> list[str]:
     if not match:
         match = _HEADER_FALLBACK.search(raw_text)
     if not match:
-        print("[OCR Parser] Ingredient header not found. Raw preview:",
-              raw_text[:200].replace('\n', ' | '))
-        return []
-
-    after_header = raw_text[match.end():]
+        print("[OCR Parser] Ingredient header not found. Using full text. Raw preview:",
+              raw_text[:200].replace('\\n', ' | '))
+        after_header = raw_text
+    else:
+        after_header = raw_text[match.end():]
 
     # 2. Stop at section-ending keyword
     stop_match = _STOP_PATTERN.search(after_header)
