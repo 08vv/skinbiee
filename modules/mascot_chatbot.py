@@ -5,6 +5,7 @@ import os
 import random
 from modules.history_db import get_all_scans
 from modules.tracker import calculate_streak_and_consistency
+from modules.llm_provider import call_gemini
 
 
 def init_mascot_memory():
@@ -68,9 +69,24 @@ def generate_response(user_input):
         else:
             matched_response = random.choice(chat_data["fallback"]["responses"])
 
-    matched_response = matched_response.replace("{name}", name)
-    matched_response = matched_response.replace("{condition}", condition)
-    matched_response = matched_response.replace("{streak}", streak)
+    prompt = f"""
+    The user '{name}' (skin condition: {condition}, streak: {streak}) is asking: '{user_input}'.
+    The current app tab is '{current_tab}'.
+    
+    Respond as 'GlowBot', a friendly, cute, and professional skincare mascot. 
+    Keep it short (max 2 sentences), supportive, and use 1-2 emojis. 
+    If they ask about skincare, give expert advice. If they just say hi, be welcoming.
+    """
+    
+    llm_response = call_gemini(prompt, system_instruction="You are GlowBot, a friendly skincare expert mascot.")
+    
+    if llm_response:
+        matched_response = llm_response
+    else:
+        # Fallback to rule-based if LLM fails
+        matched_response = matched_response.replace("{name}", name)
+        matched_response = matched_response.replace("{condition}", condition)
+        matched_response = matched_response.replace("{streak}", streak)
 
     st.session_state["chat_history"].append({
         "role": "assistant", "content": matched_response

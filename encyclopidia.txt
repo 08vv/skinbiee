@@ -1,0 +1,37 @@
+SKINBIEE PROJECT ENCYCLOPEDIA
+=============================
+
+1. PROJECT OVERVIEW
+-------------------
+Skinbiee is a comprehensive, multi-platform AI skincare companion designed to help users understand their skin health and product compatibility. The application addresses three core problems:
+- **Skin Assessment**: Using computer vision to identify concerns like acne, dryness, and pigmentation.
+- **Product Safety**: Using OCR to extract and evaluate ingredient lists from physical products against a user's specific skin profile.
+- **Routine Consistency**: Providing a gamified, mascot-led diary and planner to ensure long-term adherence to skincare habits.
+
+The project is built as a highly modular ecosystem where an AI Analysis backend powers multiple frontend implementations, including a responsive Vanilla JS web app and a Streamlit-based dashboard.
+
+2. TECH STACK SUMMARY
+---------------------
+### Languages
+- **Python**: Core backend, AI inference (TensorFlow), and OCR processing (EasyOCR).
+- **JavaScript**: Frontend state management and DOM manipulation for the main web app.
+- **Vanilla CSS**: Modern, brand-specific styling utilizing glassmorphism and custom animations.
+- **HTML5**: Semantic structure for the Single Page Application (SPA).
+
+### Frameworks & Libraries
+- **Flask**: The primary REST API for AI analysis and user data routing.
+- **Streamlit**: A rapid-prototyping framework used for the alternative desktop/admin dashboard.
+- **TensorFlow / Keras**: Machine learning engine for skin concern classification.
+- **EasyOCR**: Optical Character Recognition engine for text extraction from product labels.
+- **Waitress**: Production-grade WSGI server for the Python backend.
+
+### Databases & Storage
+- **SQLite**: Primary local relational database (`skin_history.db`) used for user profiles, scan records, and routine persistence.
+- **CSV**: Static product databases (`products.csv`) for ingredient-to-condition mapping.
+- **JSON**: Knowledge bases for ingredient toxicity (`ingredient_db.json`) and chatbot intents (`chat_data.json`).
+- **LocalStorage**: Browser-side persistence for UI state, themes, and temporary session data.
+
+### Infrastructure & Deployment
+- **Waitress/Flask**: Hosted typically on Port 5000 for AI services.
+- **HTTP Server**: Hosted on Port 8001 for the main Skinbiee UI.
+- **OpenRouter/Gemini API**: Optional external LLM integration for "GlowBot" logic.

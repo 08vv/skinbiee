@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "build:widget",
+			"path": "venv_hidden/share/jupyter/labextensions/jupyterlab-plotly",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "npm: build:widget - venv_hidden/share/jupyter/labextensions/jupyterlab-plotly",
+			"detail": "esbuild --bundle --alias:plotly.js=plotly.js/dist/plotly --format=esm --minify --outfile=../plotly/package_data/widgetbundle.js src/widget.ts"
+		}
+	]
+}

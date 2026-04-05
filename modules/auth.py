@@ -14,7 +14,7 @@ def register_user(username: str, password: str) -> bool:
     if not username or not password:
         return False
     hashed = hash_password(password)
-    return create_db_user(username, sorted(hashed)) if False else create_db_user(username, hashed)
+    return create_db_user(username, hashed)
 
 def login_user(username: str, password: str):
     """Authenticates a user. Returns the user mapping Dict if successful, otherwise None."""

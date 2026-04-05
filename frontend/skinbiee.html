@@ -257,7 +257,7 @@
 
                     <!-- Row 2 -->
                     <div class="home-streak-card clean-card">
-                        <img src="assets/blue-flame.png" alt="Streak" class="home-streak-icon">
+                        <i class="fa-solid fa-fire home-streak-icon" aria-hidden="true"></i>
                         <div class="streak-info">
                             <span class="count" id="home-streak-count">5</span>
                             <span class="label">Day Streak</span>
@@ -331,9 +331,14 @@
                                 </div>
                             </div>
 
-                            <!-- NEW: Analysis Processing State -->
+                            <!-- Analysis Processing State -->
                             <div class="processing-state text-center py-5" id="skin-processing-state-sb" style="display:none;">
-                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto;"></div>
+                                <div class="scan-container mb-4">
+                                    <div class="scan-line"></div>
+                                    <img src="" id="skin-img-processing-sb" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
+                                </div>
+                                <div class="circle-spinner"></div>
+                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;"></div>
                                 <h3>Analyzing your skin...</h3>
                                 <p class="text-muted">Our AI is detecting concerns and patterns.</p>
                             </div>
@@ -356,6 +361,8 @@
                                 <div class="detected-concerns-list mt-4" id="skin-concerns-list-sb">
                                     <!-- List of detected items -->
                                 </div>
+
+                                <div id="product-rec-container"></div>
 
                                 <div class="action-buttons mt-5">
                                     <button class="primary-btn full-width" id="btn-go-products-sb">Would you like to see recommended products?</button>
@@ -396,7 +403,12 @@
                             </div>
 
                             <div class="processing-state text-center py-5" id="prod-processing-state-sb" style="display:none;">
-                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto;"></div>
+                                <div class="scan-container mb-4">
+                                    <div class="scan-line"></div>
+                                    <img src="" id="prod-img-processing-sb" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
+                                </div>
+                                <div class="circle-spinner"></div>
+                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;"></div>
                                 <h3>Reading ingredients...</h3>
                                 <p class="text-muted">Using trained models to extract text.</p>
                             </div>
@@ -448,7 +460,7 @@
                     <div class="planner-card calendar-card mb-4">
                         <div class="flex-between align-center">
                             <div class="streak-badge">
-                                <img src="assets/blue-flame.png" alt="Flame" style="width: 20px; height: 20px;">
+                                <i class="fa-solid fa-fire streak-flame-icon" aria-hidden="true"></i>
                                 <span id="streak-count">5 Day Streak</span>
                             </div>
                         </div>
@@ -638,11 +650,11 @@
 
                     <div class="settings-section">
                         <h3>Data & Privacy</h3>
-                        <div class="set-item">
+                        <div class="set-item" onclick="exportUserData()">
                             <i class="fa-solid fa-download icon"></i>
                             <span>Export Data</span>
                         </div>
-                        <div class="set-item destructive">
+                        <div class="set-item destructive" onclick="clearUserData()">
                             <i class="fa-solid fa-trash icon"></i>
                             <span>Clear All Data</span>
                         </div>
@@ -759,6 +771,24 @@
                 </div>
             </div>
             <p class="loading-text mt-3">Analyzing...</p>
+        </div>
+
+        <!-- PROFILE EDITOR OVERLAY -->
+        <div id="profile-editor-overlay" class="overlay-screen" style="display: none; z-index: 2000;">
+            <div class="p-4">
+                <div class="flex-between align-center mb-4">
+                    <h2>Edit Profile</h2>
+                    <button class="text-btn" onclick="closeEditProfile()">Close</button>
+                </div>
+                <div class="instruction-section mb-4">
+                    <p>Update your account details below.</p>
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: 700; color: var(--text-primary);">Username</label>
+                    <input type="text" id="profile-edit-username" class="editor-input" style="width:100%; border-bottom: 2px solid var(--primary); padding: 10px 0;" placeholder="Your Name">
+                </div>
+                <button class="primary-btn full-width mt-5" onclick="saveEditProfile()">Save Changes</button>
+            </div>
         </div>
 
         <!-- TOAST CONTAINER -->
