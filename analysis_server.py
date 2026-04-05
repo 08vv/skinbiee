@@ -291,13 +291,17 @@ def _build_ingredient_breakdown(
         category = meta[0] if meta else "general"
         base_reason = meta[1] if meta else "Commonly used formulation ingredient."
 
+        disp_cond = skin_condition.replace('_', ' ')
+        if not disp_cond.endswith('skin'):
+            disp_cond += ' skin'
+
         # Determine rating
         if any(kw in key for kw in cond_bad) or any(kw in key for kw in llm_bad):
             rating = "bad"
-            reason = f"May not suit {skin_condition.replace('_', ' ')} skin. {base_reason}"
+            reason = f"May not suit {disp_cond}. {base_reason}"
         elif any(kw in key for kw in cond_good) or any(kw in key for kw in llm_good):
             rating = "good"
-            reason = f"Beneficial for {skin_condition.replace('_', ' ')} skin. {base_reason}"
+            reason = f"Beneficial for {disp_cond}. {base_reason}"
         else:
             rating = "neutral"
             reason = base_reason

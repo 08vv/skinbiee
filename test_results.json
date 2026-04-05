@@ -1,0 +1,31 @@
+{
+  "env": {
+    "DATABASE_URL": true,
+    "CLOUDINARY_CLOUD_NAME": true
+  },
+  "cloudinary": {
+    "status": "ok",
+    "response": {
+      "status": "ok"
+    }
+  },
+  "db_postgres": {
+    "status": "error",
+    "message": "could not translate host name \"ep-fancy-resonance-a1w5liuw-pooler.ap-southeast-1.aws.neon.tech\" to address: Name or service not known\n"
+  },
+  "db_sqlite": {
+    "status": "ok",
+    "tables": [
+      "users",
+      "sqlite_sequence",
+      "scans",
+      "daily_logs",
+      "routines"
+    ],
+    "counts": {
+      "users": 4,
+      "scans": 36,
+      "daily_logs": 3
+    }
+  }
+}

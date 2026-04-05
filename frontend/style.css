@@ -279,6 +279,14 @@ a {
     box-shadow: 0 6px 20px rgba(116, 192, 252, 0.5);
 }
 
+.primary-btn:active,
+.secondary-btn:active,
+.pill:active,
+.nav-item:active,
+.swatch:active {
+    transform: scale(0.96) !important;
+}
+
 .primary-btn.small {
     padding: 10px 20px;
     font-size: 0.9rem;
@@ -1844,10 +1852,37 @@ input:checked+.slider:before {
     opacity: 0.4;
 }
 
-/* CARD 2: COMPLETION */
+/* CARD 2: COMPLETION — BLUR OVERLAY */
 .completion-card {
     display: flex;
     min-height: 240px;
+    position: relative;
+    overflow: hidden;
+}
+
+.completion-blur-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 20px;
+    transition: opacity 0.4s ease;
+}
+
+.completion-blur-overlay .blur-cta-btn {
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 16px 32px;
+    border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(74, 192, 252, 0.25);
 }
 
 .card-left {
@@ -1904,7 +1939,71 @@ input:checked+.slider:before {
     z-index: 10;
 }
 
-/* OVERLAY SYSTEM */
+/* PLANNER ONBOARDING — MASCOT ROW */
+.planner-ob-mascot-row {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0 0;
+}
+
+.planner-ob-mascot-img {
+    width: 140px;
+    height: 140px;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+    animation: floaty 3s ease-in-out infinite;
+}
+
+/* ROUTINE REVEAL CARDS */
+.planner-reveal-card {
+    background: white;
+    border-radius: 20px;
+    padding: 20px 24px;
+    width: 100%;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.reveal-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.reveal-card-header i {
+    font-size: 1.2rem;
+}
+
+.reveal-card-header h4 {
+    font-weight: 800;
+    margin: 0;
+}
+
+.reveal-steps-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.reveal-steps-list li {
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 4px 0;
+    color: var(--text-primary);
+}
+
+/* CHECKLIST BODY */
+.checklist-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.checklist-footer {
+    border-top: 1px solid var(--glass-border);
+}
+
+/* ==========================================================================
+   TAB 4: SETTINGS
+   ========================================================================== */
 .overlay-screen {
     position: fixed;
     top: 0;

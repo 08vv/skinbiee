@@ -161,9 +161,11 @@ _HEADER_FALLBACK = re.compile(r'\b(?:active\s+)?ingredients?\b', re.IGNORECASE)
 _STOP_KEYWORDS: list[str] = [
     # Regulatory / manufacturer info
     "Mktd.", "Marketed", "Manufactured", "Mfd.", "Mfg",
-    # Usage / safety
+    # Usage / safety / marketing phrases
     "Directions", "Note:", "Caution", "How to use",
     "Use before", "For query", "Not to be",
+    "With activated", "formula that", "For all skin",
+    "MASSAGE", "directions", "how to use", "apply", "massage",
     # Label meta
     "Net Weight", "Batch", "Storage", "Expiry", "MRP",
     # Indian address tokens (HSR Layout, Bengaluru, industrial estates, etc.)
@@ -205,23 +207,46 @@ def extract_ingredient_section(raw_text: str) -> list[str]:
         after_header = raw_text
     else:
         after_header = raw_text[match.end():]
+        # 2. Stop at section-ending keyword (ONLY if header found)
+        stop_match = _STOP_PATTERN.search(after_header)
+        if stop_match:
+            after_header = after_header[:stop_match.start()]
 
-    # 2. Stop at section-ending keyword
-    stop_match = _STOP_PATTERN.search(after_header)
-    if stop_match:
-        after_header = after_header[:stop_match.start()]
-
-    # 3. Split by commas and "and" (word-boundary to avoid 'mandarin', 'almond')
-    raw_tokens = re.split(r',|\band\b', after_header, flags=re.IGNORECASE)
+    # 3. Split by commas, "and", pipes, or newlines
+    raw_tokens = re.split(r',|\band\b|\||\n', after_header, flags=re.IGNORECASE)
 
     # 4. Strip and filter
     ingredients: list[str] = []
+    
+    # Junk detection criteria
+    JUNK_KEYWORDS = [
+        "apply", "massage", "rinse", "use", "directions", "formula", 
+        "removes", "pollution", "glowing", "all skin", "face", "neck",
+        "detox", "bright", "miracle", "ponds", "warning", "contact", "eyes"
+    ]
+
     for token in raw_tokens:
         cleaned = token.strip().strip('.')
         cleaned = re.sub(r'\s+', ' ', cleaned)   # collapse internal whitespace
-        cleaned = re.sub(r'[^\w\s\-\(\)%\.,/]', '', cleaned)  # drop stray symbols
-        if len(cleaned) >= 3:
-            ingredients.append(cleaned)
+        cleaned = re.sub(r'[^\w\s\-\.%,/]', '', cleaned)  # drop stray symbols
+        cleaned = re.sub(r'[()_]', '', cleaned)          # strip (, ), _
+        
+        lower_cleaned = cleaned.lower()
+        
+        # 1. Skip very short or very long tokens (max 40 per user prompt)
+        if len(cleaned) < 3 or len(cleaned) > 40:
+            continue
+            
+        # 2. Skip tokens containing usage/marketing words
+        if any(kw in lower_cleaned for kw in JUNK_KEYWORDS):
+            continue
+            
+        # 3. Skip ALL CAPS tokens longer than 20 chars (likely product names)
+        # This keeps multi-word ingredients like "HYDROXYSTEARIC ACID" (18 chars)
+        if cleaned.isupper() and len(cleaned) > 20:
+            continue
+            
+        ingredients.append(cleaned)
 
     print(f"[OCR Parser] Found {len(ingredients)} ingredient(s) after header.")
     return ingredients

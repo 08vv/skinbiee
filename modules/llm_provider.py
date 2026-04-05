@@ -55,7 +55,7 @@ def analyze_ingredients_llm(ingredients_text, skin_condition):
     Ingredients: {ingredients_text}
     
     Please provide:
-    1. A safety score (0-100).
+    1. A safety score (0-10).
     2. Key good ingredients found (if any).
     3. Potential irritants or ingredients to avoid for {skin_condition} skin.
     4. A final recommendation (Good Fit, Acceptable, or Not Recommended).
@@ -81,7 +81,7 @@ def analyze_ingredients_llm(ingredients_text, skin_condition):
     except:
         # Fallback if parsing fails
         return {
-            "score": 50,
+            "score": 5.0,
             "good_ingredients": [],
             "bad_ingredients": [],
             "recommendation": res[:200] + "..."
