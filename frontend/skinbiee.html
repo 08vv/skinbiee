@@ -9,6 +9,8 @@
         href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="skinbiee.css">
+
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" href="data:,">
@@ -414,18 +416,72 @@
                             </div>
 
                             <div class="results-state" id="ing-results-state-sb" style="display:none;">
-                                <div class="result-header text-center">
-                                    <h2 id="prod-result-title-sb">Product Analysis</h2>
-                                    <div id="prod-score-badge-sb" class="mt-2"></div>
+                                <!-- Card 1: Verdict -->
+                                <div class="result-card verdict-card">
+                                    <div class="verdict-icon-container">
+                                        <div class="mascot-blob idle micro">
+                                            <div class="mascot-face">
+                                                <div class="eye left"></div>
+                                                <div class="eye right"></div>
+                                                <div class="mouth"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <h2 id="prod-verdict-title">Good Match</h2>
+                                    <p id="prod-verdict-subtitle">This product suits your skin well.</p>
+                                    
+                                    <div class="score-bar-wrapper">
+                                        <div class="score-bar-track">
+                                            <div id="prod-score-fill"></div>
+                                        </div>
+                                    </div>
+                                    <div id="prod-score-text" class="bold">7.0 / 10</div>
+                                    <p id="prod-ing-count" class="micro-text">17 ingredients detected</p>
                                 </div>
-                                <div class="explanation-box card-glass mt-3">
-                                    <p id="prod-result-desc-sb"></p>
+
+                                <!-- Card 2: Quick Facts -->
+                                <div id="prod-fast-facts-card" class="result-card" style="display: none;">
+                                    <div class="pill-scroll-row" id="prod-pills-container">
+                                        <!-- Pills like "Alcohol-Free" -->
+                                    </div>
                                 </div>
-                                <div class="mt-4">
-                                    <h4>Detected Ingredients</h4>
-                                    <p class="micro-text text-muted" id="prod-ingredients-text-sb" style="font-style: italic;"></p>
+
+                                <!-- Card 3: Works for your skin -->
+                                <div id="prod-good-card" class="result-card">
+                                    <h3 class="card-section-title">Works for your skin 🌸</h3>
+                                    <div id="prod-good-list" class="ingredient-rows">
+                                        <!-- Good ingredients -->
+                                    </div>
                                 </div>
-                                <button class="text-btn full-width mt-4" onclick="openAnalyzerDetail('sub-ingredient-scanner')">Scan Another Product</button>
+
+                                <!-- Card 4: Watch out for these -->
+                                <div id="prod-bad-card" class="result-card" style="display: none;">
+                                    <h3 class="card-section-title">Watch out for these ⚡</h3>
+                                    <div id="prod-bad-list" class="ingredient-rows">
+                                        <!-- Bad ingredients -->
+                                    </div>
+                                </div>
+
+                                <!-- Card 5: Everything else -->
+                                <div class="result-card">
+                                    <div class="collapse-toggle" onclick="toggleIngredientsCollapse()">
+                                        <span>See all ingredients <i class="fa-solid fa-chevron-down"></i></span>
+                                    </div>
+                                    <div id="prod-others-list" class="ingredient-rows" style="display: none;">
+                                        <!-- Neutral ingredients -->
+                                    </div>
+                                </div>
+
+                                <!-- Card 6: Tip -->
+                                <div class="result-card">
+                                    <div class="tip-content">
+                                        <span>💡</span>
+                                        <p id="prod-tip-text"></p>
+                                    </div>
+                                </div>
+
+
+                                <button class="primary-btn full-width mt-2" onclick="closeAnalyzerDetail()">Scan Another Product</button>
                             </div>
                         </div>
 
@@ -454,23 +510,91 @@
 
             <!-- SECTION 7: TAB 3 PLANNER & TRACKER -->
             <section id="view-planner" class="view">
-                <!-- Main Dashboard (Visible after setup/daily task) -->
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PLANNER ONBOARDING OVERLAY (10 Questions)
+                     ═══════════════════════════════════════════════════════ -->
+                <div id="planner-onboarding-overlay" style="display: none;">
+
+                    <!-- Welcome Screen -->
+                    <div id="planner-ob-welcome" class="overlay-screen" style="display: none;">
+                        <div class="overlay-content text-center">
+                            <div class="char-container">
+                                <img src="assets/girl_normal.png" alt="Glow Bot" class="setup-mascot">
+                            </div>
+                            <h2 class="mt-4">Let's build your perfect skincare routine!</h2>
+                            <p class="micro-text text-muted mt-2">Answer a few quick questions so I can personalise your routine.</p>
+                            <button class="primary-btn mt-4 px-5" onclick="startPlannerOnboarding()">Let's Go!</button>
+                        </div>
+                    </div>
+
+                    <!-- 10-Question Flow -->
+                    <div id="planner-ob-questions" class="overlay-screen" style="display: none;">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="planner-ob-progress"></div>
+                        </div>
+                        <div class="planner-ob-mascot-row">
+                            <img src="assets/girl_normal.png" alt="Glow Bot" class="planner-ob-mascot-img">
+                        </div>
+                        <div class="question-content mt-3 px-4" id="planner-ob-question-area">
+                            <!-- JS injected -->
+                        </div>
+                    </div>
+
+                    <!-- Routine Reveal Screen -->
+                    <div id="planner-ob-reveal" class="overlay-screen" style="display: none;">
+                        <div class="overlay-content" style="justify-content: flex-start; padding-top: 40px;">
+                            <div class="char-container" style="width: 180px; height: 180px;">
+                                <img src="assets/girl_thumbs.png" alt="Glow Bot" class="setup-mascot">
+                            </div>
+                            <h2 class="mt-3" style="text-align:center;">Your routines are ready! ✨</h2>
+                            <p class="micro-text text-muted mt-1 mb-4" style="text-align:center;">Here's what I've created just for you.</p>
+
+                            <!-- Morning Routine Card -->
+                            <div class="planner-reveal-card mb-3">
+                                <div class="reveal-card-header">
+                                    <i class="fa-solid fa-sun" style="color: #f6a623;"></i>
+                                    <h4>Morning Routine</h4>
+                                </div>
+                                <ol class="reveal-steps-list" id="reveal-morning-steps">
+                                    <!-- JS populated -->
+                                </ol>
+                            </div>
+
+                            <!-- Night Routine Card -->
+                            <div class="planner-reveal-card mb-4">
+                                <div class="reveal-card-header">
+                                    <i class="fa-solid fa-moon" style="color: #7c8cf8;"></i>
+                                    <h4>Night Routine</h4>
+                                </div>
+                                <ol class="reveal-steps-list" id="reveal-night-steps">
+                                    <!-- JS populated -->
+                                </ol>
+                            </div>
+
+                            <button class="primary-btn full-width" onclick="finishPlannerOnboarding()">Done</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     MAIN PLANNER DASHBOARD (Post-Onboarding)
+                     ═══════════════════════════════════════════════════════ -->
                 <div id="planner-main-dashboard" style="display: none;">
-                    <!-- Card 1: Calendar -->
+
+                    <!-- Card 1: Streak Calendar -->
                     <div class="planner-card calendar-card mb-4">
                         <div class="flex-between align-center">
                             <div class="streak-badge">
                                 <i class="fa-solid fa-fire streak-flame-icon" aria-hidden="true"></i>
-                                <span id="streak-count">5 Day Streak</span>
+                                <span id="streak-count">0 Day Streak</span>
                             </div>
                         </div>
-                        
                         <div class="calendar-header mt-3">
                             <button class="cal-nav-btn" onclick="navMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
-                            <h4 id="calendar-month-year">March 2026</h4>
+                            <h4 id="calendar-month-year">April 2026</h4>
                             <button class="cal-nav-btn" onclick="navMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
                         </div>
-                        
                         <div class="calendar-days-header mt-3">
                             <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
                         </div>
@@ -479,25 +603,62 @@
                         </div>
                     </div>
 
-                    <!-- Card 2: Completion Card -->
-                    <div class="planner-card completion-card">
+                    <!-- Card 2: Morning Completion Card -->
+                    <div class="planner-card completion-card mb-4" id="morning-completion-card">
+                        <!-- Blur Overlay (covers until submitted) -->
+                        <div class="completion-blur-overlay" id="morning-blur-overlay">
+                            <button class="primary-btn blur-cta-btn" onclick="startRoutineChecklist('morning')">
+                                <i class="fa-solid fa-sun mr-1"></i> Morning Routine
+                            </button>
+                        </div>
+                        <!-- Actual Card Content -->
                         <div class="card-left">
                             <div class="flex-between align-start">
                                 <div>
-                                    <h4 class="mb-1">Today's Routine</h4>
-                                    <span class="micro-text uppercase bold text-muted">Morning Routine</span>
+                                    <h4 class="mb-1">Morning Routine</h4>
                                 </div>
-                                <button class="edit-routine-btn" onclick="openRoutineEditor()">Edit</button>
+                                <button class="edit-routine-btn" onclick="openRoutineEditor('morning')">Edit</button>
                             </div>
-                            
-                            <ul class="mini-checklist mt-3" id="main-routine-list">
+                            <ul class="mini-checklist mt-3" id="morning-routine-list">
                                 <!-- JS populated -->
                             </ul>
-                            
                             <div class="completion-status mt-3">
                                 <p class="bold mb-0">All done!</p>
                                 <p class="micro-text text-muted">Capture your glow</p>
-                                <button class="primary-btn small mt-2" onclick="openCamera()">
+                                <button class="primary-btn small mt-2" onclick="openSelfieCamera('morning')">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                    Snap a Selfie
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-right">
+                            <img src="assets/girl_thumbs.png" alt="Mascot" class="completion-mascot">
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Night Completion Card -->
+                    <div class="planner-card completion-card mb-4" id="night-completion-card">
+                        <!-- Blur Overlay (covers until submitted) -->
+                        <div class="completion-blur-overlay" id="night-blur-overlay">
+                            <button class="primary-btn blur-cta-btn" onclick="startRoutineChecklist('night')">
+                                <i class="fa-solid fa-moon mr-1"></i> Night Routine
+                            </button>
+                        </div>
+                        <!-- Actual Card Content -->
+                        <div class="card-left">
+                            <div class="flex-between align-start">
+                                <div>
+                                    <h4 class="mb-1">Night Routine</h4>
+                                </div>
+                                <button class="edit-routine-btn" onclick="openRoutineEditor('night')">Edit</button>
+                            </div>
+                            <ul class="mini-checklist mt-3" id="night-routine-list">
+                                <!-- JS populated -->
+                            </ul>
+                            <div class="completion-status mt-3">
+                                <p class="bold mb-0">All done!</p>
+                                <p class="micro-text text-muted">Capture your glow</p>
+                                <button class="primary-btn small mt-2" onclick="openSelfieCamera('night')">
                                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                                     Snap a Selfie
                                 </button>
@@ -509,68 +670,34 @@
                     </div>
                 </div>
 
-                <!-- OVERLAY SYSTEM -->
-                <div id="planner-overlay-container" style="display: none;">
-                    <!-- Setup Entry Screen -->
-                    <div id="setup-entry" class="overlay-screen" style="display: none;">
-                        <div class="overlay-content text-center">
-                            <div class="char-container">
-                                <img src="assets/girl_normal.png" alt="Guide" class="setup-mascot">
+                <!-- ═══════════════════════════════════════════════════════
+                     CHECKLIST OVERLAY (shared for AM/PM)
+                     ═══════════════════════════════════════════════════════ -->
+                <div id="routine-checklist-overlay" class="overlay-screen" style="display: none;">
+                    <div class="checklist-header flex-between align-center p-4">
+                        <div>
+                            <h1 class="mb-0" id="checklist-title">Today's Routine</h1>
+                            <span class="text-muted" id="checklist-subtitle">Morning Routine</span>
+                        </div>
+                        <button class="edit-routine-btn" id="checklist-edit-btn" onclick="openRoutineEditorFromChecklist()">Edit</button>
+                    </div>
+                    <div class="checklist-body p-4">
+                        <div class="checklist-items" id="routine-checklist-items">
+                            <!-- JS populated -->
+                        </div>
+                        <div id="checklist-camera-area" style="display: none;" class="mt-4 text-center">
+                            <div class="camera-action-card" onclick="openSelfieFromChecklist()">
+                                <p class="mb-3 bold">All steps complete!</p>
+                                <button class="camera-svg-btn">
+                                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                </button>
+                                <p class="micro-text text-muted mt-3">Tap to snap your daily progress selfie (optional)</p>
                             </div>
-                            <h2 class="mt-4">Let's build your skincare routine</h2>
-                            <button class="primary-btn mt-4 px-5" onclick="startSetup()">Start</button>
+                            <input type="file" id="selfie-upload-input" accept="image/*" hidden onchange="handleSelfieUpload(this)">
                         </div>
                     </div>
-
-                    <!-- Setup Questionnaire -->
-                    <div id="setup-questions" class="overlay-screen" style="display: none;">
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" id="setup-progress"></div>
-                        </div>
-                        <div class="question-content mt-5 px-4" id="question-area">
-                            <!-- Question injected by JS -->
-                        </div>
-                    </div>
-
-                    <!-- Daily Entry Screen -->
-                    <div id="daily-entry" class="overlay-screen" style="display: none;" onclick="openChecklist()">
-                        <div class="overlay-content text-center py-5">
-                            <div class="char-container">
-                                <img src="assets/girl_normal.png" alt="Guide" class="setup-mascot">
-                            </div>
-                            <h2 class="mt-4">Let's complete your skincare routine</h2>
-                            <p class="micro-text text-muted mt-2">Tap anywhere to start</p>
-                        </div>
-                    </div>
-
-                    <!-- Daily Checklist Screen -->
-                    <div id="daily-checklist" class="overlay-screen" style="display: none;">
-                        <div class="checklist-header flex-between align-center p-4">
-                            <div>
-                                <h1 class="mb-0">Today's Routine</h1>
-                                <span class="text-muted">Morning Routine</span>
-                            </div>
-                            <button class="edit-routine-btn" onclick="openRoutineEditor()">Edit</button>
-                        </div>
-                        <div class="checklist-body p-4">
-                            <div class="checklist-items" id="daily-items-list">
-                                <!-- JS populated with rows -->
-                            </div>
-                            
-                            <div id="checklist-camera-area" style="display: none;" class="mt-4 text-center">
-                                <div class="camera-action-card" onclick="openCamera()">
-                                    <p class="mb-3 bold">All steps complete!</p>
-                                    <button class="camera-svg-btn">
-                                        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                                    </button>
-                                    <p class="micro-text text-muted mt-3">Tap to snap your daily progress selfie</p>
-                                </div>
-                                <input type="file" id="selfie-upload-input" accept="image/*" hidden onchange="handleSelfieUpload(this)">
-                            </div>
-                        </div>
-                        <div class="checklist-footer p-4">
-                            <button class="primary-btn full-width" id="finish-checklist-btn" onclick="finishChecklist()">Done</button>
-                        </div>
+                    <div class="checklist-footer p-4">
+                        <button class="primary-btn full-width" id="finish-checklist-btn" onclick="finishChecklist()">Submit</button>
                     </div>
                 </div>
 
@@ -578,13 +705,14 @@
                 <div id="routine-editor-overlay" class="overlay-screen" style="display: none;">
                     <div class="p-4">
                         <div class="flex-between align-center mb-4">
-                            <h2>Edit Routine</h2>
+                            <h2 id="editor-title">Edit Routine</h2>
                             <button class="text-btn" onclick="closeRoutineEditor()">Close</button>
                         </div>
                         <div id="editor-items-list" class="mb-4">
                             <!-- JS populated -->
                         </div>
                         <button class="secondary-btn full-width" onclick="addRoutineItem()">+ Add Step</button>
+                        <button class="primary-btn full-width mt-3" onclick="saveAndCloseEditor()">Save</button>
                     </div>
                 </div>
 
@@ -663,8 +791,7 @@
                 </div>
 
                 <div class="settings-footer text-center mt-4">
-                    <p class="micro-text">SkinCare Companion v2.0</p>
-                    <p class="micro-text mb-4">All data is stored locally. No images are uploaded to external servers.</p>
+                    <p class="micro-text mb-4">Your profile data is stored locally. Images are stored securely on encrypted external servers.</p>
                     <button class="secondary-btn" id="logout-btn">Log Out</button>
                 </div>
 
@@ -710,32 +837,33 @@
                     <div class="sub-page-card">
                         <div>
                             <label class="micro-text bold mb-2" style="display:block;">Skin Type</label>
-                            <select class="sub-page-input">
-                                <option value="normal">Normal</option>
-                                <option value="oily">Oily</option>
-                                <option value="dry">Dry</option>
-                                <option value="combination">Combination</option>
-                                <option value="sensitive">Sensitive</option>
-                            </select>
+                            <div class="pill-group single-select" data-profile-key="skinType">
+                                <button class="pill active" data-val="Normal">Normal</button>
+                                <button class="pill" data-val="Oily">Oily</button>
+                                <button class="pill" data-val="Dry">Dry</button>
+                                <button class="pill" data-val="Combination">Combination</button>
+                                <button class="pill" data-val="Sensitive">Sensitive</button>
+                            </div>
                         </div>
                         <div>
                             <label class="micro-text bold mb-2" style="display:block;">Skin Tone</label>
-                            <div style="display: flex; gap: 8px;">
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #FFDFC4; border: 2px solid var(--primary); cursor: pointer;"></div>
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #F0D5BE; cursor: pointer;"></div>
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #D6B89F; cursor: pointer;"></div>
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #A77C58; cursor: pointer;"></div>
-                                <div style="width: 32px; height: 32px; border-radius: 50%; background: #5E3E26; cursor: pointer;"></div>
+                            <div class="color-swatches" data-profile-key="skinTone">
+                                <div class="swatch active" style="background: #FFDFC4;" data-val="#FFDFC4"></div>
+                                <div class="swatch" style="background: #F0D5BE;" data-val="#F0D5BE"></div>
+                                <div class="swatch" style="background: #D6B89F;" data-val="#D6B89F"></div>
+                                <div class="swatch" style="background: #A77C58;" data-val="#A77C58"></div>
+                                <div class="swatch" style="background: #5E3E26;" data-val="#5E3E26"></div>
                             </div>
                         </div>
                         <div>
                             <label class="micro-text bold mb-2" style="display:block;">Primary Concerns</label>
-                            <div class="pill-group multi-select">
-                                <button class="pill active">Acne</button>
-                                <button class="pill">Dark spots</button>
-                                <button class="pill">Dryness</button>
-                                <button class="pill">Anti-aging</button>
-                                <button class="pill">Sensitivity</button>
+                            <div class="pill-group multi-select" data-profile-key="concern">
+                                <button class="pill active" data-val="Acne">Acne</button>
+                                <button class="pill" data-val="Glow">Glow</button>
+                                <button class="pill" data-val="Dark spots">Dark spots</button>
+                                <button class="pill" data-val="Dryness">Dryness</button>
+                                <button class="pill" data-val="Anti-aging">Anti-aging</button>
+                                <button class="pill" data-val="Sensitivity">Sensitivity</button>
                             </div>
                         </div>
                         <div>
@@ -743,7 +871,7 @@
                             <input type="text" class="sub-page-input" placeholder="e.g. Fragrance, Niacinamide">
                         </div>
                     </div>
-                    <button class="primary-btn mt-4 full-width" onclick="closeSettingsSubPage('skin-profile')">Save Skin Profile</button>
+                    <button class="primary-btn mt-4 full-width" onclick="saveSkinProfile()">Save Skin Profile</button>
                 </div>
 
                 <!-- Export Data -->

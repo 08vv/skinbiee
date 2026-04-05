@@ -1,4 +1,7 @@
-const API_BASE_URL = "http://localhost:5000";
+// Automatically switches to production server when deployed
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? "http://localhost:5000" 
+    : "https://YOUR-BACKEND-URL-HERE.onrender.com"; // <-- 🚀 Update this line after backend is deployed!
 
 /* ==========================================================================
    STATE & DOM ELEMENTS
@@ -61,16 +64,21 @@ async function refreshUserDataFromServer() {
         const res = await fetch(`${API_BASE_URL}/api/user/data?user_id=${state.userId}`);
         const data = await res.json();
         if (data.status !== 'success') return;
+        
         state.activeDates = new Set(data.active_dates || []);
+        state.allLogs = data.logs || []; // Store full logs for export
+
         if (typeof data.streak === 'number') {
             plannerState.streak = data.streak;
             state.streak = data.streak;
             localStorage.setItem(userStorageKey('planner-streak'), String(data.streak));
         }
+
         const sBadge = document.getElementById('streak-count');
         const homeStreakEl = document.getElementById('home-streak-count');
         if (sBadge) sBadge.textContent = `${plannerState.streak} Day Streak`;
         if (homeStreakEl) homeStreakEl.textContent = plannerState.streak;
+        
         renderPlannerCalendar();
     } catch (e) {
         console.error('refreshUserDataFromServer', e);
@@ -736,7 +744,10 @@ function showAnalyzerSubStateSB(mode, state) {
             if (states.processing) states.processing.style.display = 'block';
         } else if (state === 'results') {
             if (states.results) {
-                states.results.style.display = 'block';
+                states.results.style.display = (mode === 'prod') ? 'flex' : 'block';
+                if (mode === 'prod') {
+                    states.results.style.flexDirection = 'column';
+                }
                 renderScanHistory();
             }
         }
@@ -953,141 +964,154 @@ function _productTip(isGood, isWarn, badIngredients, skinCondition) {
 }
 
 // ── Main renderer ────────────────────────────────────────────────────────────
+// ── Main renderer ────────────────────────────────────────────────────────────
 function renderProdResultsSB(data) {
     try {
         const analysis   = data.analysis   || {};
         const breakdown  = data.ingredient_breakdown || [];
         const skinCond   = data.skin_condition || 'general';
+        const rawIngredients = data.ingredients || [];
 
-    // Pull good/bad from breakdown (preferred) or legacy analysis lists
-    const goodItems = breakdown.filter(i => i.rating === 'good');
-    const badItems  = breakdown.filter(i => i.rating === 'bad');
-    const neutralItems = breakdown.filter(i => i.rating === 'neutral');
+        // 1. Score handling (0-10 scale)
+        let score = typeof analysis.score === 'number' ? analysis.score : 5.0;
+        if (score > 10.5) score = score / 10; // Handle migration from 0-100
+        score = Math.min(10, Math.max(0, score));
 
-    // Also accept legacy list format (strings or {name} objects) when no breakdown
-    const legacyGoodNames = (analysis.good_ingredients || []).map(g => typeof g === 'string' ? g : g.name || '');
-    const legacyBadNames  = (analysis.bad_ingredients  || []).map(b => typeof b === 'string' ? b : b.name || '');
+        const isGood = score >= 7.0;
+        const isWarn = score >= 4.0 && score < 7.0;
+        const barColor = isGood ? 'var(--success)' : isWarn ? 'var(--warning)' : 'var(--danger)';
 
-    const isGood = analysis.recommendation === 'Good Fit' || analysis.recommendation?.includes('Good');
-    const isWarn = analysis.recommendation === 'Acceptable' || analysis.recommendation?.includes('Acceptable');
-    const scoreRaw = typeof analysis.score === 'number' ? analysis.score : (isGood ? 75 : isWarn ? 50 : 30);
-    const scorePct = Math.min(100, Math.max(0, scoreRaw));
+        // 2. Verdict Card
+        const vTitle = document.getElementById('prod-verdict-title');
+        const vSub   = document.getElementById('prod-verdict-subtitle');
+        const vFill  = document.getElementById('prod-score-fill');
+        const vText  = document.getElementById('prod-score-text');
+        const vCount = document.getElementById('prod-ing-count');
 
-    // ── DOM refs ─────────────────────────────────────────────────────────────
-    const title         = document.getElementById('prod-result-title-sb') || document.getElementById('prod-result-title');
-    const scoreBadge    = document.getElementById('prod-score-badge-sb')  || document.getElementById('prod-score-badge');
-    const desc          = document.getElementById('prod-result-desc-sb')  || document.getElementById('prod-result-desc');
-    const ingredientsBox= document.getElementById('prod-ingredients-text-sb') || document.getElementById('prod-ingredients-text');
+        if (vTitle) vTitle.innerText = isGood ? 'Good Match' : isWarn ? 'Use With Caution' : 'Not Recommended';
+        if (vSub) {
+            const dispCond = skinCond.replace(/_/g, ' ');
+            const suffix = dispCond.endsWith('skin') ? '' : ' skin';
+            const fullCond = dispCond + suffix;
+            
+            vSub.innerText = isGood 
+                ? `This product is a great choice for your ${fullCond}.` 
+                : isWarn 
+                ? `Mind the details — some ingredients may not suit ${fullCond}.` 
+                : `We found ingredients that might be harsh for ${fullCond}.`;
+        }
+        if (vFill) {
+            vFill.style.width = (score * 10) + '%';
+            vFill.style.background = barColor;
+        }
+        if (vText) {
+            vText.innerText = score.toFixed(1) + ' / 10';
+            vText.style.color = barColor;
+        }
+        if (vCount) vCount.innerText = `${breakdown.length || rawIngredients.length} ingredients detected`;
 
-    // ── Section 1: Verdict headline ──────────────────────────────────────────
-    const headlineEmoji = isGood ? '🌟' : isWarn ? '🌿' : '🚫';
-    const headlineText  = isGood ? 'Good Match' : isWarn ? 'Use With Caution' : 'Not Recommended';
-    const condLabel     = skinCond.replace(/_/g, ' ');
-    const verdictSub    = isGood
-        ? `This product looks great for your ${condLabel} skin.`
-        : isWarn
-        ? `Some ingredients may not suit your ${condLabel} skin.`
-        : `This product has ingredients that can irritate ${condLabel} skin.`;
+        // 3. Fast Facts Card (Pills)
+        const factsCard = document.getElementById('prod-fast-facts-card');
+        const pillsCont = document.getElementById('prod-pills-container');
+        if (pillsCont) {
+            const allIngs = breakdown.map(i => i.name.toLowerCase()).join(' ');
+            const facts = [];
+            if (!allIngs.includes('alcohol') || allIngs.includes('alcohol free')) facts.push('Alcohol-Free');
+            if (!allIngs.includes('fragrance') && !allIngs.includes('parfum')) facts.push('Fragrance-Free');
+            if (!allIngs.includes('sulfate')) facts.push('Sulfate-Free');
+            if (!allIngs.includes('paraben')) facts.push('Paraben-Free');
+            if (!allIngs.includes('silicone') && !allIngs.includes('dimethicone')) facts.push('Silicone-Free');
+            if (!allIngs.includes('oil ') && !allIngs.includes('mineral oil')) facts.push('Oil-Free');
 
-    const barColor = isGood ? '#6bcb77' : isWarn ? '#ffd93d' : '#ff6b6b';
+            if (facts.length > 0) {
+                pillsCont.innerHTML = facts.map(f => 
+                    `<span class="pill-badge">${f}</span>`
+                ).join('');
+                factsCard.style.display = 'block';
+            } else {
+                factsCard.style.display = 'none';
+            }
+        }
 
-    if (title) {
-        title.innerHTML = `<span class="prod-verdict-emoji">${headlineEmoji}</span> ${headlineText}`;
+        // 4. Ingredient Lists
+        const goodList = document.getElementById('prod-good-list');
+        const badList  = document.getElementById('prod-bad-list');
+        const othersList = document.getElementById('prod-others-list');
+
+        function createIngItem(item) {
+            const friendly = _friendlyReason(item.reason, item.name);
+            return `
+                <div class="ingredient-item">
+                    <div class="ing-top-line">
+                        <span class="ing-name">${item.name}</span>
+                        <span class="ing-category-tag">${item.category || 'general'}</span>
+                    </div>
+                    <p class="ing-reason">${friendly}</p>
+                </div>`;
+        }
+
+
+        const goodItems = breakdown.filter(i => i.rating === 'good');
+        const badItems  = breakdown.filter(i => i.rating === 'bad');
+        const otherItems= breakdown.filter(i => i.rating === 'neutral' || !i.rating);
+
+        if (goodList) {
+            if (goodItems.length > 0) {
+                goodList.innerHTML = goodItems.map(createIngItem).join('');
+                document.getElementById('prod-good-card').style.display = 'block';
+            } else {
+                document.getElementById('prod-good-card').style.display = 'none';
+            }
+        }
+
+        if (badList) {
+            if (badItems.length > 0) {
+                badList.innerHTML = badItems.map(createIngItem).join('');
+                document.getElementById('prod-bad-card').style.display = 'block';
+            } else {
+                document.getElementById('prod-bad-card').style.display = 'none';
+            }
+        }
+
+        if (othersList) {
+            othersList.innerHTML = otherItems.map(createIngItem).join('');
+            othersList.style.display = 'none'; // Collapsed by default
+        }
+
+
+        // 5. Tip Card
+        const tipText = document.getElementById('prod-tip-text');
+        if (tipText) {
+            if (isGood) {
+                tipText.innerText = "This formula contains great actives! Don't forget to use sunscreen if using this in your AM routine.";
+            } else if (isWarn) {
+                tipText.innerText = "Try a small patch test on your jawline for 24 hours before applying it to your entire face.";
+            } else {
+                tipText.innerText = "Consider a gentler alternative. If you still want to try it, pair it with a very basic, soothing moisturizer.";
+            }
+        }
+
+        // 6. Show the state
+        showAnalyzerSubStateSB('prod', 'results');
+
+    } catch (err) {
+        console.error("Error rendering product results:", err);
+        showToast("Error displaying results: " + err.message);
+        showAnalyzerSubStateSB('prod', 'input');
     }
-    if (scoreBadge) {
-        scoreBadge.innerHTML = `
-            <p class="prod-verdict-sub">${verdictSub}</p>
-            <div class="score-bar-wrap">
-                <div class="score-bar-track">
-                    <div class="score-bar-fill" style="width:${scorePct}%;background:${barColor};"></div>
-                </div>
-                <span class="score-bar-label" style="color:${barColor}">${scorePct}/100</span>
-            </div>`;
-    }
+}
 
-    // ── Section 2: Three buckets ─────────────────────────────────────────────
-    function ingCard(item, legacyName) {
-        const name     = item ? item.name     : (legacyName || '—');
-        const category = item ? item.category : '';
-        const rawReason= item ? item.reason   : '';
-        const rating   = item ? item.rating   : 'neutral';
-        const friendly = _friendlyReason(rawReason, name);
-        const catLabel = category ? `<span class="ing-tag">${category}</span>` : '';
-        return `
-        <div class="ing-bucket-card">
-            <div class="ing-bucket-card-top">
-                <strong class="ing-name">${name}</strong>${catLabel}
-            </div>
-            <p class="ing-friendly-reason">${friendly}</p>
-        </div>`;
-    }
+function toggleIngredientsCollapse() {
+    const list = document.getElementById('prod-others-list');
+    const toggle = document.querySelector('.collapse-toggle span');
+    if (!list || !toggle) return;
 
-    let section2 = '';
-    const hasGood    = goodItems.length > 0 || legacyGoodNames.length > 0;
-    const hasBad     = badItems.length  > 0 || legacyBadNames.length  > 0;
-    const hasNeutral = neutralItems.length > 0;
-
-    if (hasGood) {
-        const cards = goodItems.length > 0
-            ? goodItems.map(i => ingCard(i, null)).join('')
-            : legacyGoodNames.map(n => ingCard(null, n)).join('');
-        section2 += `
-        <div class="ing-bucket good-bucket">
-            <div class="ing-bucket-header">🌸 Works for your skin <span class="ing-count">${goodItems.length || legacyGoodNames.length}</span></div>
-            <div class="ing-bucket-body">${cards}</div>
-        </div>`;
-    }
-    if (hasBad) {
-        const cards = badItems.length > 0
-            ? badItems.map(i => ingCard(i, null)).join('')
-            : legacyBadNames.map(n => ingCard(null, n)).join('');
-        section2 += `
-        <div class="ing-bucket bad-bucket">
-            <div class="ing-bucket-header">💀 Watch out for these <span class="ing-count">${badItems.length || legacyBadNames.length}</span></div>
-            <div class="ing-bucket-body">${cards}</div>
-        </div>`;
-    }
-    if (!hasGood && !hasBad) {
-        section2 = `<p class="micro-text text-muted text-center" style="padding:16px 0">No notably good or bad ingredients were detected for your skin type.</p>`;
-    }
-    if (hasNeutral) {
-        const cards = neutralItems.map(i => ingCard(i, null)).join('');
-        section2 += `
-        <div class="ing-bucket neutral-bucket">
-            <button class="ing-toggle-btn" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'🫧 Everything else — hide ▲':'🫧 Everything else — see all ▾'">
-                🫧 Everything else — see all ▾
-            </button>
-            <div class="ing-bucket-body neutral-body">${cards}</div>
-        </div>`;
-    }
-
-    // ── Section 3: Tip ───────────────────────────────────────────────────────
-    const badNames = badItems.map(i => i.name).concat(legacyBadNames);
-    const tipText  = _productTip(isGood, isWarn, badNames, skinCond);
-
-    if (desc) {
-        desc.innerHTML = `
-        <div class="prod-result-card result-card-entry">
-            ${section2}
-            <div class="prod-tip-box">
-                <span class="prod-tip-icon">💡</span>
-                <p class="prod-tip-text">${tipText}</p>
-            </div>
-        </div>`;
-    }
-
-    // Detected ingredients (collapsed raw list — still shown below for reference)
-    if (ingredientsBox) {
-        const list = data.ingredients_detected?.length
-            ? data.ingredients_detected
-            : data.ingredients
-            ? [data.ingredients]
-            : [];
-        ingredientsBox.textContent = list.length ? list.join(', ') : 'No ingredient text extracted.';
-    }
-    } catch (e) {
-        console.error("UI RENDER CRASH:", e);
-        showToast("Error displaying results: " + e.message);
+    if (list.style.display === 'none') {
+        list.style.display = 'flex';
+        toggle.innerHTML = `Hide ingredients <i class="fa-solid fa-chevron-up ml-1"></i>`;
+    } else {
+        list.style.display = 'none';
+        toggle.innerHTML = `See all ingredients <i class="fa-solid fa-chevron-down ml-1"></i>`;
     }
 }
 
@@ -1182,45 +1206,75 @@ function closeAnalyzerDetail() {
 }
 
 /* ==========================================================================
-   TAB: PLANNER (REBUILT FOR SKINBIEE)
+   TAB: PLANNER (FULL REBUILD – Skinbiee Spec)
    ========================================================================== */
 let plannerState = {
-    hasSetup: false,
-    routine: ['Cleanser', 'Moisturizer'],
-    dailyDone: false,
+    plannerOnboardingDone: false,
+    morningRoutine: [],
+    nightRoutine: [],
+    amDoneToday: false,
+    pmDoneToday: false,
     streak: 0,
     scans: [],
     currentMonth: new Date().getMonth(),
     currentYear: new Date().getFullYear(),
-    setupStep: 0,
-    answers: {}
+    // Onboarding
+    obStep: 0,
+    obAnswers: {},
+    // Editor context
+    editingRoutineType: null, // 'morning' | 'night'
+    // Checklist context
+    checklistType: null // 'morning' | 'night'
 };
 
+/* ── 10 Fixed Planner Questions ───────────────────────────────────────── */
+const plannerQuestions = [
+    { id: 'skinType',      q: 'What is your skin type?',                              options: ['Oily','Dry','Combination','Sensitive','Not sure'] },
+    { id: 'concern',       q: 'What is your primary skin concern?',                   options: ['Acne','Pimples','Dark spots','Pigmentation','Dryness','Dull skin','Fine lines','Aging','No major concerns'] },
+    { id: 'currentRoutine',q: 'Do you currently follow a skincare routine?',           options: ['Yes (basic)','Yes (advanced)','No'] },
+    { id: 'sensitivity',   q: 'How sensitive is your skin?',                           options: ['Not sensitive','Slightly sensitive','Very sensitive'] },
+    { id: 'breakouts',     q: 'Do you experience frequent breakouts?',                 options: ['Yes','Occasionally','No'] },
+    { id: 'timeWilling',   q: 'How much time are you willing to spend on skincare?',   options: ['Minimal (2–3 steps)','Moderate (3–5 steps)','Detailed (5+ steps)'] },
+    { id: 'routineStyle',  q: 'Do you prefer simple or targeted routines?',            options: ['Simple (basic care only)','Targeted (treat specific concerns)'] },
+    { id: 'sunExposure',   q: 'Are you exposed to sunlight regularly?',                options: ['Yes (daily outdoor)','Sometimes','Rarely'] },
+    { id: 'serums',        q: 'Do you want to include treatment products like serums?', options: ['Yes','No','Not sure'] },
+    { id: 'allergies',     q: 'Any known allergies or product reactions?',              options: ['Yes','No'] }
+];
+
+/* ── Storage Helpers ──────────────────────────────────────────────────── */
 function syncPlannerStateFromStorage() {
-    plannerState.hasSetup = localStorage.getItem(userStorageKey('planner-has-setup')) === 'true';
-    let routine = null;
-    try {
-        routine = JSON.parse(localStorage.getItem(userStorageKey('planner-routine')) || 'null');
-    } catch (_) {}
-    plannerState.routine = Array.isArray(routine) && routine.length ? routine : ['Cleanser', 'Moisturizer'];
-    plannerState.streak = parseInt(localStorage.getItem(userStorageKey('planner-streak')) || '0', 10) || 0;
-    try {
-        plannerState.scans = JSON.parse(localStorage.getItem(userStorageKey('planner-scans')) || '[]');
-    } catch (_) {
-        plannerState.scans = [];
+    plannerState.plannerOnboardingDone = localStorage.getItem(userStorageKey('planner-ob-done')) === 'true';
+    try { plannerState.morningRoutine = JSON.parse(localStorage.getItem(userStorageKey('planner-morning-routine')) || 'null') || []; } catch(_) { plannerState.morningRoutine = []; }
+    try { plannerState.nightRoutine = JSON.parse(localStorage.getItem(userStorageKey('planner-night-routine')) || 'null') || []; } catch(_) { plannerState.nightRoutine = []; }
+    // Legacy compat
+    if (!plannerState.morningRoutine.length && !plannerState.nightRoutine.length) {
+        try {
+            const old = JSON.parse(localStorage.getItem(userStorageKey('planner-routine')) || 'null');
+            if (Array.isArray(old) && old.length) {
+                plannerState.morningRoutine = old;
+                plannerState.nightRoutine = old;
+            }
+        } catch(_) {}
     }
+    // Also check legacy hasSetup
+    if (!plannerState.plannerOnboardingDone && localStorage.getItem(userStorageKey('planner-has-setup')) === 'true') {
+        plannerState.plannerOnboardingDone = true;
+        localStorage.setItem(userStorageKey('planner-ob-done'), 'true');
+    }
+    plannerState.streak = parseInt(localStorage.getItem(userStorageKey('planner-streak')) || '0', 10) || 0;
+    try { plannerState.scans = JSON.parse(localStorage.getItem(userStorageKey('planner-scans')) || '[]'); } catch(_) { plannerState.scans = []; }
     plannerState.currentMonth = new Date().getMonth();
     plannerState.currentYear = new Date().getFullYear();
     state.streak = plannerState.streak;
+
+    // Today's completion status
+    const todayKey = getLocalDateKey();
+    plannerState.amDoneToday = localStorage.getItem(userStorageKey('planner-am-done-date')) === todayKey;
+    plannerState.pmDoneToday = localStorage.getItem(userStorageKey('planner-pm-done-date')) === todayKey;
 }
 
-const setupQuestions = [
-    { id: 'skinType', q: "What is your skin type?", options: ["Oily", "Dry", "Combination", "Sensitive"] },
-    { id: 'concern', q: "What is your main concern?", options: ["Acne", "Glow", "Dark Spots", "Anti-aging"] },
-    { id: 'level', q: "Your routine level?", options: ["Basic", "Advanced"] },
-    { id: 'prefs', q: "Any preferences?", type: "tags", options: ["Organic", "Fragrance-free", "Vegan", "Budget-friendly"] },
-    { id: 'notes', q: "Anything else we should know?", type: "text" }
-];
+function saveMorningRoutine() { localStorage.setItem(userStorageKey('planner-morning-routine'), JSON.stringify(plannerState.morningRoutine)); }
+function saveNightRoutine() { localStorage.setItem(userStorageKey('planner-night-routine'), JSON.stringify(plannerState.nightRoutine)); }
 
 function getLocalDateKey(date = new Date()) {
     const year = date.getFullYear();
@@ -1229,16 +1283,13 @@ function getLocalDateKey(date = new Date()) {
     return `${year}-${month}-${day}`;
 }
 
-function getPlannerLastDoneKey() {
-    return localStorage.getItem(userStorageKey('planner-last-completed-date')) || localStorage.getItem(userStorageKey('planner-daily-done'));
-}
-
 function checkStreakMaintenance() {
-    const lastDone = getPlannerLastDoneKey();
+    const lastAM = localStorage.getItem(userStorageKey('planner-am-done-date')) || '';
+    const lastPM = localStorage.getItem(userStorageKey('planner-pm-done-date')) || '';
+    const lastDone = lastAM > lastPM ? lastAM : lastPM;
     if (!lastDone) return;
     const todayStr = getLocalDateKey();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = getLocalDateKey(yesterday);
     if (lastDone !== todayStr && lastDone !== yesterdayStr) {
         plannerState.streak = 0;
@@ -1246,166 +1297,285 @@ function checkStreakMaintenance() {
     }
 }
 
+/* ── Main Setup Entry Point ───────────────────────────────────────────── */
 function setupPlanner() {
     syncPlannerStateFromStorage();
     checkStreakMaintenance();
     plannerState.streak = parseInt(localStorage.getItem(userStorageKey('planner-streak')) || '0', 10) || 0;
-    plannerState.dailyDone = getPlannerLastDoneKey() === getLocalDateKey();
     state.streak = plannerState.streak;
 
-    const overlayContainer = document.getElementById('planner-overlay-container');
-    const mainDashboard = document.getElementById('planner-main-dashboard');
-    const editorOverlay = document.getElementById('routine-editor-overlay');
-    
-    if (overlayContainer) overlayContainer.style.display = 'none';
-    if (editorOverlay) editorOverlay.style.display = 'none';
-    
-    document.querySelectorAll('.overlay-screen').forEach(s => s.style.display = 'none');
-    
-    if (!plannerState.hasSetup) {
-        if (overlayContainer) overlayContainer.style.display = 'block';
-        if (mainDashboard) mainDashboard.style.display = 'none';
-        const setupEntry = document.getElementById('setup-entry');
-        if (setupEntry) setupEntry.style.display = 'flex';
-    } else if (!plannerState.dailyDone) {
-        if (overlayContainer) overlayContainer.style.display = 'block';
-        if (mainDashboard) mainDashboard.style.display = 'none';
-        const dailyEntry = document.getElementById('daily-entry');
-        if (dailyEntry) dailyEntry.style.display = 'flex';
+    const obOverlay = document.getElementById('planner-onboarding-overlay');
+    const mainDash = document.getElementById('planner-main-dashboard');
+    const checklistOl = document.getElementById('routine-checklist-overlay');
+    const editorOl = document.getElementById('routine-editor-overlay');
+
+    // Hide overlays
+    if (checklistOl) checklistOl.style.display = 'none';
+    if (editorOl) editorOl.style.display = 'none';
+
+    if (!plannerState.plannerOnboardingDone) {
+        // Show onboarding
+        if (obOverlay) obOverlay.style.display = 'block';
+        if (mainDash) mainDash.style.display = 'none';
+        // Show welcome screen
+        hideAllPlannerObScreens();
+        const welcome = document.getElementById('planner-ob-welcome');
+        if (welcome) welcome.style.display = 'flex';
     } else {
-        if (overlayContainer) overlayContainer.style.display = 'none';
-        if (mainDashboard) mainDashboard.style.display = 'block';
+        // Show main dashboard
+        if (obOverlay) obOverlay.style.display = 'none';
+        if (mainDash) mainDash.style.display = 'block';
         renderPlannerDashboard();
     }
 }
 
-function startSetup() {
-    document.getElementById('setup-entry').style.display = 'none';
-    document.getElementById('setup-questions').style.display = 'flex';
-    plannerState.setupStep = 0;
-    plannerState.answers = {};
-    renderSetupQuestion();
+function hideAllPlannerObScreens() {
+    ['planner-ob-welcome','planner-ob-questions','planner-ob-reveal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
 }
 
-function renderSetupQuestion() {
-    const area = document.getElementById('question-area');
-    const step = setupQuestions[plannerState.setupStep];
-    const progress = ((plannerState.setupStep + 1) / setupQuestions.length) * 100;
-    const progressBar = document.getElementById('setup-progress');
-    if (progressBar) progressBar.style.setProperty('--progress', `${progress}%`);
+/* ── Planner Onboarding (10 Questions) ────────────────────────────────── */
+function startPlannerOnboarding() {
+    hideAllPlannerObScreens();
+    plannerState.obStep = 0;
+    plannerState.obAnswers = {};
+    const qScreen = document.getElementById('planner-ob-questions');
+    if (qScreen) qScreen.style.display = 'flex';
+    renderPlannerObQuestion();
+}
 
-    let html = `<h2 class="mb-4">${step.q}</h2>`;
-    if (step.type === 'text') {
-        html += `
-            <textarea id="setup-text-input" class="kawaii-input" placeholder="Type here..." rows="4" style="width:100%"></textarea>
-            <button class="primary-btn full-width mt-4" onclick="nextSetupStep()">Submit</button>
-        `;
-    } else if (step.type === 'tags') {
-        html += `
-            <div class="pill-group multi-select mb-4">
-                ${step.options.map(opt => `<button class="pill" onclick="this.classList.toggle('active')">${opt}</button>`).join('')}
-            </div>
-            <button class="primary-btn full-width" onclick="nextSetupStep()">Continue</button>
-        `;
-    } else {
-        html += `
-            <div class="options-list">
-                ${step.options.map(opt => `
-                    <div class="option-pill" onclick="selectOption(this, '${step.id}', '${opt}')">
-                        <span>${opt}</span>
-                        <i class="fa-solid fa-chevron-right micro-text text-muted"></i>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
+function renderPlannerObQuestion() {
+    const area = document.getElementById('planner-ob-question-area');
+    const step = plannerQuestions[plannerState.obStep];
+    const progress = ((plannerState.obStep + 1) / plannerQuestions.length) * 100;
+    const bar = document.getElementById('planner-ob-progress');
+    if (bar) bar.style.setProperty('--progress', `${progress}%`);
+
+    let html = `<p class="micro-text text-muted mb-1">Question ${plannerState.obStep + 1} of ${plannerQuestions.length}</p>`;
+    html += `<h2 class="mb-4">${step.q}</h2>`;
+    html += `<div class="options-list">`;
+    step.options.forEach(opt => {
+        html += `<div class="option-pill" onclick="selectPlannerObOption('${step.id}', '${opt.replace(/'/g, "\\'")}')"><span>${opt}</span><i class="fa-solid fa-chevron-right micro-text text-muted"></i></div>`;
+    });
+    html += `</div>`;
     if (area) area.innerHTML = html;
 }
 
-function selectOption(el, qId, val) {
-    plannerState.answers[qId] = val;
-    nextSetupStep();
-}
-
-function nextSetupStep() {
-    if (plannerState.setupStep < setupQuestions.length - 1) {
-        plannerState.setupStep++;
-        renderSetupQuestion();
+function selectPlannerObOption(qId, val) {
+    plannerState.obAnswers[qId] = val;
+    if (plannerState.obStep < plannerQuestions.length - 1) {
+        plannerState.obStep++;
+        renderPlannerObQuestion();
     } else {
-        finishSetup();
+        // All answered — generate routines and show reveal
+        generateRoutinesFromAnswers();
+        showRoutineReveal();
     }
 }
 
-function finishSetup() {
-    plannerState.hasSetup = true;
-    plannerState.routine = ['Morning Cleanser', 'Daily Moisturizer', 'Night Serum'];
+/* ── Routine Generation Engine ────────────────────────────────────────── */
+function generateRoutinesFromAnswers() {
+    const a = plannerState.obAnswers;
+    const morning = ['Cleanser'];
+    const night = ['Cleanser'];
+
+    const skinType = (a.skinType || '').toLowerCase();
+    const concern = (a.concern || '').toLowerCase();
+    const timeWilling = (a.timeWilling || '').toLowerCase();
+    const routineStyle = (a.routineStyle || '').toLowerCase();
+    const wantsSerums = (a.serums || '').toLowerCase();
+    const breakouts = (a.breakouts || '').toLowerCase();
+
+    const isMinimal = timeWilling.includes('minimal');
+    const isDetailed = timeWilling.includes('detailed');
+    const isTargeted = routineStyle.includes('targeted');
+
+    // Moisturizer — add if dry skin or if not strictly minimal
+    if (skinType === 'dry' || skinType === 'combination' || !isMinimal) {
+        morning.push('Moisturizer');
+        night.push('Moisturizer');
+    }
+
+    // Serum — add if user wants glow/dullness/targeted or said yes to serums
+    if (concern.includes('dull') || concern.includes('glow') || wantsSerums === 'yes' || isTargeted) {
+        if (!isMinimal || wantsSerums === 'yes') {
+            morning.push('Serum');
+            night.push('Serum');
+        }
+    }
+
+    // Spot treatment — add if acne, breakouts, dark spots, pimples, pigmentation
+    const needsSpotTreatment = ['acne','pimples','dark spots','pigmentation'].some(c => concern.includes(c))
+        || breakouts === 'yes' || breakouts === 'occasionally';
+    if (needsSpotTreatment && (isTargeted || !isMinimal)) {
+        night.push('Spot Treatment');
+    }
+
+    // Extra steps for detailed routine
+    if (isDetailed) {
+        if (!morning.includes('Serum')) morning.splice(morning.length, 0, 'Serum');
+        if (!night.includes('Serum')) night.splice(night.length - (night.includes('Spot Treatment') ? 1 : 0), 0, 'Serum');
+        morning.splice(1, 0, 'Toner');
+        night.splice(1, 0, 'Toner');
+    }
+
+    // Morning must end with Sunscreen
+    morning.push('Sunscreen');
+
+    plannerState.morningRoutine = morning;
+    plannerState.nightRoutine = night;
+    saveMorningRoutine();
+    saveNightRoutine();
+}
+
+function showRoutineReveal() {
+    hideAllPlannerObScreens();
+    const reveal = document.getElementById('planner-ob-reveal');
+    if (reveal) reveal.style.display = 'flex';
+
+    const morningList = document.getElementById('reveal-morning-steps');
+    const nightList = document.getElementById('reveal-night-steps');
+
+    if (morningList) morningList.innerHTML = plannerState.morningRoutine.map(s => `<li>${s}</li>`).join('');
+    if (nightList) nightList.innerHTML = plannerState.nightRoutine.map(s => `<li>${s}</li>`).join('');
+}
+
+function finishPlannerOnboarding() {
+    plannerState.plannerOnboardingDone = true;
+    localStorage.setItem(userStorageKey('planner-ob-done'), 'true');
+    // Also set legacy flag for compat
     localStorage.setItem(userStorageKey('planner-has-setup'), 'true');
-    saveRoutine();
+    try { localStorage.setItem(userStorageKey('planner-ob-answers'), JSON.stringify(plannerState.obAnswers)); } catch(_) {}
     setupPlanner();
 }
 
-function openChecklist() {
-    document.getElementById('daily-entry').style.display = 'none';
-    document.getElementById('daily-checklist').style.display = 'flex';
-    renderDailyItems();
+/* ── Main Dashboard Rendering ─────────────────────────────────────────── */
+function renderPlannerDashboard() {
+    const sBadge = document.getElementById('streak-count');
+    const homeStreakEl = document.getElementById('home-streak-count');
+    if (sBadge) sBadge.textContent = `${plannerState.streak} Day Streak`;
+    if (homeStreakEl) homeStreakEl.textContent = plannerState.streak;
+
+    renderPlannerCalendar();
+    renderMorningCard();
+    renderNightCard();
+    updateBlurStates();
 }
 
-function renderDailyItems() {
-    const list = document.getElementById('daily-items-list');
+function renderMorningCard() {
+    const list = document.getElementById('morning-routine-list');
     if (list) {
-        list.innerHTML = plannerState.routine.map((item, i) => `
+        list.innerHTML = plannerState.morningRoutine.map(item =>
+            `<li><i class="fa-solid fa-check blue-check"></i> <span>${item}</span></li>`
+        ).join('');
+    }
+}
+
+function renderNightCard() {
+    const list = document.getElementById('night-routine-list');
+    if (list) {
+        list.innerHTML = plannerState.nightRoutine.map(item =>
+            `<li><i class="fa-solid fa-check blue-check"></i> <span>${item}</span></li>`
+        ).join('');
+    }
+}
+
+function updateBlurStates() {
+    const todayKey = getLocalDateKey();
+    plannerState.amDoneToday = localStorage.getItem(userStorageKey('planner-am-done-date')) === todayKey;
+    plannerState.pmDoneToday = localStorage.getItem(userStorageKey('planner-pm-done-date')) === todayKey;
+
+    const morningBlur = document.getElementById('morning-blur-overlay');
+    const nightBlur = document.getElementById('night-blur-overlay');
+
+    if (morningBlur) morningBlur.style.display = plannerState.amDoneToday ? 'none' : 'flex';
+    if (nightBlur) nightBlur.style.display = plannerState.pmDoneToday ? 'none' : 'flex';
+}
+
+/* ── Checklist Flow ───────────────────────────────────────────────────── */
+function startRoutineChecklist(type) {
+    plannerState.checklistType = type;
+    const overlay = document.getElementById('routine-checklist-overlay');
+    const title = document.getElementById('checklist-title');
+    const subtitle = document.getElementById('checklist-subtitle');
+
+    if (title) title.textContent = "Today's Routine";
+    if (subtitle) subtitle.textContent = type === 'morning' ? 'Morning Routine' : 'Night Routine';
+
+    renderChecklistItems(type);
+    if (overlay) overlay.style.display = 'flex';
+}
+
+function renderChecklistItems(type) {
+    const list = document.getElementById('routine-checklist-items');
+    const routine = type === 'morning' ? plannerState.morningRoutine : plannerState.nightRoutine;
+    if (list) {
+        list.innerHTML = routine.map((item, i) => `
             <div class="daily-row" onclick="this.classList.toggle('checked'); checkAllDone();">
                 <span class="bold">${item}</span>
                 <div class="row-check"><i class="fa-solid fa-check"></i></div>
             </div>
         `).join('');
     }
-    checkAllDone();
+    // Reset camera area
+    const cam = document.getElementById('checklist-camera-area');
+    if (cam) cam.style.display = 'none';
 }
 
 function checkAllDone() {
-    const all = document.querySelectorAll('.daily-row');
-    const checked = document.querySelectorAll('.daily-row.checked');
+    const all = document.querySelectorAll('#routine-checklist-items .daily-row');
+    const checked = document.querySelectorAll('#routine-checklist-items .daily-row.checked');
     const cameraArea = document.getElementById('checklist-camera-area');
-    if (cameraArea) cameraArea.style.display = (checked.length === all.length) ? 'block' : 'none';
+    if (cameraArea) cameraArea.style.display = (checked.length === all.length && all.length > 0) ? 'block' : 'none';
 }
 
 async function finishChecklist() {
-    if (plannerState.dailyDone) {
-        setupPlanner();
-        return;
-    }
+    const type = plannerState.checklistType;
+    if (!type) return;
 
     const todayKey = getLocalDateKey();
 
+    // Mark this routine as done today
+    if (type === 'morning') {
+        plannerState.amDoneToday = true;
+        localStorage.setItem(userStorageKey('planner-am-done-date'), todayKey);
+    } else {
+        plannerState.pmDoneToday = true;
+        localStorage.setItem(userStorageKey('planner-pm-done-date'), todayKey);
+    }
+
+    // Save to server
     try {
         await saveDailyLogToServer();
         await refreshUserDataFromServer();
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Could not sync your routine. Try again.');
-        return;
+        console.error('finishChecklist server sync error:', err);
+        // Still allow completion locally
     }
 
-    plannerState.dailyDone = true;
-    localStorage.setItem(userStorageKey('planner-daily-done'), todayKey);
-    localStorage.setItem(userStorageKey('planner-last-completed-date'), todayKey);
     state.streak = plannerState.streak;
 
-    setupPlanner();
-    showToast('Routine completed! 🔥');
+    // Close checklist overlay
+    const overlay = document.getElementById('routine-checklist-overlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // Update dashboard
+    renderPlannerDashboard();
+    showToast(type === 'morning' ? 'Morning routine completed! ☀️' : 'Night routine completed! 🌙');
 }
 
 async function saveDailyLogToServer() {
-    if (state.userId == null) throw new Error('Not signed in.');
+    if (state.userId == null) return;
     const fileInput = document.getElementById('selfie-upload-input');
     const file = fileInput ? fileInput.files[0] : null;
 
     const formData = new FormData();
     formData.append('user_id', state.userId);
     formData.append('date', getLocalDateKey());
-    formData.append('am_done', 1);
-    formData.append('pm_done', 1);
+    formData.append('am_done', plannerState.amDoneToday ? 1 : 0);
+    formData.append('pm_done', plannerState.pmDoneToday ? 1 : 0);
     formData.append('skin_feeling', 'Good');
     formData.append('skin_rating', 5);
     if (file) formData.append('image', file);
@@ -1416,8 +1586,14 @@ async function saveDailyLogToServer() {
     return data;
 }
 
-function openCamera() {
-    document.getElementById('selfie-upload-input').click();
+function openSelfieCamera(type) {
+    const input = document.getElementById('selfie-upload-input');
+    if (input) input.click();
+}
+
+function openSelfieFromChecklist() {
+    const input = document.getElementById('selfie-upload-input');
+    if (input) input.click();
 }
 
 function handleSelfieUpload(input) {
@@ -1426,24 +1602,78 @@ function handleSelfieUpload(input) {
     }
 }
 
-function renderPlannerDashboard() {
-    const sBadge = document.getElementById('streak-count');
-    const homeStreakEl = document.getElementById('home-streak-count');
-    if (sBadge) sBadge.textContent = `${plannerState.streak} Day Streak`;
-    if (homeStreakEl) homeStreakEl.textContent = plannerState.streak;
-    renderPlannerCalendar();
-    renderMainChecklist();
+/* ── Routine Editor ───────────────────────────────────────────────────── */
+function openRoutineEditor(type) {
+    plannerState.editingRoutineType = type;
+    const overlay = document.getElementById('routine-editor-overlay');
+    const title = document.getElementById('editor-title');
+    if (title) title.textContent = type === 'morning' ? 'Edit Morning Routine' : 'Edit Night Routine';
+    renderEditorItems();
+    if (overlay) overlay.style.display = 'block';
 }
 
-function renderMainChecklist() {
-    const list = document.getElementById('main-routine-list');
+function openRoutineEditorFromChecklist() {
+    openRoutineEditor(plannerState.checklistType);
+}
+
+function renderEditorItems() {
+    const list = document.getElementById('editor-items-list');
+    const type = plannerState.editingRoutineType;
+    const routine = type === 'morning' ? plannerState.morningRoutine : plannerState.nightRoutine;
     if (list) {
-        list.innerHTML = plannerState.routine.map(item => `
-            <li><i class="fa-solid fa-check blue-check"></i> <span>${item}</span></li>
+        list.innerHTML = routine.map((item, i) => `
+            <div class="editor-row">
+                <input type="text" class="editor-input" value="${item}" onchange="updateRoutineItem('${type}', ${i}, this.value)">
+                <button class="remove-step-btn" onclick="removeRoutineItem('${type}', ${i})"><i class="fa-solid fa-trash"></i></button>
+            </div>
         `).join('');
     }
 }
 
+function updateRoutineItem(type, index, value) {
+    if (type === 'morning') plannerState.morningRoutine[index] = value;
+    else plannerState.nightRoutine[index] = value;
+}
+
+function removeRoutineItem(type, index) {
+    if (type === 'morning') plannerState.morningRoutine.splice(index, 1);
+    else plannerState.nightRoutine.splice(index, 1);
+    renderEditorItems();
+}
+
+function addRoutineItem() {
+    const type = plannerState.editingRoutineType;
+    if (type === 'morning') plannerState.morningRoutine.push('New Step');
+    else plannerState.nightRoutine.push('New Step');
+    renderEditorItems();
+}
+
+function saveAndCloseEditor() {
+    const type = plannerState.editingRoutineType;
+    if (type === 'morning') saveMorningRoutine();
+    else saveNightRoutine();
+    closeRoutineEditor();
+    renderPlannerDashboard();
+    // If checklist was open, re-render
+    const checklistOverlay = document.getElementById('routine-checklist-overlay');
+    if (checklistOverlay && checklistOverlay.style.display !== 'none') {
+        renderChecklistItems(plannerState.checklistType);
+    }
+    showToast('Routine saved!');
+}
+
+function closeRoutineEditor() {
+    const overlay = document.getElementById('routine-editor-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function saveRoutine() {
+    // Legacy compat — save both
+    saveMorningRoutine();
+    saveNightRoutine();
+}
+
+/* ── Calendar ─────────────────────────────────────────────────────────── */
 function renderPlannerCalendar() {
     const grid = document.getElementById('planner-calendar-grid');
     const monthLabel = document.getElementById('calendar-month-year');
@@ -1479,19 +1709,17 @@ function renderPlannerCalendar() {
 
 function navMonth(dir) {
     plannerState.currentMonth += dir;
-    if (plannerState.currentMonth > 11) {
-        plannerState.currentMonth = 0;
-        plannerState.currentYear += 1;
-    } else if (plannerState.currentMonth < 0) {
-        plannerState.currentMonth = 11;
-        plannerState.currentYear -= 1;
-    }
+    if (plannerState.currentMonth > 11) { plannerState.currentMonth = 0; plannerState.currentYear += 1; }
+    else if (plannerState.currentMonth < 0) { plannerState.currentMonth = 11; plannerState.currentYear -= 1; }
     renderPlannerCalendar();
 }
 
-function openRoutineEditor() { document.getElementById('routine-editor-overlay').style.display = 'block'; }
-function closeRoutineEditor() { document.getElementById('routine-editor-overlay').style.display = 'none'; }
-function saveRoutine() { localStorage.setItem(userStorageKey('planner-routine'), JSON.stringify(plannerState.routine)); }
+function openRoutineEditorOld(type) { 
+    plannerState.editingRoutineType = type || 'morning';
+    openRoutineEditor(plannerState.editingRoutineType); 
+}
+function openChecklist(type) { startRoutineChecklist(type || 'morning'); }
+function openCamera(type) { openSelfieCamera(type || 'morning'); }
 
 function setupSettings() {
     // Theme Toggles
@@ -1502,9 +1730,34 @@ function setupSettings() {
             let theme = btn.dataset.theme;
             if (theme === 'dark') {
                 document.documentElement.setAttribute('data-theme', 'dark');
+                state.theme = 'dark';
             } else {
                 document.documentElement.removeAttribute('data-theme');
+                state.theme = 'light';
             }
+            localStorage.setItem('sc-theme', state.theme);
+        });
+    });
+
+    // Pill Group Logic (Unified)
+    document.querySelectorAll('.pill-group .pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            const group = pill.closest('.pill-group');
+            if (group.classList.contains('single-select')) {
+                group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+            } else {
+                pill.classList.toggle('active');
+            }
+        });
+    });
+
+    // Color Swatch Logic
+    document.querySelectorAll('.color-swatches .swatch').forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            const group = swatch.closest('.color-swatches');
+            group.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+            swatch.classList.add('active');
         });
     });
 
@@ -1512,13 +1765,10 @@ function setupSettings() {
     const reminderSwitch = document.querySelector('.settings-section .switch input');
     if (reminderSwitch) {
         reminderSwitch.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                showToast('Routine reminders enabled');
-            } else {
-                showToast('Routine reminders disabled');
-            }
+            showToast(e.target.checked ? 'Routine reminders enabled' : 'Routine reminders disabled');
         });
     }
+
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
@@ -1535,14 +1785,60 @@ function openSettingsToOnboarding() {
 
 function openSettingsSubPage(pageId) {
     document.getElementById(`settings-${pageId}`).style.display = 'flex';
+    
+    const profile = loadUserProfile() || {};
+
     if (pageId === 'account-details') {
         const input = document.getElementById('profile-edit-username');
         if (input) input.value = state.username || '';
+    } else if (pageId === 'skin-profile') {
+        // Sync Pills from Profile
+        document.querySelectorAll('#settings-skin-profile [data-profile-key]').forEach(group => {
+            const key = group.dataset.profileKey;
+            const savedVal = profile[key];
+            if (!savedVal) return;
+
+            if (group.classList.contains('pill-group')) {
+                group.querySelectorAll('.pill').forEach(p => {
+                    const isActive = Array.isArray(savedVal) ? savedVal.includes(p.dataset.val) : savedVal === p.dataset.val;
+                    p.classList.toggle('active', isActive);
+                });
+            } else if (group.classList.contains('color-swatches')) {
+                group.querySelectorAll('.swatch').forEach(s => {
+                    s.classList.toggle('active', s.dataset.val === savedVal);
+                });
+            }
+        });
     }
 }
 
 function closeSettingsSubPage(pageId) {
     document.getElementById(`settings-${pageId}`).style.display = 'none';
+}
+
+function saveSkinProfile() {
+    const profile = loadUserProfile() || {};
+
+    document.querySelectorAll('#settings-skin-profile [data-profile-key]').forEach(group => {
+        const key = group.dataset.profileKey;
+        if (group.classList.contains('pill-group')) {
+            if (group.classList.contains('single-select')) {
+                const active = group.querySelector('.pill.active');
+                if (active) profile[key] = active.dataset.val;
+            } else {
+                const actives = Array.from(group.querySelectorAll('.pill.active')).map(p => p.dataset.val);
+                profile[key] = actives;
+            }
+        } else if (group.classList.contains('color-swatches')) {
+            const active = group.querySelector('.swatch.active');
+            if (active) profile[key] = active.dataset.val;
+        }
+    });
+
+    saveUserProfile(profile);
+    applyUserProfile(profile);
+    showToast('Skin profile updated! ✨');
+    closeSettingsSubPage('skin-profile');
 }
 
 function saveAccountDetails() {
@@ -1551,39 +1847,58 @@ function saveAccountDetails() {
         state.username = newName;
         const displayNameEl = document.getElementById('user-display-name');
         if (displayNameEl) displayNameEl.textContent = newName;
-        localStorage.setItem(userStorageKey('data'), JSON.stringify(plannerState)); // Generic save trigger
+        
+        // Ensure profile updated too
+        const profile = loadUserProfile() || {};
+        profile.username = newName;
+        saveUserProfile(profile);
+        
         showToast('Profile updated!');
     }
     closeSettingsSubPage('account-details');
 }
 
 function executeExportData() {
-    // Spreadsheet Header
-    let csvHeader = ["Date", "Type", "Condition/Product", "Severity/Score", "Image URL"];
-    let csvRows = [csvHeader.join(",")];
+    let csvRows = [];
+    const profile = loadUserProfile() || {};
 
-    // Add Scan data
+    // --- Section 1: User Profile ---
+    csvRows.push("--- USER SKIN PROFILE ---");
+    csvRows.push(`"Metric","Value"`);
+    csvRows.push(`"Username","${state.username || 'Skinbiee User'}"`);
+    csvRows.push(`"Current Streak","${plannerState.streak || 0} Days"`);
+    csvRows.push(`"Skin Type","${profile.skinType || 'Not specified'}"`);
+    csvRows.push(`"Primary Concern","${profile.concern || 'General Care'}"`);
+    csvRows.push(`"Sensitivity Level","${profile.sensitive || 'Unknown'}"`);
+    csvRows.push("\n");
+
+    // --- Section 2: Daily Routine History ---
+    csvRows.push("--- DAILY ROUTINE HISTORY ---");
+    csvRows.push(`"Date","Morning Done","Night Done","Rating","Feeling"`);
+    if (state.allLogs && state.allLogs.length > 0) {
+        state.allLogs.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(log => {
+            const am = log.am_done ? "YES" : "NO";
+            const pm = log.pm_done ? "YES" : "NO";
+            csvRows.push(`"${log.date}","${am}","${pm}","${log.skin_rating || '-'}","${log.skin_feeling || '-'}"`);
+        });
+    } else {
+        csvRows.push(`"No daily logs found."`);
+    }
+    csvRows.push("\n");
+
+    // --- Section 3: Analysis History ---
+    csvRows.push("--- SCANNER & ANALYSIS HISTORY ---");
+    csvRows.push(`"Date","Analysis Type","Subject/Condition","Severity/Score","Visual Reference"`);
     if (plannerState.scans && Array.isArray(plannerState.scans)) {
         plannerState.scans.forEach(item => {
-            const row = [
-                `"${item.date || ''}"`,
-                `"${item.type || ''}"`,
-                `"${item.condition || (item.type === 'product' ? 'Product Scan' : 'Unknown')}"`,
-                `"${item.severity || item.score || ''}"`,
-                `"${item.img || ''}"`
-            ];
-            csvRows.push(row.join(","));
+            const typeLabel = item.type === 'product' ? 'Product Safety Check' : 'Skin Condition Analysis';
+            const subject = item.condition || (item.type === 'product' ? (item.productName || 'Unnamed Product') : 'Unknown');
+            const result = item.severity || (item.score ? `${item.score}/100` : '-');
+            
+            csvRows.push(`"${item.date || ''}","${typeLabel}","${subject}","${result}","${item.img || ''}"`);
         });
-    }
-
-    // Include Routine info as a separate table in the same CSV
-    csvRows.push("\n");
-    csvRows.push("--- USER PROFILE & ROUTINE ---");
-    csvRows.push("Username,Streak");
-    csvRows.push(`"${state.username || ''}","${plannerState.streak || 0}"`);
-    csvRows.push("Routine Items");
-    if (plannerState.routine && Array.isArray(plannerState.routine)) {
-        plannerState.routine.forEach(item => csvRows.push(`"${item}"`));
+    } else {
+        csvRows.push(`"No scan history found."`);
     }
 
     const csvBody = csvRows.join("\n");
@@ -1592,12 +1907,12 @@ function executeExportData() {
     
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", "skinbiee_data_export.csv");
+    link.setAttribute("download", `skinbiee_export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link); 
     link.click();
     link.remove();
     
-    showToast('Spreadsheet (.csv) exported successfully!');
+    showToast('Your curated data journal has been exported! ✨');
     closeSettingsSubPage('export-data');
 }
 

@@ -1,37 +1,190 @@
 SKINBIEE PROJECT ENCYCLOPEDIA
 =============================
 
-1. PROJECT OVERVIEW
--------------------
-Skinbiee is a comprehensive, multi-platform AI skincare companion designed to help users understand their skin health and product compatibility. The application addresses three core problems:
-- **Skin Assessment**: Using computer vision to identify concerns like acne, dryness, and pigmentation.
-- **Product Safety**: Using OCR to extract and evaluate ingredient lists from physical products against a user's specific skin profile.
-- **Routine Consistency**: Providing a gamified, mascot-led diary and planner to ensure long-term adherence to skincare habits.
+1. OVERVIEW
+-----------
+Skinbiee is a skincare companion app that combines:
+- skin-condition prediction from face images
+- OCR-based ingredient extraction from product labels
+- compatibility scoring based on the user's latest detected skin condition
+- planner and streak tracking features
+- a mascot-style helper UI
 
-The project is built as a highly modular ecosystem where an AI Analysis backend powers multiple frontend implementations, including a responsive Vanilla JS web app and a Streamlit-based dashboard.
+The current working product is centered around the custom frontend in `frontend/`
+and the Flask backend in `analysis_server.py`.
 
-2. TECH STACK SUMMARY
+
+2. TECHNOLOGY SUMMARY
 ---------------------
-### Languages
-- **Python**: Core backend, AI inference (TensorFlow), and OCR processing (EasyOCR).
-- **JavaScript**: Frontend state management and DOM manipulation for the main web app.
-- **Vanilla CSS**: Modern, brand-specific styling utilizing glassmorphism and custom animations.
-- **HTML5**: Semantic structure for the Single Page Application (SPA).
+Languages:
+- Python
+- JavaScript
+- HTML
+- CSS
 
-### Frameworks & Libraries
-- **Flask**: The primary REST API for AI analysis and user data routing.
-- **Streamlit**: A rapid-prototyping framework used for the alternative desktop/admin dashboard.
-- **TensorFlow / Keras**: Machine learning engine for skin concern classification.
-- **EasyOCR**: Optical Character Recognition engine for text extraction from product labels.
-- **Waitress**: Production-grade WSGI server for the Python backend.
+Main libraries and services:
+- Flask
+- Waitress
+- TensorFlow / Keras
+- EasyOCR
+- OpenCV
+- Pillow
+- Pandas
+- Cloudinary
+- OpenRouter
+- SQLite / PostgreSQL
 
-### Databases & Storage
-- **SQLite**: Primary local relational database (`skin_history.db`) used for user profiles, scan records, and routine persistence.
-- **CSV**: Static product databases (`products.csv`) for ingredient-to-condition mapping.
-- **JSON**: Knowledge bases for ingredient toxicity (`ingredient_db.json`) and chatbot intents (`chat_data.json`).
-- **LocalStorage**: Browser-side persistence for UI state, themes, and temporary session data.
 
-### Infrastructure & Deployment
-- **Waitress/Flask**: Hosted typically on Port 5000 for AI services.
-- **HTTP Server**: Hosted on Port 8001 for the main Skinbiee UI.
-- **OpenRouter/Gemini API**: Optional external LLM integration for "GlowBot" logic.
+3. ACTIVE APPLICATION PATH
+--------------------------
+Frontend:
+- `frontend/skinbiee.html`
+- `frontend/skinbiee.js`
+- `frontend/skinbiee.css`
+
+Frontend server:
+- `serve_skinbiee.py`
+- serves on port `8001`
+
+Backend:
+- `analysis_server.py`
+- serves on port `5000`
+
+The frontend calls the backend for:
+- face analysis
+- product analysis
+- daily logs
+- user history / streak data
+
+
+4. BACKEND CAPABILITIES
+-----------------------
+Authentication:
+- username/password registration
+- username/password login
+
+Face analysis:
+- classifies image into:
+  - Acne
+  - Dark Spots
+  - Oiliness
+  - Dryness
+  - Normal
+
+Product analysis:
+- uploads product photo
+- runs OCR
+- extracts ingredient list
+- finds the user's latest face-scan condition
+- analyzes ingredients with LLM or rules
+- returns structured ingredient results
+
+Planner support:
+- stores AM/PM completion, notes, ratings, and optional photo
+
+User dashboard support:
+- returns scans, logs, streak, and active calendar dates
+
+
+5. OCR AND INGREDIENT ENGINE
+----------------------------
+OCR is implemented in `modules/ocr_utils.py`.
+
+Current behavior:
+- EasyOCR reader is cached
+- OCR runs on the original image first
+- if no ingredient header is found, OCR runs again on a preprocessed image
+- ingredient parsing uses fuzzy header matching and stop-keyword trimming
+
+This is more advanced than the earlier single-pass OCR flow.
+
+Ingredient scoring sources:
+- primary attempt: `modules/llm_provider.py`
+- fallback: `modules/product_scanner.py`
+- rule data: `data/ingredient_db.json`
+
+
+6. OPENROUTER STATUS
+--------------------
+OpenRouter is now an implemented runtime dependency for ingredient analysis when:
+- `OPENROUTER_API_KEY` is present
+- the external request succeeds
+
+Model currently referenced:
+- `google/gemini-flash-1.5`
+
+If the call fails, the backend falls back to deterministic rule-based scoring.
+
+So the correct status is:
+- not mandatory
+- not the main chatbot engine
+- but actively wired into the product-analysis path
+
+
+7. CHATBOT STATUS
+-----------------
+The mascot chat experience is still mostly rule-based.
+
+Frontend chat:
+- `frontend/skinbiee.js`
+- keyword matching and templated replies
+
+Backend chatbot module:
+- `modules/mascot_chatbot.py`
+- intent/keyword responses from `data/chat_data.json`
+
+This means the app has both:
+- rule-based chat
+- optional LLM ingredient analysis
+
+Those are separate systems.
+
+
+8. DATA LAYERS
+--------------
+Database tables:
+- `users`
+- `scans`
+- `daily_logs`
+- `routines`
+
+Storage behavior:
+- PostgreSQL if configured by `DATABASE_URL`
+- SQLite fallback otherwise
+
+Media storage:
+- Cloudinary for uploaded scan and progress images
+
+Knowledge/data files:
+- `data/chat_data.json`
+- `data/ingredient_db.json`
+- `data/products.csv`
+
+Observed local export snapshots outside the repo:
+- `d:\imgs for skinbiee\skinbiee_my_data.json`
+- `d:\imgs for skinbiee\skinbiee_my_data (1).json`
+
+These snapshots show frontend/user-state style fields such as:
+- routine
+- streak
+- scans
+- setupStep
+- answers
+
+
+9. IMPORTANT ACCURACY NOTES
+---------------------------
+- The custom frontend is the clearest active product path in this repo
+- The Streamlit app entrypoint exists, but supporting `ui` / `pages` files are missing here
+- Some old documentation and chatbot copy still describe a more local-only or purely rule-based system
+- The latest backend now includes Cloudinary uploads and optional OpenRouter usage
+
+
+10. SHORT ENCYCLOPEDIA SUMMARY
+------------------------------
+Skinbiee is currently a hybrid skincare app:
+- TensorFlow for face classification
+- EasyOCR for label reading
+- regex/rule logic for ingredient extraction and fallbacks
+- optional OpenRouter/Gemini for richer ingredient analysis
+- Flask API plus Vanilla JS frontend for the main user experience

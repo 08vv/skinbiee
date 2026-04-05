@@ -1,252 +1,208 @@
-OCRINFO.TXT - TECHNICAL OCR/NLP/OPENROUTER AUDIT
-================================================
+OCRINFO.TXT - CURRENT OCR AND PRODUCT-ANALYSIS STATUS
+=====================================================
 
-Audit scope
------------
-This file documents the current technical implementation for:
-1. OCR pipeline
-2. NLP/chatbot pipeline
-3. OpenRouter integration status
+Audit date
+----------
+Checked against the current codebase on 2026-04-05.
 
-Checked files (runtime + config)
---------------------------------
+Files reviewed
+--------------
 - analysis_server.py
 - modules/ocr_utils.py
+- modules/llm_provider.py
 - modules/product_scanner.py
-- modules/recommendations.py
-- modules/mascot_chatbot.py
+- modules/history_db.py
+- data/ingredient_db.json
 - frontend/skinbiee.js
-- data/chat_data.json
-- requirements.txt
-- .env
-- .env.example
+- SCANNER.log
 
 
-A) SYSTEM ARCHITECTURE (CURRENT)
-================================
+1. CURRENT PRODUCT SCAN FLOW
+============================
 
-1) Product OCR + Analysis path (active)
---------------------------------------
-Frontend:
-- `frontend/skinbiee.js`
-- Sends product image + user_id to backend endpoint:
+Active frontend path
+--------------------
+- `frontend/skinbiee.js` sends a multipart request to:
   `POST /api/analyze-product`
+- The frontend expects:
+  - `status`
+  - `skin_condition`
+  - `ingredients_detected`
+  - `ingredient_breakdown`
+  - `analysis`
+  - `image_url`
 
-Backend API:
-- `analysis_server.py`
-- Endpoint: `/api/analyze-product`
-- Steps:
-  1. validate `user_id`
-  2. read image bytes from multipart upload
-  3. upload image to Cloudinary
-  4. run EasyOCR on image bytes
-  5. filter OCR text by confidence
-  6. pass extracted string to ingredient scoring engine
-  7. save scan metadata in DB
-  8. return JSON to frontend
+Active backend path
+-------------------
+In `analysis_server.py`, `/api/analyze-product` now does this:
+1. Validate `user_id`
+2. Read uploaded image bytes
+3. Upload the image to Cloudinary (`skinbiee/product_scans`)
+4. Run OCR through `modules/ocr_utils.extract_ingredients_from_image(...)`
+5. Parse the ingredient section with `modules/ocr_utils.extract_ingredient_section(...)`
+6. Fetch the user's latest detected skin condition from the database via
+   `get_user_skin_condition(user_id)`
+7. Try LLM ingredient analysis through `modules/llm_provider.py`
+8. Fall back to rule-based scoring with `modules/product_scanner.py` if LLM fails
+9. Build a per-ingredient breakdown
+10. Save the scan in the `scans` table as `condition = "Product Scan"`
+11. Return structured JSON to the frontend
 
-Scoring engine:
-- `modules/product_scanner.py`
-- `modules/recommendations.py`
-- data source: `data/ingredient_db.json`
-- This is rule-based matching (not learned NLP).
-
-
-2) NLP chatbot path (active, rule-based)
-----------------------------------------
-Two places exist:
-
-A. Main web app chatbot:
-- `frontend/skinbiee.js`
-- Function `getMascotAIResponse(input)`
-- Rule logic: keyword checks + template responses in JS
-- No network LLM call
-
-B. Streamlit mascot chatbot module:
-- `modules/mascot_chatbot.py`
-- Loads intents from `data/chat_data.json`
-- Matches keywords against user text
-- Returns random response from matched intent
-- Also no network LLM call
-
-Summary:
-- NLP exists, but it is deterministic keyword/intent routing.
-- No embeddings/vector DB/RAG/transformer inference in current runtime path.
+This means the older description that said the endpoint did inline OCR and always
+used hardcoded `"acne"` is no longer correct.
 
 
-3) OpenRouter path (configured but NOT wired)
----------------------------------------------
-Observed:
-- `.env` contains `OPENROUTER_API_KEY`
-- `.env.example` also includes OpenRouter placeholder
-- `requirements.txt` includes `openai` and `groq`
+2. OCR IMPLEMENTATION
+=====================
 
-Code search result:
-- No active import/use of OpenAI/Groq client for chat completions
-- No `openrouter.ai` endpoint calls found
-- No backend endpoint that proxies user prompt to OpenRouter
+Primary OCR module
+------------------
+`modules/ocr_utils.py` is now the real OCR entry point.
 
-Conclusion:
-- OpenRouter is environment-configured, but not integrated into runtime code path yet.
+Key behavior:
+- EasyOCR reader is cached once in `_get_reader()`
+- Language: English only (`['en']`)
+- GPU disabled (`gpu=False`)
+- Default confidence threshold used by the endpoint: `0.3`
 
-
-B) OCR PIPELINE DETAILS (LOW LEVEL)
-===================================
-
-Primary runtime OCR engine
---------------------------
-In `analysis_server.py`:
-- Global reader initialization:
-  `reader = easyocr.Reader(['en'], gpu=False)`
-
-Implications:
-- English model only
-- CPU-only inference
-- Reader initialized once at process start (good for latency vs per-request init)
-
-OCR execution in active endpoint
---------------------------------
-In `/api/analyze-product`:
-- `ocr = reader.readtext(b)` where `b` is raw uploaded image bytes
-- Extracted text concatenation:
-  `txt = ", ".join([t for (bb,t,p) in ocr if p > 0.2])`
-
-Returned OCR payload:
-- `ingredients` field = concatenated OCR text string
-- raw bounding boxes/confidence are not returned to client
-
-
-Helper OCR module
------------------
-`modules/ocr_utils.py` has reusable OCR function:
-- `extract_ingredients_from_image(image_bytes)`
-- It creates its own reader inside function
-- It converts bytes -> PIL -> numpy array
-- Uses confidence threshold `prob > 0.3`
-
-Important implementation note:
-- This helper is currently NOT called by `/api/analyze-product`.
-- Active endpoint performs OCR inline in `analysis_server.py`.
-
-
-C) NLP DETAILS (WHAT YOU THOUGHT WAS MISSING)
-=============================================
-
-Yes, NLP part exists.
+Two-pass OCR strategy
 ---------------------
-But it is rule-based intent matching, not LLM-driven NLP.
+`extract_ingredients_from_image(image_bytes, confidence_threshold=0.3)` works in 2 passes:
 
-1) Intent source
-- `data/chat_data.json`
-- Each intent has:
-  - `keywords[]`
-  - `responses[]`
+Pass 1:
+- Run OCR on the original image first
 
-2) Matching style
-- Lowercase input
-- keyword contains check
-- first/any matched intent decides response (implementation-dependent)
-- fallback response if no intent matches
+Pass 2:
+- If no ingredient header is found, preprocess and run OCR again
 
-3) Personalization tokens
-- Responses include placeholders like `{name}`, `{condition}`, `{streak}`
-- Filled from runtime state/session memory
+Preprocessing steps:
+- decode image bytes to OpenCV BGR
+- grayscale
+- CLAHE contrast enhancement
+- mild denoising
+- 2x upscale with cubic interpolation
 
-4) Operational behavior
-- deterministic + fast + no external API cost
-- limited semantic understanding compared to LLMs
+Return behavior:
+- If pass 1 finds an ingredient header, return pass 1 text
+- Else if pass 2 finds an ingredient header, return pass 2 text
+- Else return both OCR outputs combined for diagnostics
 
 
-D) OCR + NLP + RULE ENGINE INTERACTION
-======================================
+3. INGREDIENT SECTION PARSING
+=============================
 
-End-to-end for product scan:
-1. OCR extracts text from product label image
-2. Rule engine scores ingredient compatibility
-3. Frontend presents recommendation + details
-4. User may ask chatbot questions
-5. Chatbot answers via keyword intents, not via model-generated reasoning
+Parser location
+---------------
+- `modules/ocr_utils.extract_ingredient_section(raw_text)`
 
-So this subsystem is hybrid:
-- OCR = ML model inference (EasyOCR)
-- Ingredient "analysis" = rules/heuristics
-- Chat "NLP" = intent-keyword templates
-
-
-E) DISCREPANCY FOUND (DOCS vs ACTUAL CODE)
-==========================================
-
-Some internal docs describe OCR via `modules/ocr_utils.py` in endpoint flow.
-Current runtime code (`analysis_server.py`) does OCR directly and does not call that helper.
-
-This is why documentation can feel inconsistent.
-
-
-F) OPENROUTER INTEGRATION STATUS (TECHNICAL TRUTH)
-===================================================
-
-Status matrix
+Parsing logic
 -------------
-- Key present in env: YES
-- Package support present: YES (`openai`, `groq` listed)
-- Client code calling OpenRouter: NO
-- Endpoint exposing LLM chat: NO
-- Frontend invoking LLM endpoint: NO
+The parser:
+1. Looks for a fuzzy ingredient header
+2. Accepts OCR-typo variants such as missing letters or `lngredients`
+3. Falls back to scanning the full OCR text if no header is found
+4. Cuts off parsing at stop-keywords such as:
+   - `Marketed`
+   - `Manufactured`
+   - `Directions`
+   - `Net Weight`
+   - `Batch`
+   - `MRP`
+   - several address/manufacturer markers
+5. Splits on commas and the word `and`
+6. Cleans noise and short tokens
 
-So you were partially right:
-- OpenRouter setup exists at configuration level,
-- but integration is incomplete at application-runtime level.
+Output:
+- Returns `list[str]` of ingredient names
+- Returns `[]` if nothing usable is found
 
 
-G) CURRENT LIMITATIONS
-======================
+4. ANALYSIS LAYER AFTER OCR
+===========================
 
-OCR limitations
+Skin condition source
+---------------------
+`modules/history_db.py` maps the user's latest face-scan result to:
+- `acne`
+- `oily_skin`
+- `dry_skin`
+- `dark_spots`
+- `normal_skin`
+
+If no prior face scan exists, the product analysis falls back to:
+- `general`
+
+LLM path
+--------
+`modules/llm_provider.py` contains a live OpenRouter call:
+- endpoint: `https://openrouter.ai/api/v1/chat/completions`
+- model id: `google/gemini-flash-1.5`
+- env var required: `OPENROUTER_API_KEY`
+
+If the request succeeds, the backend tries to parse JSON with:
+- `score`
+- `good_ingredients`
+- `bad_ingredients`
+- `recommendation`
+
+Rule-based fallback
+-------------------
+If the LLM is unavailable or parsing fails, the backend falls back to:
+- `modules/product_scanner.analyze_custom_ingredients(...)`
+
+That scoring is based on `data/ingredient_db.json`.
+
+
+5. PER-INGREDIENT BREAKDOWN
+===========================
+
+`analysis_server.py` also builds `ingredient_breakdown`, where each ingredient gets:
+- `name`
+- `category`
+- `rating` = `good`, `bad`, or `neutral`
+- `reason`
+
+The rating priority is:
+1. condition-specific allow/avoid tables in `analysis_server.py`
+2. LLM or rule-engine good/bad ingredient matches
+3. static category metadata
+4. neutral fallback
+
+
+6. DEBUG AND FAILURE MODES
+==========================
+
+Debug mode
+----------
+`/api/analyze-product?debug=true` may include:
+- `ocr_raw`
+- `ocr_ingredients_raw`
+
+Failure behavior
+----------------
+If no ingredient section is found:
+- API returns HTTP 400
+- A user-facing retry message is returned
+- OCR raw text is appended to `SCANNER.log`
+
+Success logging
 ---------------
-- No explicit preprocessing (deskew/denoise/contrast) before OCR
-- Single confidence threshold (0.2) hardcoded
-- No raw OCR debug payload to inspect false positives
-- English-only OCR model
-
-NLP limitations
----------------
-- Keyword matching can miss paraphrases
-- No context window/memory beyond simple state
-- No factual grounding or uncertainty handling typical of LLM flows
-
-Architecture limitations
-------------------------
-- Duplicate OCR implementation paths (inline vs helper module)
-- Product analysis condition currently hardcoded to `"acne"` in endpoint
+`SCANNER.log` is also appended on pass/success states.
 
 
-H) RECOMMENDED TECHNICAL CLEANUP PATH
-=====================================
+7. TECHNICAL TRUTH SUMMARY
+==========================
 
-1. Unify OCR path
-- Route `/api/analyze-product` through `modules/ocr_utils.py`
-- Keep one threshold + one preprocessing pipeline
+What is true right now
+----------------------
+- OCR is active and wired through `modules/ocr_utils.py`
+- OCR uses a two-pass strategy, not just one raw EasyOCR call
+- Product analysis is condition-aware based on the user's latest skin scan
+- OpenRouter/Gemini integration now exists in executable runtime code
+- Rule-based scoring still exists as the fallback safety path
 
-2. Add OCR preprocessing
-- optional OpenCV steps: grayscale, adaptive threshold, denoise, deskew
-
-3. Add OCR debug mode
-- optionally return `(bbox, text, prob)` blocks for tuning
-
-4. Make condition dynamic
-- use user profile or latest skin scan instead of hardcoded `"acne"`
-
-5. If enabling OpenRouter
-- create dedicated backend endpoint (e.g. `/api/chat/llm`)
-- add prompt safety + response constraints
-- keep rule-based fallback when API fails
-
-
-I) SHORT FINAL ANSWER TO YOUR QUESTION
-======================================
-
-- OCR is definitely implemented and active (EasyOCR in `analysis_server.py`).
-- NLP is also present, but as keyword-intent logic (`chat_data.json` + chatbot functions), not LLM NLP.
-- OpenRouter is configured in environment, but not currently integrated in executable code paths.
-
-That is the exact technical state of this project right now.
+What is no longer true
+----------------------
+- `/api/analyze-product` does not do the old inline OCR-only flow anymore
+- product analysis is no longer permanently hardcoded to `"acne"`
+- OpenRouter is not merely "configured"; it is implemented, but optional and failure-tolerant

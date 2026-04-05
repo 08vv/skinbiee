@@ -62,12 +62,12 @@ def analyze_product(product_id: int, condition: str):
         base_score += 5
         
     # Normalize
-    final_score = max(0, min(100, 50 + base_score)) 
+    final_score = max(0, min(10.0, 5.0 + (base_score / 10.0))) 
     
-    recommendation = "Acceptable"
-    if final_score >= 70:
-        recommendation = "Good Fit"
-    elif final_score < 40:
+    recommendation = "Use With Caution"
+    if final_score >= 7.0:
+        recommendation = "Good Match"
+    elif final_score < 4.0:
         recommendation = "Not Recommended"
         
     return {
@@ -82,12 +82,12 @@ def analyze_product(product_id: int, condition: str):
 def analyze_custom_ingredients(ingredient_list: str, condition: str):
     """Analyzes a custom pasted string of ingredients."""
     base_score, good, bad = score_ingredients(ingredient_list, condition)
-    final_score = max(0, min(100, 50 + base_score))
+    final_score = max(0, min(10.0, 5.0 + (base_score / 10.0)))
     
-    recommendation = "Acceptable"
-    if final_score >= 70:
-        recommendation = "Good Fit"
-    elif final_score < 40:
+    recommendation = "Use With Caution"
+    if final_score >= 7.0:
+        recommendation = "Good Match"
+    elif final_score < 4.0:
         recommendation = "Not Recommended"
         
     return {
