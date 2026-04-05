@@ -88,68 +88,75 @@ PART 3: BACKEND SERVICES LITERALLY LINE-BY-LINE EXPLANATION
 
 3.1 analysis_server.py
 -----------------------
-This file provides the primary bridge between the Javascript frontend and the 
-heavy Python ML/OCR libraries. It uses Flask and flask_cors.
+This file is the active Flask REST backend for auth, skin analysis, product OCR analysis,
+and planner data sync. It is the main integration point between frontend (`frontend/skinbiee.js`)
+and Python-side inference/scoring modules.
 
-Imports:
-- `Flask, request, jsonify` for HTTP routing.
-- `CORS` to allow requests from the Port 8001 frontend server.
-- `tensorflow as tf` and `numpy as np` for the skin condition classifier.
-- `PIL.Image` and `io` for handling incoming multipart/form-data images.
-- `ocr_utils` and `product_scanner` from `modules`.
+Core imports and dependencies used at runtime:
+- Flask + CORS (`flask`, `flask_cors`)
+- TensorFlow + NumPy + OpenCV + Pillow (skin inference pre/post processing)
+- EasyOCR (product text extraction)
+- Cloudinary SDK (stores uploaded scan/progress images)
+- dotenv (loads `.env`)
+- Internal modules: auth + history_db + product_scanner
 
-Initialization:
-- Creates `app = Flask(__name__)`
-- Enables CORS with `CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)`
+Initialization details:
+- `app = Flask(__name__)`
+- `CORS(app)` enables cross-origin calls from the frontend server.
+- Cloudinary is configured from env keys:
+  `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- EasyOCR reader is created once at startup:
+  `reader = easyocr.Reader(['en'], gpu=False)`
+- Skin model load behavior:
+  - tries to load `models/skin_model.h5`
+  - on failure/missing file, uses `MockModel` fallback
 
-Model Loading Wrapper:
-- The global variable `SKIN_MODEL = None` acts as a cache.
-- `get_model()` function:
-  - Tries to load `../models/skin_model.h5` inside a `try/except` block.
-  - If loading fails (e.g., FileNotFound or bad compilation), it returns `None` 
-    and prints to the console.
+Endpoints currently implemented:
+1. `GET /`
+   - health check response with db mode indicator (`Cloud` if `DATABASE_URL` exists else `Local`).
 
-Endpoints:
-1. `GET /api/health`
-   - Returns `{"status": "ok", "message": "Skinbiee AI Backend is running"}`. 
-   - Used by frontend to verify backend connection.
+2. `POST /api/auth/register`
+   - JSON input: `username`, `password`
+   - returns user id + username on success.
 
-2. `POST /api/analyze-skin`
-   - Accepts a `multipart/form-data` payload containing an `image` file.
-   - If no image is provided, returns HTTP 400 `{"error": "No image provided"}`.
-   - Calls `get_model()` to retrieve the MobileNetV2 model.
-   - If `SKIN_MODEL` is None, it falls back to a massive mock-data block:
-     - Returns randomly chosen mocked results like `[{"concern": "Acne", "confidence": 0.88, "severity": "Moderate"}]`.
-   - If `SKIN_MODEL` successfully loads:
-     - Reads the bytes using `file.read()`.
-     - Opens via `Image.open(io.BytesIO(img_bytes)).convert('RGB')`.
-     - Resizes the image to 224x224 (the required input shape for MobileNetV2).
-     - Converts to a numpy array, expands dimensions to shape `(1, 224, 224, 3)`, 
-       and normalizes pixels by dividing by 255.0.
-     - Calls `SKIN_MODEL.predict(img_array)`.
-     - Maps the resulting 5-element softmax array to the class labels:
-       `['Acne', 'Dark Spots', 'Dryness', 'Normal', 'Oiliness']`.
-     - Sorts the predictions by confidence in descending order.
-     - Defines severity rules: 
-       >85% = Severe
-       65%-85% = Moderate
-       <65% = Mild
-     - Returns the top 2 conditions as a JSON list.
+3. `POST /api/auth/login`
+   - JSON input: `username`, `password`
+   - validates hashed password and returns user session basics.
 
-3. `POST /api/analyze-product`
-   - Also takes a `multipart/form-data` `image` file.
-   - Reads the image bytes.
-   - Calls `modules.ocr_utils.extract_ingredients_from_image(img_bytes)`.
-   - The returned string represents the extracted text from the label.
-   - Calls `modules.product_scanner.analyze_ingredients_for_user(extracted_text, "Acne")`.
-     (Note: It hardcodes the target user concern as "Acne" in this implementation, 
-      which could be extended to take user preference as a POST parameter).
-   - Packs the result into a JSON response containing `status: success`, `ingredients`, 
-     and `analysis` objects. Returns HTTP 500 on internal errors.
+4. `POST /api/analyze-skin`
+   - multipart input: `image`, `user_id`
+   - uploads image to Cloudinary (`skinbiee/face_scans`)
+   - preprocesses image to 224x224 RGB normalized tensor
+   - runs model prediction
+   - label map used in runtime:
+     `['Acne', 'Dark Spots', 'Oiliness', 'Dryness', 'Normal']`
+   - returns all classes with confidence > 0.4
+   - fallback result if none pass threshold: `Normal` with confidence `0.9`
+   - persists top result in scans table
 
-Finally, `if __name__ == '__main__': app.run(port=5000, debug=True)` fires up 
-the server on localhost port 5000.
+5. `POST /api/analyze-product`
+   - multipart input: `image`, `user_id`
+   - uploads image to Cloudinary (`skinbiee/product_scans`)
+   - runs OCR inline via EasyOCR:
+     `reader.readtext(image_bytes)`
+   - keeps OCR fragments with confidence > 0.2 and joins into ingredient string
+   - runs rule-based scoring:
+     `analyze_custom_ingredients(txt, "acne")` (condition currently hardcoded)
+   - persists scan metadata and returns OCR text + analysis
 
+6. `POST /api/daily-log`
+   - multipart form: user/day completion fields + optional selfie image
+   - optional image uploaded to Cloudinary (`skinbiee/progress_photos`)
+   - upserts daily log row
+
+7. `GET /api/user/data?user_id=...`
+   - returns scans, logs, computed streak, and active_dates
+   - includes JSON scalar normalization to avoid pandas/numpy serialization failures
+
+Run mode:
+- Prefers Waitress production server if available.
+- Falls back to Flask dev server otherwise.
+- Port defaults to `5000` (or `PORT` env var if provided).
 3.2 serve_skinbiee.py & serve.py
 --------------------------------
 These files are almost identical wrappers around Python's built-in `http.server`.
@@ -179,48 +186,43 @@ PART 4: CORE PYTHON MODULES EXHAUSTIVE ANALYSIS
 
 4.1 modules/history_db.py
 -------------------------
-The fundamental database layer orchestrating local persistent storage via `sqlite3`.
-Target Database File: `../data/skin_history.db`
-Functions:
-- `init_db()`: 
-  Executed automatically. Checks if the `data` directory exists; if not, creates it.
-  Connects to `skin_history.db`.
-  Executes three CREATE TABLE statements if they don't exist:
-    1. `users` (id, username UNIQUE, password_hash, created_at)
-    2. `scans` (id, user_id, date_time, condition, confidence, severity, snapshot_path)
-    3. `daily_logs` (id, user_id, date, am_done, pm_done, skin_feeling, notes)
-    4. `routines` (id, user_id, routine_type(AM/PM), step_order, product_name)
-- `add_scan(user_id, condition, confidence, severity, path)`:
-  Inserts a new row into the `scans` table. Returns `True` on success.
-- `get_user_scans(user_id)`:
-  Retrieves chronologically descending scans for a specific user.
-- `log_routine(user_id, date, am_done, pm_done, skin_feeling, notes)`:
-  Uses an `UPSERT` pattern. It tries `SELECT id FROM daily_logs WHERE user_id=? AND date=?`.
-  If it exists, it `UPDATE`s the row. If not, it runs an `INSERT INTO`. 
-- `get_daily_logs(user_id)`:
-  Fetches all daily log entries for a user and parses them into a Pandas DataFrame, 
-  specifying columns: `['id', 'user_id', 'date', 'am_done', 'pm_done', 'skin_feeling', 'notes']`.
-- `save_user_routine(user_id, am_steps, pm_steps)`:
-  Deletes the existing configured routine (`DELETE FROM routines WHERE user_id=?`).
-  Iterates over `am_steps` and `pm_steps` lists to `INSERT` new steps with 
-  their specific order (integer starting from 1).
-- `get_user_routine(user_id)`:
-  Selects steps from `routines` table, orders them by `step_order`, and returns 
-  a dictionary `{'AM': [...], 'PM': [...]}`.
+Database abstraction layer supporting BOTH PostgreSQL and SQLite.
 
+Connection strategy:
+- Reads `DATABASE_URL` from env.
+- If URL starts with `postgres`, attempts psycopg2 connection with SSL.
+- If PostgreSQL connection fails (or env absent), automatically falls back to local SQLite file:
+  `data/skin_history.db`.
+
+Schema created by `init_db()`:
+1. `users` (id, username UNIQUE, password_hash)
+2. `scans` (id, user_id, timestamp, condition, confidence, severity, image_path)
+3. `daily_logs` (id, user_id, date, am_done, pm_done, skin_feeling, skin_rating, notes, photo_path)
+4. `routines` (id, user_id, created_at, condition, am_steps, pm_steps, active)
+
+Key behavior:
+- SQL placeholder style switches automatically (`%s` for Postgres, `?` for SQLite)
+- `add_daily_log` uses upsert-like update/insert flow by `(user_id, date)`
+- `get_all_scans` and `get_daily_logs` return pandas DataFrames
+- module calls `init_db()` at import time to auto-ensure tables exist
 4.2 modules/auth.py
 -------------------
-Handles simplistic user authentication without heavy frameworks like JWT.
-Uses built-in `hashlib` to create SHA-256 hashes of passwords.
-- `hash_password(password)`: Returns `.hexdigest()`. Note: No salting is implemented.
-- `register_user(username, password)`:
-  Hashes password. Attempts `INSERT INTO users (username, password_hash)` via 
-  a `sqlite3` connection to `history_db.db`. If an `IntegrityError` (duplicate 
-  username) occurs, it catches it and returns `False`.
-- `login_user(username, password)`:
-  Queries `SELECT id, username FROM users WHERE username=? AND password_hash=?`.
-  Returns a dictionary `{'id': row[0], 'username': row[1]}` or `None`.
+Authentication helper module built on top of `history_db`.
 
+Implementation details:
+- Uses SHA-256 hashing from `hashlib`
+- Applies a static app-level salt (`SALT = "skincare_app_secure_salt_2026"`)
+- `register_user(username, password)`:
+  - validates non-empty inputs
+  - hashes password
+  - creates DB user via `create_db_user`
+- `login_user(username, password)`:
+  - fetches user by username
+  - hashes incoming password with same salt
+  - compares hashes and returns user map on success
+
+Note:
+- This is still lightweight authentication (no JWT/session token layer).
 4.3 modules/ocr_utils.py
 ------------------------
 Exposes `extract_ingredients_from_image(image_bytes: bytes) -> str`
@@ -237,52 +239,45 @@ Exposes `extract_ingredients_from_image(image_bytes: bytes) -> str`
 
 4.4 modules/product_scanner.py
 ------------------------------
-The brains behind analyzing the extracted OCR text against known skin rules.
-- Contains massive internal dictionary mock representing known properties:
-  `KNOWN_INGREDIENTS = { "salicylic acid": { "type": "BHA", "benefits": [...], ... } }`
-  Defines properties for: "niacinamide", "salicylic acid", "hyaluronic acid", 
-  "fragrance", "alcohol denat", "ceramides", "vitamin c", "retinol".
-- `analyze_ingredients_for_user(ingredients_text, user_concern="acne")` is the 
-  core orchestration function.
-- Processing:
-  - Takes the OCR text, lowercases it.
-  - Generates lists called `found_helpers` and `found_irritants`.
-  - Searches the text. If "salicylic acid" is found, and user concern is "acne", 
-    it adds it to `found_helpers`.
-  - Checks for generic irritants like "fragrance", "parfum", "alcohol denat", 
-    "essential oil" and appends them to `found_irritants`.
-- Scoring Calculation:
-  - Starts with a base score of 70.
-  - Adds 10 points for every helper found.
-  - Deducts 15 points for every irritant found.
-  - Clamps the score between 0 and 100 via `max(0, min(100, score))`.
-- Recommendation Logic:
-  - `score >= 80` -> 'Good Fit'
-  - `50 <= score < 80` -> 'Acceptable'
-  - `< 50` -> 'Not Recommended'
-- Compiles the final report text indicating what it found, and returns a dict with 
-  `score`, `helpers_found`, `irritants_found`, and `recommendation`.
+Rule-based ingredient compatibility engine used by product analysis endpoint.
 
+Data source:
+- Pulls per-condition recommendations/avoid lists from `modules/recommendations.py`
+- `recommendations.py` reads `data/ingredient_db.json`
+
+Main functions:
+- `score_ingredients(ingredient_list, condition)`
+  - tokenizes comma-separated ingredients
+  - +10 when ingredient matches a recommended item
+  - -5 when ingredient matches an avoid item
+  - tracks matched `good_found` and `bad_found`
+- `analyze_custom_ingredients(ingredient_list, condition)`
+  - applies score logic
+  - normalizes to 0..100 using `50 + base_score` clamp
+  - recommendation bands:
+    - `>=70`: Good Fit
+    - `<40`: Not Recommended
+    - else: Acceptable
+- Additional helpers: `analyze_product`, `compare_products`, `get_all_products`
+
+Important runtime note:
+- `/api/analyze-product` currently calls this module with hardcoded condition `"acne"`.
 4.5 modules/mascot_chatbot.py
 -----------------------------
-A highly capable rule-based NLP engine mimicking an AI chat application.
-- `load_chat_data()`: Reads `../data/chat_data.json`, which contains intent schemas.
-- Takes stateful variables like `username`, `current_condition`, and `streak`.
-- `get_response(user_input, username, condition, streak)`:
-  - Lowercases and scrubs punctuation from `user_input`.
-  - Iterates through every intent block in `chat_data.json`.
-  - Checks if any of the keywords in the block exist as whole words inside 
-    `user_input` using regex boundaries (`\b(keyword)\b`).
-  - Creates a list of matched intents and counts the number of keywords hit per intent.
-  - Selects the intent with the highest hit count.
-  - If no intent matches, defaults to the "fallback" intent.
-  - Chooses a random response string from the winning intent's array.
-  - Substitutes template variables: `{name}`, `{condition}`, `{streak}` using Pythons 
-    `.replace()` method.
-- `render_floating_mascot()`: A Streamlit-specific function using `st.markdown` 
-  to inject HTML containing fixed absolute positioned CSS to render a floating 
-  button inside the legacy python app. Takes advantage of `st.session_state`.
+Rule-based NLP/chat module for Streamlit-side mascot interactions.
 
+How it works:
+- Loads intent-response mappings from `data/chat_data.json`
+- Builds lightweight memory from user/session context
+  (`name`, latest condition, streak, current tab)
+- Keyword matching over lowercased input
+- Chooses a response template from matched intent (or fallback)
+- Injects variables (`{name}`, `{condition}`, `{streak}`)
+
+Technical reality:
+- This is intent/keyword NLP, not LLM generation.
+- No OpenRouter/OpenAI/Groq API call is made in this module.
+- Web frontend (`frontend/skinbiee.js`) has its own client-side rule-based chat logic as well.
 4.6 modules/recommendations.py
 ------------------------------
 Helper module strictly for reading the JSON database of recommendations.
@@ -532,22 +527,18 @@ into `localStorage['sc-user-profile']`.
   - Focuses document scroll view to the bottom.
 
 ================================================================================
-PART 7: UNIQUE ARCHITECTURAL HIGHLIGHTS
+PART 7: UNIQUE ARCHITECTURAL HIGHLIGHTS (UPDATED TECHNICAL STATE)
 ================================================================================
-- **Complete Decoupling**: The architecture strictly decouples standard web logic from Python execution. 
-   The Flask server does absolutely ZERO template rendering. It exclusively consumes JSON/Multipart 
-   and spits out JSON, meaning the frontend could theoretcially be swapped for a native React Native 
-   iOS app tomorrow without changing a single line of Python.
-- **Client-Side Data Governance**: All PII (Personally Identifiable Information) including names, routines, 
-   tracking streaks, and the calendar timeline are intentionally kept in the browser `localStorage` and NEVER 
-   transmitted to Flask. Flask explicitly only acts as a stateless analysis engine. The `.bat` scripts ensure 
-   the Flask environment remains fully sandboxed.
-- **In-Memory ML Fallbacks**: In scenarios where TensorFlow environments break, `analysis_server.py` implements 
-   a rigid bypass mock block, guaranteeing the frontend will NEVER throw unhandled HTTP 500 errors to the user.
-- **Mascot Animation Implementation**: The mascot design defies typical conventions by mapping absolutely no 
-  bitmaps/images. All expressions (happy, thinking, surprised, sad, blinking) are calculated in pure generic CSS 
-  blocks targeting DOM nodes (`.eye.left`, `.mouth`). This significantly reduces loading overhead to byte-levels.
+- **Decoupled Frontend/Backend**: Flask serves JSON/multipart APIs only. Static frontend is served separately on port 8001, so UI and backend can evolve independently.
+- **Hybrid Data Persistence**: The system supports cloud DB (`DATABASE_URL` Postgres) with automatic fallback to local SQLite (`data/skin_history.db`).
+- **Cloud Media Pipeline**: Uploaded scan/progress images are stored in Cloudinary and returned as secure URLs.
+- **OCR + Rules Hybrid**: Product pipeline combines EasyOCR extraction with deterministic ingredient scoring rules.
+- **NLP Scope**: Chat behavior is currently rule-based intent matching (JSON keywords/templates), not external LLM inference.
+- **OpenRouter Status**: `OPENROUTER_API_KEY` may be configured in env, but no active runtime code path currently invokes OpenRouter API.
+- **Model Resilience**: Skin classifier falls back to `MockModel` when `models/skin_model.h5` is unavailable or fails to load.
 
 ================================================================================
 END OF DOCUMENTATION
 ================================================================================
+
+

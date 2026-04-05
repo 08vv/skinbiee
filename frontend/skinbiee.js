@@ -1,3 +1,5 @@
+const API_BASE_URL = "http://localhost:5000";
+
 /* ==========================================================================
    STATE & DOM ELEMENTS
    ========================================================================== */
@@ -5,10 +7,75 @@ const state = {
     view: 'auth', // auth, onboarding, home, analyzer, planner, settings
     theme: 'light',
     mascotColor: 'blue',
-    username: 'Melani',
-    streak: 5,
-    onboardingStep: 1
+    username: '',
+    userId: null,
+    streak: 0,
+    onboardingStep: 1,
+    /** Dates (YYYY-MM-DD) with logged routine activity — from server daily_logs */
+    activeDates: new Set()
 };
+
+function userStorageKey(base) {
+    const uid = state.userId != null ? String(state.userId) : 'anon';
+    return `${base}-u${uid}`;
+}
+
+function persistSession(userId, username) {
+    state.userId = userId;
+    state.username = username;
+    localStorage.setItem('sc-user-id', String(userId));
+    localStorage.setItem('sc-username', username);
+    const userDisp = document.getElementById('user-display-name');
+    if (userDisp) userDisp.textContent = username;
+}
+
+function clearSession() {
+    state.userId = null;
+    state.username = '';
+    state.activeDates = new Set();
+    localStorage.removeItem('sc-user-id');
+    localStorage.removeItem('sc-username');
+}
+
+function restoreSession() {
+    const raw = localStorage.getItem('sc-user-id');
+    const uid = raw != null ? parseInt(raw, 10) : NaN;
+    if (!Number.isFinite(uid) || uid < 1) {
+        state.userId = null;
+        return false;
+    }
+    state.userId = uid;
+    state.username = localStorage.getItem('sc-username') || '';
+    const userDisp = document.getElementById('user-display-name');
+    if (userDisp) userDisp.textContent = state.username;
+    return true;
+}
+
+function profileStorageKey() {
+    return state.userId != null ? `sc-user-profile-u${state.userId}` : 'sc-user-profile';
+}
+
+async function refreshUserDataFromServer() {
+    if (state.userId == null) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/user/data?user_id=${state.userId}`);
+        const data = await res.json();
+        if (data.status !== 'success') return;
+        state.activeDates = new Set(data.active_dates || []);
+        if (typeof data.streak === 'number') {
+            plannerState.streak = data.streak;
+            state.streak = data.streak;
+            localStorage.setItem(userStorageKey('planner-streak'), String(data.streak));
+        }
+        const sBadge = document.getElementById('streak-count');
+        const homeStreakEl = document.getElementById('home-streak-count');
+        if (sBadge) sBadge.textContent = `${plannerState.streak} Day Streak`;
+        if (homeStreakEl) homeStreakEl.textContent = plannerState.streak;
+        renderPlannerCalendar();
+    } catch (e) {
+        console.error('refreshUserDataFromServer', e);
+    }
+}
 
 // DOM Elements
 const views = document.querySelectorAll('.view');
@@ -21,30 +88,28 @@ const themeToggleBtn = document.getElementById('theme-toggle');
    INITIALIZATION
    ========================================================================== */
 function init() {
-    // Setup Theme
+    const hadSession = restoreSession();
+    syncPlannerStateFromStorage();
+
     const savedTheme = localStorage.getItem('sc-theme');
     if (savedTheme === 'dark') {
         toggleTheme();
     }
 
-    // Auth Flow Listeners
     setupAuthListeners();
-
-    // Onboarding Listeners
     setupOnboardingListeners();
-
-    // App Navigation
     setupBottomNav();
-
-    // Mascot Listeners
     setupMascotChat();
-
-    // Feature specific listeners
     setupAnalyzer();
     setupPlanner();
     setupSettings();
-    
-    // Initial history load
+
+    if (hadSession) {
+        applyUserProfile(loadUserProfile());
+        switchView('home');
+        refreshUserDataFromServer();
+    }
+
     renderScanHistory();
 }
 
@@ -64,17 +129,17 @@ function switchView(viewName) {
 
     // Toggle Shell elements
     if (viewName === 'auth' || viewName === 'onboarding') {
-        topBar.style.display = 'none';
-        bottomNav.style.display = 'none';
-        floatMascotBtn.style.display = 'none';
+        if (topBar) topBar.style.display = 'none';
+        if (bottomNav) bottomNav.style.display = 'none';
+        if (floatMascotBtn) floatMascotBtn.style.display = 'none';
 
         if (viewName === 'onboarding') {
             resetOnboarding();
         }
     } else {
-        topBar.style.display = 'flex';
-        bottomNav.style.display = 'flex';
-        floatMascotBtn.style.display = 'block';
+        if (topBar) topBar.style.display = 'flex';
+        if (bottomNav) bottomNav.style.display = 'flex';
+        if (floatMascotBtn) floatMascotBtn.style.display = 'block';
 
         // Update Bottom Nav active state
         document.querySelectorAll('.nav-item').forEach(btn => {
@@ -87,9 +152,11 @@ function switchView(viewName) {
         document.getElementById('main-content').scrollTop = 0;
     }
 
-    // RE-BIND ANALYZER LISTENERS TO BE ABSOLUTELY SURE
     if (viewName === 'analyzer') setupAnalyzer();
-    if (viewName === 'planner') setupPlanner();
+    if (viewName === 'planner') {
+        refreshUserDataFromServer();
+        setupPlanner();
+    }
 }
 
 function switchTab(viewName) {
@@ -99,12 +166,14 @@ function switchTab(viewName) {
 /* ==========================================================================
    THEME & MASCOT SETTINGS
    ========================================================================== */
-themeToggleBtn.addEventListener('click', toggleTheme);
+if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
 
 function toggleTheme() {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
     document.body.setAttribute('data-theme', state.theme);
-    themeToggleBtn.innerHTML = state.theme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    if (themeToggleBtn) {
+        themeToggleBtn.innerHTML = state.theme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+    }
     localStorage.setItem('sc-theme', state.theme);
 
     // Update Setting toggle if exists
@@ -130,17 +199,21 @@ function changeMascotColor(colorName) {
    USER PROFILE (localStorage)
    ========================================================================== */
 function saveUserProfile(profile) {
-    localStorage.setItem('sc-user-profile', JSON.stringify(profile));
+    localStorage.setItem(profileStorageKey(), JSON.stringify(profile));
 }
 
 function loadUserProfile() {
-    const raw = localStorage.getItem('sc-user-profile');
+    let raw = localStorage.getItem(profileStorageKey());
+    if (!raw && state.userId != null) {
+        raw = localStorage.getItem('sc-user-profile');
+    }
     return raw ? JSON.parse(raw) : null;
 }
 
 function applyUserProfile(profile) {
     if (!profile) return;
-    state.username = profile.username || state.username;
+    // Keep server/session username; only fill in from profile if missing
+    state.username = state.username || profile.username || '';
     
     // Fix: Add null check for user-display-name
     const userDisp = document.getElementById('user-display-name');
@@ -190,41 +263,70 @@ function setupAuthListeners() {
     }
 
     if (authForm) {
-        authForm.onsubmit = (e) => {
+        authForm.onsubmit = async (e) => {
             e.preventDefault();
-            console.log("Auth form submitted. isSignup:", isSignup);
-            
             const unameInput = document.getElementById('auth-username');
+            const passInput = document.getElementById('auth-password');
             const uname = unameInput ? unameInput.value.trim() : '';
-            if (uname) state.username = uname;
-            
-            const userDisp = document.getElementById('user-display-name');
-            if (userDisp) userDisp.textContent = state.username;
+            const password = passInput ? passInput.value : '';
+            if (!uname || !password) {
+                showToast('Please enter username and password.');
+                return;
+            }
 
             if (isSignup) {
-                console.log("Navigating to onboarding");
-                switchView('onboarding');
-            } else {
-                let profile = loadUserProfile();
-                console.log("Loaded profile:", profile);
-                
-                // If no profile found, create a default one so user isn't stuck
-                if (!profile) {
-                    console.log("No profile found - creating default for login");
-                    profile = {
-                        username: state.username,
-                        skinType: 'Normal',
-                        concern: 'None',
-                        sensitive: 'No'
-                    };
-                    saveUserProfile(profile);
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: uname, password })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        showToast(data.error || 'Could not create account.');
+                        return;
+                    }
+                    persistSession(data.user_id, data.username);
+                    syncPlannerStateFromStorage();
+                    switchView('onboarding');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Connection error — is the API server running?');
                 }
-                
-                applyUserProfile(profile);
-                console.log("Navigating to home (returning user)");
-                switchView('home');
-                triggerMascotAnim('happy');
-                showToast(`Welcome back, ${state.username}!`);
+            } else {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: uname, password })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                        showToast(data.error || 'Invalid username or password.');
+                        return;
+                    }
+                    persistSession(data.user_id, data.username);
+                    syncPlannerStateFromStorage();
+                    let profile = loadUserProfile();
+                    if (!profile) {
+                        profile = {
+                            username: state.username,
+                            skinType: 'Normal',
+                            concern: 'None',
+                            sensitive: 'No'
+                        };
+                        saveUserProfile(profile);
+                    }
+                    applyUserProfile(profile);
+                    await refreshUserDataFromServer();
+                    switchView('home');
+                    triggerMascotAnim('happy');
+                    showToast(`Welcome back, ${state.username}!`);
+                    renderScanHistory();
+                } catch (err) {
+                    console.error(err);
+                    showToast('Connection error — is the API server running?');
+                }
             }
         };
     }
@@ -255,6 +357,8 @@ function setupOnboardingListeners() {
     const nextBtn = document.getElementById('ob-next-btn');
     const backBtn = document.getElementById('ob-back');
     const mascot = document.getElementById('ob-mascot');
+    const activesToggle = document.getElementById('ob-actives-toggle');
+    if (!nextBtn || !backBtn || !mascot) return;
 
     // Pill Selects
     document.querySelectorAll('.pill-group.single-select').forEach(group => {
@@ -274,13 +378,15 @@ function setupOnboardingListeners() {
         });
     });
 
-    // Actives toggle
-    document.getElementById('ob-actives-toggle').addEventListener('click', (e) => {
-        if (e.target.classList.contains('pill')) {
-            const val = e.target.dataset.val;
-            document.getElementById('ob-actives-text').style.display = val === 'Yes' ? 'block' : 'none';
-        }
-    });
+    if (activesToggle) {
+        activesToggle.addEventListener('click', (e) => {
+            if (e.target.classList.contains('pill')) {
+                const val = e.target.dataset.val;
+                const at = document.getElementById('ob-actives-text');
+                if (at) at.style.display = val === 'Yes' ? 'block' : 'none';
+            }
+        });
+    }
 
     nextBtn.addEventListener('click', () => {
         const currentStep = document.getElementById(`ob-step-${state.onboardingStep}`);
@@ -314,7 +420,6 @@ function setupOnboardingListeners() {
             document.getElementById('ob-step-num').textContent = state.onboardingStep;
             backBtn.style.visibility = 'visible';
         } else if (state.onboardingStep === 4) {
-            // Save collected onboarding data to localStorage
             const profileData = {
                 username: state.username,
                 age: document.getElementById('ob-age').value,
@@ -325,7 +430,6 @@ function setupOnboardingListeners() {
             };
             saveUserProfile(profileData);
 
-            // Finish
             document.getElementById(`ob-step-4`).classList.remove('active');
             document.getElementById(`ob-step-done`).classList.add('active');
 
@@ -381,7 +485,6 @@ function setupBottomNav() {
    TAB: ANALYZER
    ========================================================================== */
 function setupAnalyzer() {
-    // Buttons for Skin Analysis (Skinbiee suffix: -sb)
     const btnSkinCamera = document.getElementById('btn-skin-camera-sb');
     const btnSkinGallery = document.getElementById('btn-skin-gallery-sb');
     const skinFileInput = document.getElementById('skin-file-input-sb');
@@ -412,13 +515,21 @@ function setupAnalyzer() {
                 showToast("Please pick a photo first!");
                 return;
             }
+            if (state.userId == null) {
+                showToast('Please sign in to save scans to your account.');
+                return;
+            }
 
             console.log("DEBUG: Starting skin analysis...");
+            const preview = document.getElementById('skin-img-processing-sb');
+            if (preview) preview.src = document.getElementById('skin-img-preview-sb').src;
+            
             showAnalyzerSubStateSB('skin', 'processing');
             triggerMascotAnim('thinking');
 
             const formData = new FormData();
             formData.append('image', file);
+            formData.append('user_id', state.userId);
 
             try {
                 showToast("Mascot is scanning your skin... 🧸");
@@ -430,23 +541,22 @@ function setupAnalyzer() {
 
                 if (data.status === 'success') {
                     showToast("Results are in! ✨");
-                    
-                    // SAVE TO TIMELINE
+                    const previewUrl = data.image_url || URL.createObjectURL(file);
                     const scanRecord = {
                         id: Date.now(),
                         date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
-                        img: URL.createObjectURL(file), // Local blob for display
+                        img: data.image_url || previewUrl,
                         results: data.results,
                         type: 'face'
                     };
                     plannerState.scans.unshift(scanRecord);
-                    localStorage.setItem('planner-scans', JSON.stringify(plannerState.scans));
+                    localStorage.setItem(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
 
-                    renderSkinResultsSB(data.results, URL.createObjectURL(file));
+                    renderSkinResultsSB(data.results, previewUrl);
                     showAnalyzerSubStateSB('skin', 'results');
                     triggerMascotAnim('happy');
                 } else {
-                    showToast("Analysis failed: " + data.error);
+                    showToast("Analysis failed: " + (data.error || 'Unknown error'));
                     showAnalyzerSubStateSB('skin', 'input');
                 }
             } catch (err) {
@@ -457,7 +567,6 @@ function setupAnalyzer() {
         };
     }
 
-    // Buttons for Product Analysis (Skinbiee suffix: -sb)
     const btnProdCamera = document.getElementById('btn-prod-camera-sb');
     const btnProdGallery = document.getElementById('btn-prod-gallery-sb');
     const prodFileInput = document.getElementById('prod-file-input-sb');
@@ -484,13 +593,21 @@ function setupAnalyzer() {
         btnAnalyzeProd.onclick = async () => {
             const file = prodFileInput.files[0];
             if (!file) return;
+            if (state.userId == null) {
+                showToast('Please sign in to save scans to your account.');
+                return;
+            }
 
             console.log("DEBUG: Starting product scan...");
+            const preview = document.getElementById('prod-img-processing-sb');
+            if (preview) preview.src = document.getElementById('prod-img-preview-sb').src;
+
             showAnalyzerSubStateSB('prod', 'processing');
             triggerMascotAnim('thinking');
 
             const formData = new FormData();
             formData.append('image', file);
+            formData.append('user_id', state.userId);
 
             try {
                 showToast("Mascot is scanning your product... 🧴");
@@ -502,23 +619,22 @@ function setupAnalyzer() {
 
                 if (data.status === 'success') {
                     showToast("Ingredient analysis ready!");
-                    
-                    // Optional: Save product scans to timeline too
+                    const previewUrl = data.image_url || URL.createObjectURL(file);
                     const scanRecord = {
                         id: Date.now(),
                         date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
-                        img: URL.createObjectURL(file),
+                        img: data.image_url || previewUrl,
                         results: data.analysis,
                         type: 'product'
                     };
                     plannerState.scans.unshift(scanRecord);
-                    localStorage.setItem('planner-scans', JSON.stringify(plannerState.scans));
+                    localStorage.setItem(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
 
                     renderProdResultsSB(data);
                     showAnalyzerSubStateSB('prod', 'results');
                     triggerMascotAnim('happy');
                 } else {
-                    showToast("Scan failed: " + data.error);
+                    showToast("Scan failed: " + (data.error || 'Unknown error'));
                     showAnalyzerSubStateSB('prod', 'input');
                 }
             } catch (err) {
@@ -529,7 +645,6 @@ function setupAnalyzer() {
         };
     }
 
-    // Remove buttons
     const removeSkin = document.getElementById('remove-skin-preview-sb');
     if (removeSkin) removeSkin.onclick = () => showAnalyzerSubStateSB('skin', 'input');
     
@@ -537,9 +652,6 @@ function setupAnalyzer() {
     if (removeProd) removeProd.onclick = () => showAnalyzerSubStateSB('prod', 'input');
 }
 
-/**
- * Toggles visibility of states within analyzer sub-views (Skinbiee Version)
- */
 function showAnalyzerSubStateSB(mode, state) {
     if (mode === 'skin') {
         const states = {
@@ -548,7 +660,6 @@ function showAnalyzerSubStateSB(mode, state) {
             processing: document.getElementById('skin-processing-state-sb'),
             results: document.getElementById('skin-results-state-sb')
         };
-        // Reset all
         Object.values(states).forEach(el => { if (el) el.style.display = 'none'; });
         
         if (state === 'input') {
@@ -575,7 +686,7 @@ function showAnalyzerSubStateSB(mode, state) {
         } else if (state === 'results') {
             if (states.results) {
                 states.results.style.display = 'block';
-                renderScanHistory(); // Correct function name
+                renderScanHistory();
             }
         }
     } else {
@@ -611,7 +722,7 @@ function showAnalyzerSubStateSB(mode, state) {
         } else if (state === 'results') {
             if (states.results) {
                 states.results.style.display = 'block';
-                renderScanHistory(); // Correct function name
+                renderScanHistory();
             }
         }
     }
@@ -627,9 +738,11 @@ function renderSkinResultsSB(results, imgUrl) {
     const titleEl = document.getElementById('skin-result-title-sb');
 
     if (badgeContainer) badgeContainer.innerHTML = '';
-    if (list) list.innerHTML = '';
+    if (list) {
+        list.innerHTML = '';
+        list.classList.add('result-card-entry'); // Entrance animation
+    }
 
-    // Friendly Advice Mapping
     const advice = {
         "Acne": "Your skin is dealing with some breakouts. We'll focus on soothing and clearing these areas gently! 🌿",
         "Dark Spots": "We noticed some areas with extra pigment. These can fade over time with brightening care! ✨",
@@ -639,7 +752,6 @@ function renderSkinResultsSB(results, imgUrl) {
         "Healthy / Normal": "Overall, your skin is in a great place! Just keep up the healthy habits. 🌟"
     };
 
-    // Detect skin type from results
     const skinTypeMap = {
         "Oiliness": "Oily",
         "Dryness": "Dry",
@@ -664,7 +776,6 @@ function renderSkinResultsSB(results, imgUrl) {
     }
 
     results.forEach(res => {
-        // Correct color mapping: Moderate=yellow, Mild=green, anything else=red
         const severityColor = res.severity === 'Moderate' ? 'badge-yellow' : res.severity === 'Mild' ? 'badge-green' : 'badge-red';
         const borderColor = res.severity === 'Moderate' ? '#ffd93d' : res.severity === 'Mild' ? '#6bcb77' : '#ff6b6b';
 
@@ -686,7 +797,6 @@ function renderSkinResultsSB(results, imgUrl) {
         if (list) list.appendChild(card);
     });
 
-    // Product recommendations button — appears after results, collapses/expands on click
     const existingBtn = document.getElementById('btn-go-products-sb');
     if (!existingBtn) {
         const btn = document.createElement('button');
@@ -696,12 +806,10 @@ function renderSkinResultsSB(results, imgUrl) {
         btn.onclick = () => showProductRecommendations(results);
         if (list) list.parentElement.appendChild(btn);
 
-        // Container that recommendations will be injected into
         const recContainer = document.createElement('div');
         recContainer.id = 'product-rec-container';
         if (list) list.parentElement.appendChild(recContainer);
     } else {
-        // Results re-rendered — update closure so button always has fresh results
         existingBtn.onclick = () => showProductRecommendations(results);
         existingBtn.textContent = 'See Recommended Products 🛍️';
         const recContainer = document.getElementById('product-rec-container');
@@ -709,28 +817,10 @@ function renderSkinResultsSB(results, imgUrl) {
     }
 }
 
-/* ==========================================================================
-   PRODUCT RECOMMENDATIONS
-   ========================================================================== */
-const PRODUCT_MAP = {
-    'Acne':          { query: 'best salicylic acid face wash for acne skin india', tip: 'Use a salicylic acid-based face wash to unclog pores.' },
-    'Dark Spots':    { query: 'dark spot removal serum cream india', tip: 'A Vitamin C or niacinamide serum helps fade dark spots.' },
-    'Oiliness':      { query: 'oil control mattifying face wash india', tip: 'A lightweight, oil-free moisturiser keeps shine in check.' },
-    'Dryness':       { query: 'best deep moisturiser for dry skin india', tip: 'Look for hyaluronic acid or ceramide-rich moisturisers.' },
-    'Normal':        { query: 'gentle daily face wash normal skin india', tip: 'Maintain your balance with a gentle cleanser and SPF.' },
-    'Healthy / Normal': { query: 'gentle daily face wash normal skin india', tip: 'Keep your healthy skin protected with a good SPF routine.' },
-    'Dark Circles':  { query: 'dark circle removal under eye cream india', tip: 'Caffeine or retinol eye creams can lighten dark circles.' },
-    'Pigmentation':  { query: 'pigmentation removal face cream india', tip: 'Alpha-arbutin or kojic acid serums work well on pigmentation.' },
-    'Wrinkles':      { query: 'anti aging wrinkle cream retinol india', tip: 'Retinol and peptide creams are proven anti-aging ingredients.' },
-    'Redness':       { query: 'soothing redness relief face cream india', tip: 'Centella asiatica and green tea extracts calm redness.' },
-    'Sensitive Skin':{ query: 'gentle face wash sensitive skin fragrance free india', tip: 'Stick to fragrance-free, dermatologist-tested products.' }
-};
-
 function showProductRecommendations(results) {
     const container = document.getElementById('product-rec-container');
     if (!container) return;
 
-    // Toggle off if already shown
     if (container.innerHTML.trim() !== '') {
         container.innerHTML = '';
         const btn = document.getElementById('btn-go-products-sb');
@@ -741,7 +831,6 @@ function showProductRecommendations(results) {
     const btn = document.getElementById('btn-go-products-sb');
     if (btn) btn.textContent = 'Hide Recommendations ✕';
 
-    // Build heading
     container.innerHTML = `
         <div class="rec-section-header mt-4">
             <h3>Recommended for You</h3>
@@ -751,6 +840,20 @@ function showProductRecommendations(results) {
     `;
 
     const grid = container.querySelector('#rec-cards-grid');
+
+    const PRODUCT_MAP = {
+        'Acne':          { query: 'best salicylic acid face wash for acne skin india', tip: 'Use a salicylic acid-based face wash to unclog pores.' },
+        'Dark Spots':    { query: 'dark spot removal serum cream india', tip: 'A Vitamin C or niacinamide serum helps fade dark spots.' },
+        'Oiliness':      { query: 'oil control mattifying face wash india', tip: 'A lightweight, oil-free moisturiser keeps shine in check.' },
+        'Dryness':       { query: 'best deep moisturiser for dry skin india', tip: 'Look for hyaluronic acid or ceramide-rich moisturisers.' },
+        'Normal':        { query: 'gentle daily face wash normal skin india', tip: 'Maintain your balance with a gentle cleanser and SPF.' },
+        'Healthy / Normal': { query: 'gentle daily face wash normal skin india', tip: 'Keep your healthy skin protected with a good SPF routine.' },
+        'Dark Circles':  { query: 'dark circle removal under eye cream india', tip: 'Caffeine or retinol eye creams can lighten dark circles.' },
+        'Pigmentation':  { query: 'pigmentation removal face cream india', tip: 'Alpha-arbutin or kojic acid serums work well on pigmentation.' },
+        'Wrinkles':      { query: 'anti aging wrinkle cream retinol india', tip: 'Retinol and peptide creams are proven anti-aging ingredients.' },
+        'Redness':       { query: 'soothing redness relief face cream india', tip: 'Centella asiatica and green tea extracts calm redness.' },
+        'Sensitive Skin':{ query: 'gentle face wash sensitive skin fragrance free india', tip: 'Stick to fragrance-free, dermatologist-tested products.' }
+    };
 
     results.forEach(res => {
         const info = PRODUCT_MAP[res.concern] || PRODUCT_MAP['Normal'];
@@ -782,107 +885,251 @@ function getConcernEmoji(concern) {
     return map[concern] || '✨';
 }
 
-function renderProdResultsSB(data) {
-    const analysis = data.analysis;
-    const title = document.getElementById('prod-result-title-sb');
-    const scoreBadge = document.getElementById('prod-score-badge-sb');
-    const desc = document.getElementById('prod-result-desc-sb');
-    const ingredientsBox = document.getElementById('prod-ingredients-text-sb');
+// ── Human-readable reason rewrites ──────────────────────────────────────────
+const _FRIENDLY_REASONS = {
+    // good
+    "Helps control oil and keeps pores clear.":          ["salicylic", "bha", "niacinamide"],
+    "Locks in moisture all day long.":                   ["hyaluronic", "glycerin", "glycerine", "urea"],
+    "Calms redness and helps skin heal faster.":         ["allantoin", "centella", "cica"],
+    "Rebuilds your skin's protective barrier.":          ["ceramide"],
+    "Brightens dark spots over time.":                   ["vitamin c", "ascorbic", "kojic", "niacinamide"],
+    "Natural germ-fighter that keeps breakouts away.":   ["tea tree", "benzoyl"],
+    "Blocks UV rays and protects from sun damage.":      ["zinc oxide", "titanium dioxide", "sunscreen", "spf"],
+    "Rich antioxidant that protects against pollution.": ["vitamin e", "tocopherol"],
+    "Gently exfoliates dead skin cells.":                ["lactic acid", "glycolic", "aha"],
+    "Helps skin look plump and youthful.":               ["retinol", "retinoid", "bakuchiol"],
+    "Super gentle moisturiser safe for all types.":      ["squalane", "jojoba"],
+    // bad
+    "Fragrance can trigger breakouts or irritation — especially on sensitive skin.": ["fragrance", "parfum"],
+    "A harsh detergent that can strip your skin barrier.":  ["sodium lauryl sulfate", "sls"],
+    "May clog pores for acne-prone or oily skin types.":    ["isopropyl myristate", "coconut oil", "cocoa butter"],
+    "Heavy oil that can trap sebum — avoid if acne-prone.": ["mineral oil", "petrolatum"],
+    "Can be drying with daily use — best in small amounts.":["alcohol denat", "sd alcohol"],
+};
 
-    // Backend returns: score (0-100), recommendation, good_ingredients, bad_ingredients
-    const isGood = analysis.recommendation === 'Good Fit';
-    const isWarn = analysis.recommendation === 'Acceptable';
-    const scoreOutOf10 = (analysis.score / 10).toFixed(1);
-
-    if (title) title.textContent = isGood ? "Safe & Compatible! ✅" : isWarn ? "Use With Caution ⚠️" : "Not Recommended ❌";
-
-    if (scoreBadge) {
-        scoreBadge.className = `severity-badge ${isGood ? 'badge-green' : isWarn ? 'badge-yellow' : 'badge-red'}`;
-        scoreBadge.textContent = `Score: ${scoreOutOf10}/10`;
+function _friendlyReason(rawReason, name) {
+    const key = (name + ' ' + rawReason).toLowerCase();
+    for (const [friendly, triggers] of Object.entries(_FRIENDLY_REASONS)) {
+        if (triggers.some(t => key.includes(t))) return friendly;
     }
+    // Remove clinical phrasing if no override found
+    return rawReason
+        .replace(/^Beneficial for .+? skin\.\s*/i, '')
+        .replace(/^May not suit .+? skin\.\s*/i, '');
+}
+
+// ── Tip generator ────────────────────────────────────────────────────────────
+function _productTip(isGood, isWarn, badIngredients, skinCondition) {
+    if (isGood) {
+        if (skinCondition === 'acne') return "Looks like a solid pick for acne-prone skin — just introduce it gradually.";
+        if (skinCondition === 'oily_skin') return "Good fit for oily skin. Use a light layer and you're set.";
+        if (skinCondition === 'dry_skin') return "Great for dry skin — apply on slightly damp skin to lock in more moisture.";
+        if (skinCondition === 'dark_spots') return "Promising ingredients for brightening. Pair with SPF for best results.";
+        return "Looks like a good match for your skin. Enjoy! 🌟";
+    }
+    if (isWarn) {
+        const hasFrag = badIngredients.some(n => /fragrance|parfum/i.test(n));
+        const hasAlc  = badIngredients.some(n => /alcohol denat/i.test(n));
+        if (hasFrag) return "The fragrance in this product can irritate sensitive skin — do a patch test first.";
+        if (hasAlc)  return "Alcohol can be drying with daily use. Consider an alcohol-free alternative if your skin feels tight.";
+        return "A few ingredients are worth watching. Patch test before committing to daily use.";
+    }
+    return "We'd suggest looking for an alternative — there are a few ingredients that don't play nicely with your skin type.";
+}
+
+// ── Main renderer ────────────────────────────────────────────────────────────
+function renderProdResultsSB(data) {
+    const analysis   = data.analysis   || {};
+    const breakdown  = data.ingredient_breakdown || [];
+    const skinCond   = data.skin_condition || 'general';
+
+    // Pull good/bad from breakdown (preferred) or legacy analysis lists
+    const goodItems = breakdown.filter(i => i.rating === 'good');
+    const badItems  = breakdown.filter(i => i.rating === 'bad');
+    const neutralItems = breakdown.filter(i => i.rating === 'neutral');
+
+    // Also accept legacy list format (strings or {name} objects) when no breakdown
+    const legacyGoodNames = (analysis.good_ingredients || []).map(g => typeof g === 'string' ? g : g.name || '');
+    const legacyBadNames  = (analysis.bad_ingredients  || []).map(b => typeof b === 'string' ? b : b.name || '');
+
+    const isGood = analysis.recommendation === 'Good Fit' || analysis.recommendation?.includes('Good');
+    const isWarn = analysis.recommendation === 'Acceptable' || analysis.recommendation?.includes('Acceptable');
+    const scoreRaw = typeof analysis.score === 'number' ? analysis.score : (isGood ? 75 : isWarn ? 50 : 30);
+    const scorePct = Math.min(100, Math.max(0, scoreRaw));
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const title         = document.getElementById('prod-result-title-sb') || document.getElementById('prod-result-title');
+    const scoreBadge    = document.getElementById('prod-score-badge-sb')  || document.getElementById('prod-score-badge');
+    const desc          = document.getElementById('prod-result-desc-sb')  || document.getElementById('prod-result-desc');
+    const ingredientsBox= document.getElementById('prod-ingredients-text-sb') || document.getElementById('prod-ingredients-text');
+
+    // ── Section 1: Verdict headline ──────────────────────────────────────────
+    const headlineEmoji = isGood ? '🌟' : isWarn ? '🌿' : '🚫';
+    const headlineText  = isGood ? 'Good Match' : isWarn ? 'Use With Caution' : 'Not Recommended';
+    const condLabel     = skinCond.replace(/_/g, ' ');
+    const verdictSub    = isGood
+        ? `This product looks great for your ${condLabel} skin.`
+        : isWarn
+        ? `Some ingredients may not suit your ${condLabel} skin.`
+        : `This product has ingredients that can irritate ${condLabel} skin.`;
+
+    const barColor = isGood ? '#6bcb77' : isWarn ? '#ffd93d' : '#ff6b6b';
+
+    if (title) {
+        title.innerHTML = `<span class="prod-verdict-emoji">${headlineEmoji}</span> ${headlineText}`;
+    }
+    if (scoreBadge) {
+        scoreBadge.innerHTML = `
+            <p class="prod-verdict-sub">${verdictSub}</p>
+            <div class="score-bar-wrap">
+                <div class="score-bar-track">
+                    <div class="score-bar-fill" style="width:${scorePct}%;background:${barColor};"></div>
+                </div>
+                <span class="score-bar-label" style="color:${barColor}">${scorePct}/100</span>
+            </div>`;
+    }
+
+    // ── Section 2: Three buckets ─────────────────────────────────────────────
+    function ingCard(item, legacyName) {
+        const name     = item ? item.name     : (legacyName || '—');
+        const category = item ? item.category : '';
+        const rawReason= item ? item.reason   : '';
+        const rating   = item ? item.rating   : 'neutral';
+        const friendly = _friendlyReason(rawReason, name);
+        const catLabel = category ? `<span class="ing-tag">${category}</span>` : '';
+        return `
+        <div class="ing-bucket-card">
+            <div class="ing-bucket-card-top">
+                <strong class="ing-name">${name}</strong>${catLabel}
+            </div>
+            <p class="ing-friendly-reason">${friendly}</p>
+        </div>`;
+    }
+
+    let section2 = '';
+    const hasGood    = goodItems.length > 0 || legacyGoodNames.length > 0;
+    const hasBad     = badItems.length  > 0 || legacyBadNames.length  > 0;
+    const hasNeutral = neutralItems.length > 0;
+
+    if (hasGood) {
+        const cards = goodItems.length > 0
+            ? goodItems.map(i => ingCard(i, null)).join('')
+            : legacyGoodNames.map(n => ingCard(null, n)).join('');
+        section2 += `
+        <div class="ing-bucket good-bucket">
+            <div class="ing-bucket-header">🌸 Works for your skin <span class="ing-count">${goodItems.length || legacyGoodNames.length}</span></div>
+            <div class="ing-bucket-body">${cards}</div>
+        </div>`;
+    }
+    if (hasBad) {
+        const cards = badItems.length > 0
+            ? badItems.map(i => ingCard(i, null)).join('')
+            : legacyBadNames.map(n => ingCard(null, n)).join('');
+        section2 += `
+        <div class="ing-bucket bad-bucket">
+            <div class="ing-bucket-header">💀 Watch out for these <span class="ing-count">${badItems.length || legacyBadNames.length}</span></div>
+            <div class="ing-bucket-body">${cards}</div>
+        </div>`;
+    }
+    if (!hasGood && !hasBad) {
+        section2 = `<p class="micro-text text-muted text-center" style="padding:16px 0">No notably good or bad ingredients were detected for your skin type.</p>`;
+    }
+    if (hasNeutral) {
+        const cards = neutralItems.map(i => ingCard(i, null)).join('');
+        section2 += `
+        <div class="ing-bucket neutral-bucket">
+            <button class="ing-toggle-btn" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.nextElementSibling.classList.contains('open')?'🫧 Everything else — hide ▲':'🫧 Everything else — see all ▾'">
+                🫧 Everything else — see all ▾
+            </button>
+            <div class="ing-bucket-body neutral-body">${cards}</div>
+        </div>`;
+    }
+
+    // ── Section 3: Tip ───────────────────────────────────────────────────────
+    const badNames = badItems.map(i => i.name).concat(legacyBadNames);
+    const tipText  = _productTip(isGood, isWarn, badNames, skinCond);
 
     if (desc) {
-        let html = `<strong>Verdict:</strong> ${analysis.recommendation}<br><br>`;
-
-        // Good ingredients found
-        if (analysis.good_ingredients && analysis.good_ingredients.length > 0) {
-            html += `<div class="mt-2 mb-2"><strong style="color:#6bcb77">✅ Beneficial Ingredients:</strong><ul class="micro-text mt-1 mb-0">`;
-            analysis.good_ingredients.forEach(ing => {
-                const name = ing.name || ing;
-                const benefit = ing.benefit || ing.why || 'Beneficial for your skin type';
-                html += `<li><strong>${name}</strong>: ${benefit}</li>`;
-            });
-            html += `</ul></div>`;
-        }
-
-        // Bad ingredients found
-        if (analysis.bad_ingredients && analysis.bad_ingredients.length > 0) {
-            html += `<div class="mt-2 mb-2"><strong style="color:#ff6b6b">⚠️ Ingredients to Watch:</strong><ul class="micro-text mt-1 mb-0">`;
-            analysis.bad_ingredients.forEach(ing => {
-                const name = ing.name || ing;
-                const reason = ing.reason || ing.why || 'May be irritating for your skin type';
-                html += `<li><strong>${name}</strong>: ${reason}</li>`;
-            });
-            html += `</ul></div>`;
-        }
-
-        if (analysis.good_ingredients.length === 0 && analysis.bad_ingredients.length === 0) {
-            html += `<p class="micro-text text-muted">No specifically notable ingredients were detected. The product appears neutral for your skin type.</p>`;
-        }
-
-        desc.innerHTML = html;
+        desc.innerHTML = `
+        <div class="prod-result-card result-card-entry">
+            ${section2}
+            <div class="prod-tip-box">
+                <span class="prod-tip-icon">💡</span>
+                <p class="prod-tip-text">${tipText}</p>
+            </div>
+        </div>`;
     }
 
-    // Show full extracted text
+    // Detected ingredients (collapsed raw list — still shown below for reference)
     if (ingredientsBox) {
-        ingredientsBox.textContent = data.ingredients 
-            ? data.ingredients 
-            : 'No ingredient text could be extracted from the image.';
+        const list = data.ingredients_detected?.length
+            ? data.ingredients_detected
+            : data.ingredients
+            ? [data.ingredients]
+            : [];
+        ingredientsBox.textContent = list.length ? list.join(', ') : 'No ingredient text extracted.';
     }
 }
 
-function renderTimelineSB() {
-    const grid = document.getElementById('timeline-gallery-grid-skinbiee');
-    if (!grid) return;
-    
-    grid.innerHTML = '';
-    
-    if (plannerState.scans.length === 0) {
-        grid.innerHTML = '<div class="text-center py-5 text-muted" style="grid-column: 1/-1;">No scans saved yet. <br> Finish an analysis to see it here!</div>';
+
+function renderScanHistory() {
+    const gallery = document.getElementById('timeline-gallery-grid-skinbiee');
+    if (!gallery) return;
+
+    if (state.userId == null) {
+        gallery.innerHTML = '<div class="text-center py-5 text-muted" style="grid-column: 1/-1;">Sign in to view your scan history.</div>';
         return;
     }
 
-    plannerState.scans.forEach(scan => {
-        const item = document.createElement('div');
-        item.className = 'gallery-item';
-        
-        const imgPath = scan.img || 'assets/scan-face.png';
-        let summary = "Skin Scan";
-        if (scan.type === 'face' && scan.results && scan.results.length > 0) {
-            summary = `${scan.results[0].concern} (${scan.results[0].severity})`;
-        } else if (scan.type === 'product') {
-            summary = "Product Scan";
-        }
+    fetch(`${API_BASE_URL}/api/user/data?user_id=${state.userId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                plannerState.scans = data.scans.map(s => ({
+                    ...s,
+                    img: s.image_path, 
+                    date: s.timestamp ? s.timestamp.split(' ')[0] : 'Today',
+                    type: s.condition === 'Product Scan' ? 'product' : 'face'
+                }));
+                
+                if (plannerState.scans.length === 0) {
+                    gallery.innerHTML = '<div class="text-center py-5 text-muted" style="grid-column: 1/-1;">No scans saved yet. <br> Finish an analysis to see it here!</div>';
+                    return;
+                }
 
-        item.innerHTML = `
-            <img src="${imgPath}" alt="Scan">
-            <div class="gallery-date">${scan.date}</div>
-            <div class="gallery-label">${summary}</div>
-        `;
-        
-        grid.appendChild(item);
-    });
+                gallery.innerHTML = plannerState.scans.map(item => {
+                    const summary = (item.type === 'face' && item.condition) 
+                        ? `${item.severity || ''} ${item.condition}` 
+                        : "Product Scan";
+                        
+                    return `
+                        <div class="gallery-item" onclick="showToast('Viewing scan from ${item.date}')">
+                            <img src="${item.img || 'assets/scan-face.png'}" alt="Scan History">
+                            <div class="gallery-date">${item.date}</div>
+                            <div class="gallery-label">${summary}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        })
+        .catch(err => {
+            console.error("Failed to fetch scan history:", err);
+            if (plannerState.scans.length === 0) {
+                gallery.innerHTML = '<div class="text-center py-5 text-muted" style="grid-column: 1/-1;">No scans saved yet.</div>';
+            }
+        });
 }
-
 function resetAnalyzer() {
     showAnalyzerSubStateSB('skin', 'input');
     showAnalyzerSubStateSB('prod', 'input');
+
+    // Reset animation classes so they can re-trigger on next scan
+    const skinList = document.getElementById('skin-concerns-list-sb');
+    if (skinList) skinList.classList.remove('result-card-entry');
+    const prodDesc = document.getElementById('prod-result-desc-sb');
+    if (prodDesc) prodDesc.classList.remove('result-card-entry');
 }
 
-/**
- * Opens a sub-view in the analyzer tab
- * @param {string} subViewId 
- */
 function openAnalyzerDetail(subViewId) {
     const dashboard = document.getElementById('analyzer-main-dashboard');
     const detailView = document.getElementById('analyzer-detail-view');
@@ -890,20 +1137,12 @@ function openAnalyzerDetail(subViewId) {
     if (dashboard) dashboard.style.display = 'none';
     if (detailView) detailView.style.display = 'block';
     
-    // Hide all sub-views first
     document.querySelectorAll('.sub-view').forEach(v => v.style.display = 'none');
     
-    // Show the specific sub-view
     const targetView = document.getElementById(subViewId);
     if (targetView) {
         targetView.style.display = 'block';
-        
-        // Populate timeline if opened
-        if (subViewId === 'sub-timeline') {
-            renderScanHistory();
-        }
-
-        // Reset state for the sub-view
+        if (subViewId === 'sub-timeline') renderScanHistory();
         if (subViewId === 'sub-skin-analysis') resetAnalyzer();
         if (subViewId === 'sub-ingredient-scanner') {
             const ingResults = document.getElementById('ing-results-state-sb');
@@ -914,57 +1153,46 @@ function openAnalyzerDetail(subViewId) {
     }
 }
 
-/**
- * Returns to the analyzer main dashboard
- */
 function closeAnalyzerDetail() {
     const dashboard = document.getElementById('analyzer-main-dashboard');
     const detailView = document.getElementById('analyzer-detail-view');
     if (dashboard) dashboard.style.display = 'flex';
     if (detailView) detailView.style.display = 'none';
-    
-    // Reset Mascot on back
     triggerMascotAnim('idle');
-}
-
-function renderScanHistory() {
-    const gallery = document.getElementById('timeline-gallery-grid-skinbiee');
-    if (!gallery) return;
-
-    if (plannerState.scans.length === 0) {
-        gallery.innerHTML = '<div class="text-center py-5 text-muted" style="grid-column: 1/-1;">No scans saved yet. <br> Finish an analysis to see it here!</div>';
-        return;
-    }
-
-    gallery.innerHTML = plannerState.scans.map(item => {
-        const summary = (item.type === 'face' && item.results && item.results.length > 0) 
-            ? `${item.results[0].severity} ${item.results[0].concern}` 
-            : "Product Scan";
-            
-        return `
-            <div class="gallery-item" onclick="showToast('Viewing scan from ${item.date}')">
-                <img src="${item.img || 'assets/scan-face.png'}" alt="Scan History">
-                <div class="gallery-date">${item.date}</div>
-                <div class="gallery-label">${summary}</div>
-            </div>
-        `;
-    }).join('');
 }
 
 /* ==========================================================================
    TAB: PLANNER (REBUILT FOR SKINBIEE)
    ========================================================================== */
 let plannerState = {
-    hasSetup: localStorage.getItem('planner-has-setup') === 'true',
-    routine: JSON.parse(localStorage.getItem('planner-routine')) || ['Cleanser', 'Moisturizer'],
-    dailyDone: localStorage.getItem('planner-daily-done') === new Date().toDateString(),
-    streak: parseInt(localStorage.getItem('planner-streak')) || 5,
-    scans: JSON.parse(localStorage.getItem('planner-scans')) || [],
+    hasSetup: false,
+    routine: ['Cleanser', 'Moisturizer'],
+    dailyDone: false,
+    streak: 0,
+    scans: [],
     currentMonth: new Date().getMonth(),
     currentYear: new Date().getFullYear(),
     setupStep: 0,
     answers: {}
 };
+
+function syncPlannerStateFromStorage() {
+    plannerState.hasSetup = localStorage.getItem(userStorageKey('planner-has-setup')) === 'true';
+    let routine = null;
+    try {
+        routine = JSON.parse(localStorage.getItem(userStorageKey('planner-routine')) || 'null');
+    } catch (_) {}
+    plannerState.routine = Array.isArray(routine) && routine.length ? routine : ['Cleanser', 'Moisturizer'];
+    plannerState.streak = parseInt(localStorage.getItem(userStorageKey('planner-streak')) || '0', 10) || 0;
+    try {
+        plannerState.scans = JSON.parse(localStorage.getItem(userStorageKey('planner-scans')) || '[]');
+    } catch (_) {
+        plannerState.scans = [];
+    }
+    plannerState.currentMonth = new Date().getMonth();
+    plannerState.currentYear = new Date().getFullYear();
+    state.streak = plannerState.streak;
+}
 
 const setupQuestions = [
     { id: 'skinType', q: "What is your skin type?", options: ["Oily", "Dry", "Combination", "Sensitive"] },
@@ -974,30 +1202,36 @@ const setupQuestions = [
     { id: 'notes', q: "Anything else we should know?", type: "text" }
 ];
 
-function checkStreakMaintenance() {
-    const lastDone = localStorage.getItem('planner-daily-done');
-    if (!lastDone) return;
+function getLocalDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
-    const todayStr = new Date().toDateString();
+function getPlannerLastDoneKey() {
+    return localStorage.getItem(userStorageKey('planner-last-completed-date')) || localStorage.getItem(userStorageKey('planner-daily-done'));
+}
+
+function checkStreakMaintenance() {
+    const lastDone = getPlannerLastDoneKey();
+    if (!lastDone) return;
+    const todayStr = getLocalDateKey();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toDateString();
-
+    const yesterdayStr = getLocalDateKey(yesterday);
     if (lastDone !== todayStr && lastDone !== yesterdayStr) {
-        // More than a day missed! Reset streak.
-        console.log("Streak missed. Resetting to 0.");
         plannerState.streak = 0;
-        localStorage.setItem('planner-streak', 0);
+        localStorage.setItem(userStorageKey('planner-streak'), '0');
     }
 }
 
 function setupPlanner() {
-    // RE-SYNC STATE WITH STORAGE TO PREVENT LOOPS
-    plannerState.hasSetup = localStorage.getItem('planner-has-setup') === 'true';
-    plannerState.dailyDone = localStorage.getItem('planner-daily-done') === new Date().toDateString();
-
-    // MAINTENANCE: Reset streak if day missed
+    syncPlannerStateFromStorage();
     checkStreakMaintenance();
+    plannerState.streak = parseInt(localStorage.getItem(userStorageKey('planner-streak')) || '0', 10) || 0;
+    plannerState.dailyDone = getPlannerLastDoneKey() === getLocalDateKey();
+    state.streak = plannerState.streak;
 
     const overlayContainer = document.getElementById('planner-overlay-container');
     const mainDashboard = document.getElementById('planner-main-dashboard');
@@ -1025,7 +1259,6 @@ function setupPlanner() {
     }
 }
 
-// SETUP FLOW
 function startSetup() {
     document.getElementById('setup-entry').style.display = 'none';
     document.getElementById('setup-questions').style.display = 'flex';
@@ -1042,7 +1275,6 @@ function renderSetupQuestion() {
     if (progressBar) progressBar.style.setProperty('--progress', `${progress}%`);
 
     let html = `<h2 class="mb-4">${step.q}</h2>`;
-    
     if (step.type === 'text') {
         html += `
             <textarea id="setup-text-input" class="kawaii-input" placeholder="Type here..." rows="4" style="width:100%"></textarea>
@@ -1067,9 +1299,7 @@ function renderSetupQuestion() {
             </div>
         `;
     }
-    if (area) {
-        area.innerHTML = html;
-    }
+    if (area) area.innerHTML = html;
 }
 
 function selectOption(el, qId, val) {
@@ -1089,12 +1319,11 @@ function nextSetupStep() {
 function finishSetup() {
     plannerState.hasSetup = true;
     plannerState.routine = ['Morning Cleanser', 'Daily Moisturizer', 'Night Serum'];
-    localStorage.setItem('planner-has-setup', 'true');
+    localStorage.setItem(userStorageKey('planner-has-setup'), 'true');
     saveRoutine();
     setupPlanner();
 }
 
-// DAILY FLOW
 function openChecklist() {
     document.getElementById('daily-entry').style.display = 'none';
     document.getElementById('daily-checklist').style.display = 'flex';
@@ -1121,13 +1350,50 @@ function checkAllDone() {
     if (cameraArea) cameraArea.style.display = (checked.length === all.length) ? 'block' : 'none';
 }
 
-function finishChecklist() {
+async function finishChecklist() {
+    if (plannerState.dailyDone) {
+        setupPlanner();
+        return;
+    }
+
+    const todayKey = getLocalDateKey();
+
+    try {
+        await saveDailyLogToServer();
+        await refreshUserDataFromServer();
+    } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Could not sync your routine. Try again.');
+        return;
+    }
+
     plannerState.dailyDone = true;
-    localStorage.setItem('planner-daily-done', new Date().toDateString());
-    plannerState.streak++;
-    localStorage.setItem('planner-streak', plannerState.streak);
+    localStorage.setItem(userStorageKey('planner-daily-done'), todayKey);
+    localStorage.setItem(userStorageKey('planner-last-completed-date'), todayKey);
+    state.streak = plannerState.streak;
+
     setupPlanner();
-    showToast("Routine completed! +1 Streak");
+    showToast('Routine completed! 🔥');
+}
+
+async function saveDailyLogToServer() {
+    if (state.userId == null) throw new Error('Not signed in.');
+    const fileInput = document.getElementById('selfie-upload-input');
+    const file = fileInput ? fileInput.files[0] : null;
+
+    const formData = new FormData();
+    formData.append('user_id', state.userId);
+    formData.append('date', getLocalDateKey());
+    formData.append('am_done', 1);
+    formData.append('pm_done', 1);
+    formData.append('skin_feeling', 'Good');
+    formData.append('skin_rating', 5);
+    if (file) formData.append('image', file);
+
+    const res = await fetch(`${API_BASE_URL}/api/daily-log`, { method: 'POST', body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Daily log failed');
+    return data;
 }
 
 function openCamera() {
@@ -1142,8 +1408,9 @@ function handleSelfieUpload(input) {
 
 function renderPlannerDashboard() {
     const sBadge = document.getElementById('streak-count');
+    const homeStreakEl = document.getElementById('home-streak-count');
     if (sBadge) sBadge.textContent = `${plannerState.streak} Day Streak`;
-    
+    if (homeStreakEl) homeStreakEl.textContent = plannerState.streak;
     renderPlannerCalendar();
     renderMainChecklist();
 }
@@ -1160,36 +1427,52 @@ function renderMainChecklist() {
 function renderPlannerCalendar() {
     const grid = document.getElementById('planner-calendar-grid');
     const monthLabel = document.getElementById('calendar-month-year');
-    const d = new Date(plannerState.currentYear, plannerState.currentMonth);
+    const d = new Date(plannerState.currentYear, plannerState.currentMonth, 1);
     if (monthLabel) monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
-    
+
+    const firstDay = d.getDay();
+    const daysInMonth = new Date(plannerState.currentYear, plannerState.currentMonth + 1, 0).getDate();
+    const today = new Date();
+    const todayKey = getLocalDateKey(today);
+    const activeSet = state.activeDates instanceof Set ? state.activeDates : new Set();
     let html = '';
-    for (let i = 1; i <= 31; i++) {
-        html += `<div class="cal-day ${i === 26 ? 'today' : ''}">${i}</div>`;
+
+    for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
+
+    for (let i = 1; i <= daysInMonth; i++) {
+        const isToday = i === today.getDate() && plannerState.currentMonth === today.getMonth() && plannerState.currentYear === today.getFullYear();
+        const dateKey = getLocalDateKey(new Date(plannerState.currentYear, plannerState.currentMonth, i));
+        const isFuture = dateKey > todayKey;
+        let flame = '';
+        if (!isFuture) {
+            if (activeSet.has(dateKey)) {
+                const cls = isToday ? 'active-day current' : 'active-day past';
+                flame = `<i class="fa-solid fa-fire calendar-flame ${cls}" aria-hidden="true"></i>`;
+            } else {
+                flame = '<i class="fa-solid fa-fire calendar-flame inactive-day" aria-hidden="true"></i>';
+            }
+        }
+        html += `<div class="cal-day${isToday ? ' today' : ''}${!isFuture && activeSet.has(dateKey) ? ' has-streak' : ''}"><span class="cal-day-num">${i}</span>${flame}</div>`;
     }
     if (grid) grid.innerHTML = html;
 }
 
 function navMonth(dir) {
     plannerState.currentMonth += dir;
+    if (plannerState.currentMonth > 11) {
+        plannerState.currentMonth = 0;
+        plannerState.currentYear += 1;
+    } else if (plannerState.currentMonth < 0) {
+        plannerState.currentMonth = 11;
+        plannerState.currentYear -= 1;
+    }
     renderPlannerCalendar();
 }
 
-function openRoutineEditor() {
-    document.getElementById('routine-editor-overlay').style.display = 'block';
-}
+function openRoutineEditor() { document.getElementById('routine-editor-overlay').style.display = 'block'; }
+function closeRoutineEditor() { document.getElementById('routine-editor-overlay').style.display = 'none'; }
+function saveRoutine() { localStorage.setItem(userStorageKey('planner-routine'), JSON.stringify(plannerState.routine)); }
 
-function closeRoutineEditor() {
-    document.getElementById('routine-editor-overlay').style.display = 'none';
-}
-
-function saveRoutine() {
-    localStorage.setItem('planner-routine', JSON.stringify(plannerState.routine));
-}
-
-/* ==========================================================================
-   TAB: SETTINGS
-   ========================================================================== */
 function setupSettings() {
     document.querySelectorAll('.swatch').forEach(sw => {
         sw.addEventListener('click', () => {
@@ -1198,81 +1481,68 @@ function setupSettings() {
             changeMascotColor(sw.dataset.color);
         });
     });
-
-    document.getElementById('logout-btn').addEventListener('click', () => {
-        switchView('auth');
-    });
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            clearSession();
+            syncPlannerStateFromStorage();
+            switchView('auth');
+        });
+    }
 }
+function openEditProfile() { showToast('Edit profile clicked'); }
 
-function openEditProfile() {
-    showToast('Edit profile clicked');
-}
-
-
-/* ==========================================================================
-   MASCOT & CHAT LOGIC
-   ========================================================================== */
 function setupMascotChat() {
     const compactChat = document.getElementById('chat-panel');
     const fsChat = document.getElementById('chat-fs-panel');
-
-    // Open Compact
+    if (!floatMascotBtn || !compactChat) return;
     floatMascotBtn.addEventListener('click', () => {
         compactChat.classList.add('open');
         triggerMascotAnim('happy');
-        // Hide floating button while chat is open
         floatMascotBtn.style.opacity = '0';
         floatMascotBtn.style.pointerEvents = 'none';
-        
-        // Proactive check on open
         checkProactiveGreeting();
     });
-
-    // Close Compact
-    document.getElementById('chat-close').addEventListener('click', () => {
-        compactChat.classList.remove('open');
-        setTimeout(() => {
-            floatMascotBtn.style.opacity = '1';
-            floatMascotBtn.style.pointerEvents = 'auto';
-            triggerMascotAnim('idle');
-        }, 400);
-    });
-
-    // Expand to FS
-    document.getElementById('chat-expand').addEventListener('click', () => {
-        compactChat.classList.remove('open');
-        fsChat.style.display = 'flex';
-        bottomNav.style.display = 'none';
-        topBar.style.display = 'none';
-    });
-
-    // Collapse from FS
-    document.getElementById('chat-fs-collapse').addEventListener('click', () => {
-        fsChat.style.display = 'none';
-        compactChat.classList.add('open');
-        bottomNav.style.display = 'flex';
-        topBar.style.display = 'flex';
-    });
-
-    // Send Button Listeners
+    const chatClose = document.getElementById('chat-close');
+    const chatExpand = document.getElementById('chat-expand');
+    const chatFsCollapse = document.getElementById('chat-fs-collapse');
+    if (chatClose) {
+        chatClose.addEventListener('click', () => {
+            compactChat.classList.remove('open');
+            setTimeout(() => {
+                floatMascotBtn.style.opacity = '1';
+                floatMascotBtn.style.pointerEvents = 'auto';
+                triggerMascotAnim('idle');
+            }, 400);
+        });
+    }
+    if (chatExpand && fsChat) {
+        chatExpand.addEventListener('click', () => {
+            compactChat.classList.remove('open');
+            fsChat.style.display = 'flex';
+            if (bottomNav) bottomNav.style.display = 'none';
+            if (topBar) topBar.style.display = 'none';
+        });
+    }
+    if (chatFsCollapse && fsChat) {
+        chatFsCollapse.addEventListener('click', () => {
+            fsChat.style.display = 'none';
+            compactChat.classList.add('open');
+            if (bottomNav) bottomNav.style.display = 'flex';
+            if (topBar) topBar.style.display = 'flex';
+        });
+    }
     setupChatInputs();
 }
 
 function setupChatInputs() {
-    const ids = [
-        { input: 'chat-input-compact', btn: 'chat-send-compact' },
-        { input: 'chat-input-fs', btn: 'chat-send-fs' }
-    ];
-
+    const ids = [{ input: 'chat-input-compact', btn: 'chat-send-compact' }, { input: 'chat-input-fs', btn: 'chat-send-fs' }];
     ids.forEach(pair => {
         const inputEl = document.getElementById(pair.input);
         const btnEl = document.getElementById(pair.btn);
-
         if (btnEl && inputEl) {
             btnEl.onclick = () => handleChatSend(pair.input);
-            inputEl.onkeypress = (e) => {
-                if (e.key === 'Enter') handleChatSend(pair.input);
-            };
+            inputEl.onkeypress = (e) => { if (e.key === 'Enter') handleChatSend(pair.input); };
         }
     });
 }
@@ -1281,16 +1551,10 @@ function handleChatSend(inputId) {
     const inputEl = document.getElementById(inputId);
     const text = inputEl.value.trim();
     if (!text) return;
-
-    // Clear both inputs
     document.getElementById('chat-input-compact').value = '';
     document.getElementById('chat-input-fs').value = '';
-
     appendChatMessage('user', text);
-    
-    // Mascot "Thinking"
     triggerMascotAnim('thinking');
-    
     setTimeout(() => {
         const response = getMascotAIResponse(text);
         appendChatMessage('mascot', response);
@@ -1298,55 +1562,25 @@ function handleChatSend(inputId) {
     }, 1000);
 }
 
-/**
- * Appends a message to BOTH compact and fullscreen chat history
- */
 function appendChatMessage(sender, text) {
-    const containers = [
-        document.getElementById('chat-history-compact'),
-        document.getElementById('chat-history-fs')
-    ];
-
+    const containers = [document.getElementById('chat-history-compact'), document.getElementById('chat-history-fs')];
     containers.forEach(container => {
         if (!container) return;
-        
-        // Remove "I can help you build your routine..." placeholder if it's the first real message
-        if (container.children.length === 1 && container.children[0].classList.contains('mascot-bubble')) {
-            const firstMsg = container.children[0].textContent.trim();
-            if (firstMsg.includes('help you build') || firstMsg.includes('Don\'t forget your sunscreen')) {
-                // Keep it if we want, or replace. Let's keep one initial greeting but remove duplicates
-            }
-        }
-
         const bubble = document.createElement('div');
         bubble.className = `chat-bubble ${sender}-bubble`;
         bubble.textContent = text;
         container.appendChild(bubble);
-        
-        // Auto scroll
-        setTimeout(() => {
-            container.scrollTo({
-                top: container.scrollHeight,
-                behavior: 'smooth'
-            });
-        }, 100);
+        setTimeout(() => { container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' }); }, 100);
     });
 }
 
 function checkProactiveGreeting() {
-    // Only greet proactively if chat was just opened and no recent history
     const history = document.getElementById('chat-history-compact');
     if (history && history.children.length <= 1) {
         let msg = `Hey ${state.username}! I was just looking at your skin journey... `;
-        
-        if (state.view === 'analyzer') {
-            msg += "That last scan looked interesting. Want to dive into what those results mean for your routine? 🔬";
-        } else if (state.view === 'planner') {
-            msg += `You're on a ${state.streak} day streak! I'm so proud of you. Let's keep it going today! 🔥`;
-        } else {
-            msg += "You're doing great! Anything specific you want to chat about? I'm all ears! 💖";
-        }
-        
+        if (state.view === 'analyzer') msg += "That last scan looked interesting. Want to dive into what those results mean for your routine? 🔬";
+        else if (state.view === 'planner') msg += `You're on a ${state.streak} day streak! I'm so proud of you. Let's keep it going today! 🔥`;
+        else msg += "You're doing great! Anything specific you want to chat about? I'm all ears! 💖";
         setTimeout(() => appendChatMessage('mascot', msg), 500);
     }
 }
@@ -1354,44 +1588,10 @@ function checkProactiveGreeting() {
 function getMascotAIResponse(input) {
     const low = input.toLowerCase();
     const name = state.username || "bestie";
-    
-    // Friendly, "Best Friend" style logic
-    
-    if (low.includes('hi') || low.includes('hello') || low.includes('hey')) {
-        const greetings = [
-            `Hey ${name}! Oh my gosh, so good to see you! How's your skin feeling today? I was just thinking about your journey! ✨`,
-            `Hi ${name}! I've been waiting for you! How are you doing? Tell me everything about your morning routine! 🌿`,
-            `Hey bestie! ✨ I'm so glad you're here. How has your skin been treating you today?`
-        ];
-        return greetings[Math.floor(Math.random() * greetings.length)];
-    }
-
-    if (low.includes('dry') || low.includes('flak') || low.includes('tight')) {
-        return `Ugh, I totally feel you! 🥺 Having dry skin is the worst. Don't worry though, we've got this! Maybe we should skip the actives tonight and just focus on a super thick moisturizer? What do you think?`;
-    }
-
-    if (low.includes('breakout') || low.includes('pimple') || low.includes('acne') || low.includes('bad skin day')) {
-        return `Oh no, I'm so sorry you're having a rough skin day. 🥺 It happens to literally everyone, I promise! You're still glowing to me. Let's keep it simple today—lots of water and maybe a soothing mask? I'm right here with you! 💖`;
-    }
-
-    if (low.includes('excited') || low.includes('good news') || low.includes('glow') || low.includes('working')) {
-        return `YAY! I'm literally so happy for you right now! 🥳 I knew those products would start working their magic. Look at you glowing! We definitely need to keep this energy up!`;
-    }
-
-    if (low.includes('streak') || low.includes('consistent')) {
-        return `You're doing AMAZING! A ${state.streak}-day streak? That's serious dedication. I'm actually so proud of how well you're taking care of yourself. Keep it up! 🔥`;
-    }
-
-    if (low.includes('sunscreen')) {
-        return `YES! Sunscreen is non-negotiable! ☀️ I'm so glad you're on top of it. Your future self is going to thank you SO much!`;
-    }
-
-    if (low.includes('thanks') || low.includes('thank you')) {
-        return `Of course! Anytime, ${name}! You know I've always got your back. Now go out there and keep being awesome! 💖`;
-    }
-
-    // fallback
-    return `That's so interesting, tell me more! I love hearing about how you're doing. You know I'm always here to listen and help however I can! 🌸`;
+    if (low.includes('hi') || low.includes('hello') || low.includes('hey')) return `Hey ${name}! How's your skin feeling today? ✨`;
+    if (low.includes('dry')) return `Ugh, dry skin is the worst! 🥺 Maybe focus on a thick moisturizer tonight?`;
+    if (low.includes('breakout')) return `Oh no, I'm sorry! 🥺 Let's keep it simple today — lots of water and soothing care!`;
+    return `That's interesting! I'm always here to listen and help! 🌸`;
 }
 
 function triggerMascotAnim(animType) {
@@ -1400,8 +1600,6 @@ function triggerMascotAnim(animType) {
         m.classList.remove('idle', 'happy', 'thinking', 'surprised', 'sad');
         m.classList.add(animType);
     });
-
-    // Auto revert happy/surprised after duration
     if (animType === 'happy' || animType === 'surprised') {
         setTimeout(() => {
             mascots.forEach(m => {
@@ -1412,39 +1610,21 @@ function triggerMascotAnim(animType) {
     }
 }
 
-/* ==========================================================================
-   HELPERS & UTILS
-   ========================================================================== */
-function showLoading() {
-    document.getElementById('loading-overlay').style.display = 'flex';
-}
-
-function hideLoading() {
-    document.getElementById('loading-overlay').style.display = 'none';
-}
-
+function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
 function showToast(message) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
     container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.style.animation = 'slideDownToast 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) reverse forwards';
-        setTimeout(() => toast.remove(), 300);
-    }, 2500);
+    setTimeout(() => { toast.style.animation = 'slideDownToast 0.3s reverse forwards'; setTimeout(() => toast.remove(), 300); }, 2500);
 }
 
-// Start App
 window.addEventListener('DOMContentLoaded', init);
-
 document.addEventListener('click', (e) => {
     if (e.target.closest('#home-mascot')) {
         triggerMascotAnim('happy');
-
-        setTimeout(() => {
-            triggerMascotAnim('idle');
-        }, 800);
+        setTimeout(() => { triggerMascotAnim('idle'); }, 800);
     }
 });

@@ -1,0 +1,261 @@
+SKINBIEE AI/ML TECH STACK REFERENCE
+===================================
+
+Purpose of this file
+--------------------
+This document explains only the AI/ML-related part of this project:
+- what tech is used,
+- what is actually working now,
+- how the AI flow is built end-to-end,
+- what is rule-based vs real ML,
+- and where you can improve next.
+
+Scanned code sources
+--------------------
+- analysis_server.py
+- modules/product_scanner.py
+- modules/recommendations.py
+- modules/ocr_utils.py
+- modules/mascot_chatbot.py
+- notebooks/train_mock_model.py
+- frontend/skinbiee.js
+- requirements.txt
+- data/ingredient_db.json
+
+
+1) Active AI/ML Components (Current Runtime)
+============================================
+
+A) Skin image analysis model (TensorFlow/Keras)
+------------------------------------------------
+Where:
+- Backend load/inference: analysis_server.py
+- Model artifact: models/skin_model.h5
+- Model build script: notebooks/train_mock_model.py
+
+How it works now:
+1. Frontend sends face image to POST /api/analyze-skin (multipart form).
+2. Backend reads image bytes.
+3. Image is resized to 224x224 and normalized to [0,1].
+4. Model predicts 5-class probabilities.
+5. Labels are mapped to: ["Acne", "Dark Spots", "Oiliness", "Dryness", "Normal"].
+6. Any class > 0.4 confidence is returned (with severity currently hardcoded as "Mild").
+7. If none > 0.4, backend returns fallback result: Normal (0.9 confidence).
+
+Important reality:
+- The training script currently builds a MobileNetV2-based architecture but runs only 1 dummy epoch on random data.
+- So the pipeline is technically complete, but the shipped model is effectively a mock model unless replaced with real trained weights.
+
+Fallback behavior:
+- If models/skin_model.h5 is missing or fails to load, backend uses MockModel returning fixed probabilities:
+  [0.1, 0.05, 0.6, 0.05, 0.2]
+- In that fallback, Oiliness will generally dominate due to 0.6 score.
+
+
+B) OCR-based ingredient extraction (EasyOCR)
+--------------------------------------------
+Where:
+- Runtime OCR in analysis_server.py: easyocr.Reader(['en'], gpu=False)
+- Utility version exists in modules/ocr_utils.py
+
+How it works now:
+1. Frontend sends product photo to POST /api/analyze-product.
+2. Backend runs EasyOCR on image bytes.
+3. Detected text fragments above confidence threshold are joined into one ingredient string.
+4. That extracted text is fed into ingredient scoring logic.
+
+Notes:
+- OCR is CPU mode only (gpu=False), so it is compatible but slower.
+- In analysis_server.py threshold is > 0.2 during text filtering.
+- In modules/ocr_utils.py threshold is > 0.3 (utility not directly used by endpoint right now).
+
+
+C) Ingredient compatibility scoring engine (Rule-based NLP matching)
+--------------------------------------------------------------------
+Where:
+- modules/product_scanner.py
+- modules/recommendations.py
+- data/ingredient_db.json
+
+How it works now:
+1. Ingredient DB is loaded from JSON (recommended + avoid lists per skin condition).
+2. Extracted ingredient text is split by commas and lowercased.
+3. For each ingredient token:
+   - +10 for each matched recommended ingredient
+   - -5 for each matched avoid ingredient
+4. Final score is normalized to range 0..100 using: final = clamp(50 + base_score)
+5. Recommendation is assigned:
+   - >= 70: "Good Fit"
+   - < 40: "Not Recommended"
+   - otherwise: "Acceptable"
+
+Important reality:
+- This is deterministic rule-based matching, not a learned model.
+- In /api/analyze-product, condition is currently hardcoded to "acne".
+  So product analysis currently does NOT personalize by each user's actual skin profile yet.
+
+
+D) Mascot "AI" chat logic (Rule-based, no external LLM in active flow)
+------------------------------------------------------------------------
+Where:
+- frontend/skinbiee.js -> getMascotAIResponse()
+- modules/mascot_chatbot.py (Streamlit side helper, also rule/template based)
+
+How it works now:
+- Response logic is keyword-based templates and fallback messages.
+- No live OpenAI/Groq/Gemini call is used in currently active frontend/backend flow.
+- `requirements.txt` includes `openai` and `groq`, but code scan shows no active import usage for those SDKs in runtime path.
+
+
+2) API Surface for AI/ML Features
+=================================
+
+Backend service entry:
+- analysis_server.py (default port 5000)
+
+Key endpoints:
+1. GET /
+   - Health status and DB mode
+
+2. POST /api/analyze-skin
+   Required form fields:
+   - image
+   - user_id
+   Returns:
+   - results[] with concern/confidence/severity
+   - image_url (Cloudinary URL)
+
+3. POST /api/analyze-product
+   Required form fields:
+   - image
+   - user_id
+   Returns:
+   - ingredients (OCR text)
+   - analysis (score, recommendation, good/bad ingredients)
+   - image_url
+
+Frontend integration:
+- Active UI file: frontend/skinbiee.js
+- API base: http://localhost:5000
+- Sends FormData with image + user_id for both analyze endpoints.
+
+
+3) Storage and Infra Around AI
+==============================
+
+Cloud image storage:
+- Cloudinary is used for face scans, product scans, and progress photos.
+- Env vars required:
+  - CLOUDINARY_CLOUD_NAME
+  - CLOUDINARY_API_KEY
+  - CLOUDINARY_API_SECRET
+
+If not configured:
+- analyze endpoints fail with upload-related 503 errors.
+
+Local persistence:
+- Analysis metadata and logs are saved through history DB functions in modules/history_db.py.
+- /api/user/data aggregates scans + logs and computes streak/active dates.
+
+
+4) Tech Stack Summary (AI/ML-only)
+==================================
+
+Core libraries actively used:
+- TensorFlow / Keras (classification inference)
+- OpenCV + Pillow + NumPy (image preprocess)
+- EasyOCR (ingredient text extraction)
+- Flask + flask-cors (serving AI endpoints)
+- Cloudinary SDK (image hosting for scan artifacts)
+
+Data assets:
+- models/skin_model.h5 (model file)
+- data/ingredient_db.json (rule DB)
+- data/products.csv (optional product catalog)
+
+Model architecture (from training script):
+- MobileNetV2 backbone (ImageNet pretrained)
+- base_model frozen
+- head: GlobalAveragePooling2D -> Dense(128,relu) -> Dropout(0.3) -> Dense(5,softmax)
+
+
+5) What is Working Well vs Mock/Placeholder
+============================================
+
+Working now:
+- End-to-end image upload -> backend inference -> frontend result rendering
+- OCR text extraction from product image
+- Ingredient compatibility scoring and explanation blocks
+- Scan/photo upload + persistent URLs via Cloudinary
+- User-linked saving via user_id
+
+Mock/placeholder areas:
+- Current model training script uses random dummy data only
+- Severity is hardcoded as "Mild"
+- Product analysis condition fixed to "acne" in endpoint
+- Mascot chat is scripted/rule-based (no generative LLM)
+
+
+6) Build and Runtime Flow (Practical)
+=====================================
+
+Typical run path for AI features:
+1. Start backend:
+   python analysis_server.py
+2. Start frontend:
+   python serve_skinbiee.py
+3. Open:
+   http://localhost:8001/skinbiee.html
+
+Inside user flow:
+- Sign in (state.userId populated)
+- Upload face/product image
+- Frontend sends image + user_id to backend
+- Backend processes with ML/OCR + rules
+- Response is rendered with badges/cards
+- Scan metadata stored and shown in timeline/history
+
+
+7) High-Value Improvement Opportunities
+=======================================
+
+1. Replace mock model with real trained model
+- Collect labeled skin-condition dataset
+- Train and validate realistically
+- Export robust .h5 or SavedModel
+
+2. Personalize product scoring by user condition
+- Instead of hardcoded "acne", pass detected/onboarding condition into /api/analyze-product
+
+3. Improve severity calibration
+- Derive severity from probability bands or separate severity head
+
+4. Unify OCR logic
+- Reuse modules/ocr_utils.py in analysis_server.py so one OCR threshold/implementation exists
+
+5. Add confidence/quality checks
+- Reject blurry/dark inputs before inference
+- Return actionable retry hints
+
+6. Add model versioning and metrics
+- Include model_version in API response
+- Track precision/recall on validation set
+
+7. Introduce real LLM only where needed
+- If you want true conversational assistant, integrate OpenAI/Groq endpoint with guardrails and prompt templates
+- Keep deterministic medical-safety checks separate from LLM output
+
+
+8) Quick Truth Table (Current State)
+====================================
+
+- "Real ML classification exists" -> YES (inference pipeline exists)
+- "Model is production-trained" -> NO (current script is mock training)
+- "OCR is real" -> YES (EasyOCR)
+- "Product compatibility is ML" -> NO (rule-based scoring)
+- "Mascot chat is LLM-powered" -> NO (template/keyword based)
+- "OpenAI/Groq packages are installed" -> YES
+- "OpenAI/Groq actively used in runtime" -> NO (based on code scan)
+
+
+End of AI/ML reference.

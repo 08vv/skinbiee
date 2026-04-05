@@ -732,8 +732,8 @@ function toggleAccordion(id) {
 let plannerState = {
     hasSetup: localStorage.getItem('planner-has-setup') === 'true',
     routine: JSON.parse(localStorage.getItem('planner-routine')) || ['Cleanser', 'Moisturizer'],
-    dailyDone: localStorage.getItem('planner-daily-done') === new Date().toDateString(),
-    streak: parseInt(localStorage.getItem('planner-streak')) || 5,
+    dailyDone: false,
+    streak: parseInt(localStorage.getItem('planner-streak') || '0', 10) || 0,
     scans: JSON.parse(localStorage.getItem('planner-scans')) || [],
     currentMonth: new Date().getMonth(),
     currentYear: new Date().getFullYear(),
@@ -749,30 +749,49 @@ const setupQuestions = [
     { id: 'notes', q: "Anything else we should know?", type: "text" }
 ];
 
+function getLocalDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function getPlannerLastDoneKey() {
+    return localStorage.getItem('planner-last-completed-date') || localStorage.getItem('planner-daily-done');
+}
+
+function getPlannerLastDoneDate() {
+    const lastDone = getPlannerLastDoneKey();
+    if (!lastDone) return null;
+
+    const parsed = new Date(`${lastDone}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function checkStreakMaintenance() {
-    const lastDone = localStorage.getItem('planner-daily-done');
+    const lastDone = getPlannerLastDoneKey();
     if (!lastDone) return;
 
-    const todayStr = new Date().toDateString();
+    const todayStr = getLocalDateKey();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toDateString();
+    const yesterdayStr = getLocalDateKey(yesterday);
 
     if (lastDone !== todayStr && lastDone !== yesterdayStr) {
         // More than a day missed! Reset streak.
         console.log("Streak missed. Resetting to 0.");
         plannerState.streak = 0;
-        localStorage.setItem('planner-streak', 0);
+        localStorage.setItem('planner-streak', '0');
     }
 }
 
 function setupPlanner() {
     // RE-SYNC STATE WITH STORAGE TO PREVENT LOOPS
     plannerState.hasSetup = localStorage.getItem('planner-has-setup') === 'true';
-    plannerState.dailyDone = localStorage.getItem('planner-daily-done') === new Date().toDateString();
-
-    // MAINTENANCE: Reset streak if day missed
     checkStreakMaintenance();
+    plannerState.streak = parseInt(localStorage.getItem('planner-streak') || '0', 10) || 0;
+    plannerState.dailyDone = getPlannerLastDoneKey() === getLocalDateKey();
+    state.streak = plannerState.streak;
 
     const overlayContainer = document.getElementById('planner-overlay-container');
     const mainDashboard = document.getElementById('planner-main-dashboard');
@@ -940,11 +959,19 @@ function checkAllDone() {
 }
 
 function finishChecklist() {
+    if (plannerState.dailyDone) {
+        setupPlanner();
+        return;
+    }
+
+    const todayKey = getLocalDateKey();
     plannerState.dailyDone = true;
-    localStorage.setItem('planner-daily-done', new Date().toDateString());
+    localStorage.setItem('planner-daily-done', todayKey);
+    localStorage.setItem('planner-last-completed-date', todayKey);
     
     plannerState.streak++;
-    localStorage.setItem('planner-streak', plannerState.streak);
+    localStorage.setItem('planner-streak', String(plannerState.streak));
+    state.streak = plannerState.streak;
     
     setupPlanner();
     showToast("Routine completed! +1 Streak");
@@ -1007,14 +1034,24 @@ function renderPlannerCalendar() {
     const grid = document.getElementById('planner-calendar-grid');
     const monthLabel = document.getElementById('calendar-month-year');
     
-    const d = new Date(plannerState.currentYear, plannerState.currentMonth);
+    const d = new Date(plannerState.currentYear, plannerState.currentMonth, 1);
     if (monthLabel) monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
     
-    const firstDay = new Date(plannerState.currentYear, plannerState.currentMonth, 1).getDay();
+    const firstDay = d.getDay();
     const daysInMonth = new Date(plannerState.currentYear, plannerState.currentMonth + 1, 0).getDate();
     const today = new Date();
+    const lastDoneDate = getPlannerLastDoneDate();
+    const streakDates = new Map();
 
     let html = '';
+    if (lastDoneDate && plannerState.streak > 0) {
+        for (let offset = 0; offset < plannerState.streak; offset++) {
+            const streakDate = new Date(lastDoneDate);
+            streakDate.setDate(lastDoneDate.getDate() - offset);
+            streakDates.set(getLocalDateKey(streakDate), offset === 0 ? 'current' : 'past');
+        }
+    }
+
     for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
     
     for (let i = 1; i <= daysInMonth; i++) {
@@ -1022,7 +1059,20 @@ function renderPlannerCalendar() {
         if (i === today.getDate() && plannerState.currentMonth === today.getMonth() && plannerState.currentYear === today.getFullYear()) {
             cls += ' today';
         }
-        html += `<div class="${cls}">${i}</div>`;
+        const dateKey = getLocalDateKey(new Date(plannerState.currentYear, plannerState.currentMonth, i));
+        const streakState = streakDates.get(dateKey);
+        if (streakState) cls += ' has-streak';
+
+        const flame = streakState
+            ? `<img src="assets/blue-flame.png" alt="" class="calendar-flame ${streakState === 'current' ? 'current' : 'past'}">`
+            : '';
+
+        html += `
+            <div class="${cls}">
+                <span class="cal-day-num">${i}</span>
+                ${flame}
+            </div>
+        `;
     }
     if (grid) grid.innerHTML = html;
 }
