@@ -167,14 +167,15 @@ def _get_raw_ingredient_section(raw_text: str) -> str:
         return ""
     # Fuzzy header — same logic as ocr_utils.extract_ingredient_section
     match = re.search(
-        r'\b(?:active\s+)?ing(?:r(?:e(?:d(?:i(?:e(?:n(?:ts?)?)?)?)?)?)?)?\s*[:\-\.]',
+        r'\b(?:active\s+)?[il]ng(?:r(?:e(?:d(?:i(?:e(?:n(?:ts?)?)?)?)?)?)?)?\s*[:\-\.]?',
         raw_text, re.IGNORECASE
     )
     if not match:
-        match = re.search(r'\bingredients\b', raw_text, re.IGNORECASE)
+        match = re.search(r'\b(?:active\s+)?ingredients?\b', raw_text, re.IGNORECASE)
     if not match:
-        return ""
-    after = raw_text[match.end():]
+        after = raw_text
+    else:
+        after = raw_text[match.end():]
     stop = re.search(
         r'Mktd\.|Marketed|Manufactured|Mfd\.|Directions|Note:|'
         r'Net Weight|Batch|Use before|For query|Not to be|Caution|MRP',
@@ -407,6 +408,9 @@ def analyze_prod():
 
     # ── 4. Failure handling — ingredient section not found (Step 6) ──────────
     if len(ingredients_list) < 1:
+        with open("SCANNER.log", "a") as f:
+            f.write(f"FAILED! Found 0 ingredients.\\n")
+            f.write(f"\\n--- OCR RAW START ---\\n{ocr_raw}\\n--- OCR RAW END ---\\n")
         resp = {
             "error": (
                 "We couldn't find the ingredient list in this photo. "
@@ -418,6 +422,7 @@ def analyze_prod():
             resp["ocr_ingredients_raw"] = ocr_ingredients_raw_text
         return jsonify(resp), 400
 
+    with open("SCANNER.log", "a") as f: f.write(f"OCR PASS! Found {len(ingredients_list)} ingredients! Proceeding to LLM.\\n")
     # Unified ingredient string used by both LLM and rule-based analysers
     ingredients_text = ", ".join(ingredients_list)
 
@@ -463,6 +468,7 @@ def analyze_prod():
         resp["ocr_raw"]              = ocr_raw
         resp["ocr_ingredients_raw"]  = ocr_ingredients_raw_text
 
+    with open("SCANNER.log", "a") as f: f.write(f"SUCCESS! Found {len(ingredients_list)} ingredients.\\n")
     return jsonify(resp)
 
 @app.route('/api/daily-log', methods=['POST'])
