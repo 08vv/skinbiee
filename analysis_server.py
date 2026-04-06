@@ -322,7 +322,35 @@ def home():
 
 @app.route('/<path:path>')
 def serve_static(path):
-    return send_from_directory('frontend', path)
+    response = send_from_directory('frontend', path)
+    
+    # Explicitly set MIME types for common web formats to prevent 404/Block issues
+    if path.endswith('.js'):
+        response.headers['Content-Type'] = 'application/javascript'
+    elif path.endswith('.css'):
+        response.headers['Content-Type'] = 'text/css'
+    elif path.endswith('.png'):
+        response.headers['Content-Type'] = 'image/png'
+    elif path.endswith('.jpg') or path.endswith('.jpeg'):
+        response.headers['Content-Type'] = 'image/jpeg'
+    
+    return response
+
+@app.route('/ping')
+def ping():
+    return "pong", 200
+
+@app.after_request
+def add_header(response):
+    # Hugging Face Spaces are served in an iframe. 
+    # We must explicitly allow iframing by relaxing security headers.
+    response.headers['X-Frame-Options'] = 'ALLOWALL'
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    
+    # Optional: Very relaxed CSP for development/prototype spaces
+    response.headers['Content-Security-Policy'] = "frame-ancestors *; default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:;"
+    
+    return response
 
 @app.route('/health')
 def health():
