@@ -1,0 +1,43 @@
+# Hugging Face ML Deployment Debugging Log
+============================================
+
+This file documents the journey of taking our heavy AI logic (TensorFlow, EasyOCR) and deploying it to a free Hugging Face Space.
+
+## The Goal
+The Skinbiee backend was too big to deploy on Render's free tier because machine learning libraries are massive. We decided to split the architecture:
+- Render keeps the main backend (database, users, LLM routing).
+- Hugging Face Space hosts a dedicated Python file (`ml_app.py`) for Face Scans and OCR.
+
+## Issues Encountered & Solutions
+
+### Error 1: "Job failed with exit code: 1. Reason: cache miss..." (Error 503)
+**What Happened:** After uploading the files to Hugging Face, the Space immediately crashed with a `BUILD_ERROR`. The API returned a 503 Status (Service Unavailable).
+**Why it Happened:** When Hugging Face tried to run `pip install`, it ran out of memory. Libraries like `tensorflow` and `torch` default to their "CUDA" versions (built for heavy graphics cards). These packages are almost 2 Gigabytes each! Hugging Face's free CPU tier only allows ~16GB of RAM and limited storage. The build choked on the file size.
+**The Fix:** We had to force Python to download the lightweight, CPU-ONLY versions of these tools. 
+We changed `requirements-ml.txt` to:
+- use `tensorflow-cpu` instead of `tensorflow`
+- add the flag `--extra-index-url https://download.pytorch.org/whl/cpu` so that EasyOCR's PyTorch dependency grabbed the 150MB CPU version instead of the 900MB GPU version.
+
+### Error 2: "Package libgl1-mesa-glx has no installation candidate"
+**What Happened:** Even after fixing the Python packages, Hugging Face failed at the Linux system level (`apt-get install`).
+**Why it Happened:** OpenCV (which EasyOCR uses to process images) requires certain Linux graphics libraries to work. Our `Dockerfile` asked for `libgl1-mesa-glx`. However, Hugging Face recently upgraded their servers to a brand new Linux version (Debian Trixie). In this new version, that package name was made obsolete and replaced.
+**The Fix:** We updated the `Dockerfile` to ask for the modern package names (`libgl1` and `libxrender1`) instead of the outdated ones.
+
+## Summary
+Building Machine Learning apps in the cloud is all about **Memory Management**. Local computers download massive packages without complaining, but free cloud tiers have strict limits.
+By explicitly demanding "CPU only" packages and updating our system tools, we successfully shrunk the ML payload enough to fit inside Hugging Face's container.
+
+### Error 3: "Not Found" on the Hugging Face Space URL
+**What Happened:** After the build succeeded, visiting the Hugging Face Space URL showed a 404 "Not Found" error.
+**Why it Happened:** The Space expected a default route (`/`) to know the app is active, but we only had `/health` and `/predict`. Hugging Face requires a root response to initialize the Space visually.
+**The Fix:** Added a simple GET `/` route in `ml_app.py` returning an HTML status dashboard with server info and model status.
+
+### Error 4: "Error when deserializing class 'InputLayer'/'Dense'"
+**What Happened:** The models failed to load completely. The health check showed `Unrecognized keyword arguments passed to Dense: {'quantization_config': None}` and `Unrecognized keyword arguments: ['batch_shape', 'optional']` for InputLayer.
+**Why it Happened:** `tensorflow>=2.16` upgraded the default framework to **Keras 3**. Our `skin_model.h5` was exported in an old Keras 2 format containing legacy properties (like `batch_shape`, `quantization_config`, `optional`) that newer Keras 3 strictly rejects.
+**The Fix:** 
+1. We intercepted `skin_model.h5` and wrote a python script (`patch_model.py`) to directly modify the HDF5 metadata using `h5py`.
+2. We mapped `batch_shape` into `shape` and `batch_size`, and stripped the defunct parameters `quantization_config` and `optional`.
+3. Added `safe_mode=False` inside Keras serialization to ensure backward compatibility.
+
+The Skinbiee ML backend is now fully operational, stable, and ready to serve the main Render web app without Keras version conflicts!

@@ -1,8 +1,20 @@
+"""
+analysis_server.py — Skinbiee Backend Orchestrator (Render API).
+
+Responsibilities:
+  • Auth (register / login)
+  • Cloudinary image upload
+  • History DB (scans + daily logs)
+  • Ingredient analysis (LLM → rule-based fallback)
+  • Forwards ML image inference to the Hugging Face ML service (ML_INFERENCE_URL)
+
+This server contains ZERO TensorFlow / EasyOCR code.
+"""
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-import tensorflow as tf
 import numpy as np
-import cv2, os, io, math
+import os, io, math, requests as http_requests
 from datetime import datetime, date, timedelta
 from PIL import Image
 import cloudinary, cloudinary.uploader
@@ -16,7 +28,12 @@ from modules.history_db import (
     get_user_by_username, get_user_skin_condition,
 )
 from modules.auth import login_user, register_user
-import modules.ocr_utils as ocr_utils
+
+# ── ML Inference bridge ──────────────────────────────────────────────────────
+ML_INFERENCE_URL = os.getenv(
+    "ML_INFERENCE_URL",
+    "https://vaishnaviiee-skinbiee.hf.space"   # default to users HF space
+)
 
 # Force absolute base directory for static serving
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'frontend'))
@@ -151,46 +168,102 @@ def compute_streak_and_active_dates(log_records):
     return active_dates, best
 
 
-# Global model cache
-_skin_model = None
+# ── ML Inference bridge helper ────────────────────────────────────────────────
 
-def _get_skin_model():
-    """Lazy load the skin model to save memory during startup."""
-    global _skin_model
-    if _skin_model is None:
-        MODEL_PATH = os.path.join('models', 'skin_model.h5')
-        class MockModel:
-            def predict(self, p): return [np.array([0.1, 0.05, 0.6, 0.05, 0.2])]
-        
-        try:
-            if os.path.exists(MODEL_PATH):
-                print("[AI] Initialising Skin Model (tensorflow)…")
-                _skin_model = tf.keras.models.load_model(MODEL_PATH)
-                print("✅ [AI] Model Loaded")
-            else:
-                _skin_model = MockModel()
-                print("⚠️ [AI] Mock Model (File not found)")
-        except Exception as e:
-            _skin_model = MockModel()
-            print(f"⚠️ [AI] Mock Fallback (Error: {e})")
-    return _skin_model
-
-# EasyOCR reader is now owned by modules/ocr_utils.py (_get_reader()).
-# No global reader is initialised here.
+def _call_ml_service(image_bytes: bytes, predict_type: str) -> dict | None:
+    """
+    Forward an image to the Hugging Face ML service.
+    Returns the parsed JSON response or None on failure.
+    """
+    url = f"{ML_INFERENCE_URL.rstrip('/')}/predict?type={predict_type}"
+    print(f"[ML Bridge] POST → {url}")
+    try:
+        resp = http_requests.post(
+            url,
+            files={"image": ("image.jpg", io.BytesIO(image_bytes), "image/jpeg")},
+            timeout=120,
+        )
+        if resp.status_code == 503:
+            print(f"[ML Bridge] Service not ready: {resp.text}")
+            return None
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"[ML Bridge] Error calling ML service: {e}")
+        return None
 
 
-# ── Helper: raw ingredient section text (for debug mode) ─────────────────────
+# ── Ingredient parsing (moved from ocr_utils, kept here for product analysis) ─
+
+import re
+
+_HEADER_PATTERN = re.compile(
+    r'\b(?:active\s+)?[il]ng(?:r(?:e(?:d(?:i(?:e(?:n(?:ts?)?)?)?)?)?)?)?\s*[:\-\.]?',
+    re.IGNORECASE
+)
+_HEADER_FALLBACK = re.compile(r'\b(?:active\s+)?ingredients?\b', re.IGNORECASE)
+
+_STOP_KEYWORDS = [
+    "Mktd.", "Marketed", "Manufactured", "Mfd.", "Mfg",
+    "Directions", "Note:", "Caution", "How to use",
+    "Use before", "For query", "Not to be",
+    "With activated", "formula that", "For all skin",
+    "MASSAGE", "directions", "how to use", "apply", "massage",
+    "Net Weight", "Batch", "Storage", "Expiry", "MRP",
+    "HSR", "Bengaluru", "Plot No", "Parwanoo", "Sector",
+    "S-COS", "byaddress", "wecare",
+]
+_STOP_PATTERN = re.compile(
+    "|".join(re.escape(kw) for kw in _STOP_KEYWORDS),
+    re.IGNORECASE,
+)
+
+
+def extract_ingredient_section(raw_text: str) -> list[str]:
+    """Parse ingredient names from raw OCR text."""
+    if not raw_text:
+        return []
+
+    match = _HEADER_PATTERN.search(raw_text)
+    if not match:
+        match = _HEADER_FALLBACK.search(raw_text)
+    if not match:
+        after_header = raw_text
+    else:
+        after_header = raw_text[match.end():]
+        stop_match = _STOP_PATTERN.search(after_header)
+        if stop_match:
+            after_header = after_header[:stop_match.start()]
+
+    raw_tokens = re.split(r',|\band\b|\||\n', after_header, flags=re.IGNORECASE)
+
+    JUNK_KEYWORDS = [
+        "apply", "massage", "rinse", "use", "directions", "formula",
+        "removes", "pollution", "glowing", "all skin", "face", "neck",
+        "detox", "bright", "miracle", "ponds", "warning", "contact", "eyes"
+    ]
+
+    ingredients: list[str] = []
+    for token in raw_tokens:
+        cleaned = token.strip().strip('.')
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        cleaned = re.sub(r'[^\w\s\-\.%,/]', '', cleaned)
+        cleaned = re.sub(r'[()_]', '', cleaned)
+        lower_cleaned = cleaned.lower()
+        if len(cleaned) < 3 or len(cleaned) > 40:
+            continue
+        if any(kw in lower_cleaned for kw in JUNK_KEYWORDS):
+            continue
+        if cleaned.isupper() and len(cleaned) > 20:
+            continue
+        ingredients.append(cleaned)
+
+    return ingredients
+
 
 def _get_raw_ingredient_section(raw_text: str) -> str:
-    """
-    Return the raw (un-split) text between the ingredient header and the first
-    stop-keyword.  Used only for the ?debug=true response field.
-    Returns an empty string when the header is not found.
-    """
-    import re
     if not raw_text:
         return ""
-    # Fuzzy header — same logic as ocr_utils.extract_ingredient_section
     match = re.search(
         r'\b(?:active\s+)?[il]ng(?:r(?:e(?:d(?:i(?:e(?:n(?:ts?)?)?)?)?)?)?)?\s*[:\-\.]?',
         raw_text, re.IGNORECASE
@@ -209,11 +282,9 @@ def _get_raw_ingredient_section(raw_text: str) -> str:
     return after[:stop.start()].strip() if stop else after.strip()
 
 
-# ── Helper: per-ingredient breakdown (Step 5) ─────────────────────────────────
+# ── Per-ingredient breakdown (unchanged business logic) ──────────────────────
 
-# Static category & reason hints used when LLM response doesn't go per-ingredient.
 _INGREDIENT_CATEGORIES: dict[str, tuple[str, str]] = {
-    # (category, short reason template)
     "aqua":               ("solvent",     "Water is the universal solvent base."),
     "water":              ("solvent",     "Water is the universal solvent base."),
     "glycerin":           ("humectant",   "Draws moisture into the skin."),
@@ -251,7 +322,6 @@ _INGREDIENT_CATEGORIES: dict[str, tuple[str, str]] = {
     "urea":                    ("humectant",  "Attracts moisture and gently exfoliates at higher %."),
 }
 
-# Condition-specific overrides for rating
 _BAD_FOR: dict[str, list[str]] = {
     "acne":        ["fragrance", "parfum", "isopropyl myristate", "coconut oil",
                     "sodium lauryl sulfate", "alcohol denat."],
@@ -279,17 +349,6 @@ def _build_ingredient_breakdown(
     analysis: dict,
     skin_condition: str,
 ) -> list[dict]:
-    """
-    Return a list of per-ingredient dicts:
-      { name, category, rating ('good'|'bad'|'neutral'), reason }
-
-    Priority:
-      1. Condition-specific good/bad lists (_GOOD_FOR / _BAD_FOR).
-      2. LLM/rule-based analysis's good_ingredients / bad_ingredients lists.
-      3. Static _INGREDIENT_CATEGORIES lookup for category + base reason.
-      4. Default to 'neutral' / 'general ingredient'.
-    """
-    # Flatten LLM output lists to lowercase strings for fast lookup
     llm_good = {
         (g if isinstance(g, str) else g.get('name', '')).lower()
         for g in analysis.get('good_ingredients', [])
@@ -306,8 +365,6 @@ def _build_ingredient_breakdown(
     for name in ingredients:
         key = name.lower().strip()
 
-        # Look up static hints
-        # Try progressively shorter sub-strings to catch "Niacinamide 10%", etc.
         meta = None
         for kw, val in _INGREDIENT_CATEGORIES.items():
             if kw in key:
@@ -320,7 +377,6 @@ def _build_ingredient_breakdown(
         if not disp_cond.endswith('skin'):
             disp_cond += ' skin'
 
-        # Determine rating
         if any(kw in key for kw in cond_bad) or any(kw in key for kw in llm_bad):
             rating = "bad"
             reason = f"May not suit {disp_cond}. {base_reason}"
@@ -341,6 +397,8 @@ def _build_ingredient_breakdown(
     return breakdown
 
 
+# ── HTTP routes ───────────────────────────────────────────────────────────────
+
 @app.route('/')
 def home():
     return send_from_directory(FRONTEND_DIR, 'skinbiee.html')
@@ -348,8 +406,6 @@ def home():
 @app.route('/<path:path>')
 def serve_static(path):
     response = send_from_directory(FRONTEND_DIR, path)
-    
-    # Explicitly set MIME types for common web formats to prevent 404/Block issues
     if path.endswith('.js'):
         response.headers['Content-Type'] = 'application/javascript'
     elif path.endswith('.css'):
@@ -358,7 +414,6 @@ def serve_static(path):
         response.headers['Content-Type'] = 'image/png'
     elif path.endswith('.jpg') or path.endswith('.jpeg'):
         response.headers['Content-Type'] = 'image/jpeg'
-    
     return response
 
 @app.route('/ping')
@@ -367,25 +422,23 @@ def ping():
 
 @app.after_request
 def add_header(response):
-    # Completely remove X-Frame-Options to allow modern browsers to default to CSP
     if 'X-Frame-Options' in response.headers:
         del response.headers['X-Frame-Options']
-    
-    # Relaxed Access Control
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
-    
-    # Modern frame-ancestors to allow Hugging Face iframe
-    # Also added 'sandbox' permissions for good measure
-    response.headers['Content-Security-Policy'] = "frame-ancestors *; default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *;"
-    
+    response.headers['Content-Security-Policy'] = (
+        "frame-ancestors *; default-src * 'unsafe-inline' 'unsafe-eval'; "
+        "img-src * data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *;"
+    )
     return response
 
 @app.route('/health')
 def health():
     return jsonify({"status": "ok"}), 200
 
+
+# ── Auth routes ───────────────────────────────────────────────────────────────
 
 @app.route('/api/auth/register', methods=['POST'])
 def api_register():
@@ -413,47 +466,43 @@ def api_login():
     return jsonify({"error": "Invalid username or password"}), 401
 
 
+# ── Skin scan route (forwards to HF ML service) ──────────────────────────────
+
 @app.route('/api/analyze-skin', methods=['POST'])
 def analyze_skin():
     f = request.files.get('image')
     uid = parse_user_id(request.form.get('user_id'))
     if uid is None:
         return jsonify({"error": "Valid user_id required"}), 400
-    if not f: return jsonify({"error":"No image"}), 400
+    if not f:
+        return jsonify({"error": "No image"}), 400
+
     b = f.read()
     url = upload_img(b, "skinbiee/face_scans")
     if not url:
-        return jsonify({"error": "Image upload failed. Configure Cloudinary (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)."}), 503
-    # Ensure model is loaded (lazy)
-    model = _get_skin_model()
-    
-    img = Image.open(io.BytesIO(b)).convert('RGB')
-    p = np.expand_dims(np.array(cv2.resize(np.array(img),(224,224)))/255.0, 0)
-    preds = model.predict(p)[0]; labels = ["Acne","Dark Spots","Oiliness","Dryness","Normal"]
-    res = [{"concern":labels[i],"confidence":float(s),"severity":"Mild"} for i,s in enumerate(preds) if s > 0.4]
-    if not res: res = [{"concern":"Normal","severity":"Mild","confidence":0.9}]
+        return jsonify({"error": "Image upload failed. Configure Cloudinary."}), 503
+
+    # Forward to ML service
+    ml_resp = _call_ml_service(b, "skin")
+    if ml_resp is None or ml_resp.get("status") != "success":
+        err_msg = ml_resp.get("error", "ML service unreachable") if ml_resp else "ML service unreachable"
+        return jsonify({"error": f"Skin analysis failed: {err_msg}"}), 503
+
+    res = ml_resp.get("results", [{"concern": "Normal", "severity": "Mild", "confidence": 0.9}])
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         add_scan(uid, ts, res[0]['concern'], res[0]['confidence'], res[0]['severity'], image_path=url)
     except Exception as e:
         return jsonify({"error": f"Failed to save scan: {e}"}), 500
-    return jsonify({"status":"success","results":res,"image_url": url})
+
+    return jsonify({"status": "success", "results": res, "image_url": url})
+
+
+# ── Product scan route (forwards OCR to HF, keeps analysis local) ────────────
 
 @app.route('/api/analyze-product', methods=['POST'])
 def analyze_prod():
-    """
-    POST /api/analyze-product
-    Form-data: image (file), user_id (int)
-    Query param: debug=true  → include ocr_raw / ocr_ingredients_raw in response
-
-    Returns:
-      200  { status, ingredients_detected (list[str]), ingredient_breakdown (list),
-             analysis { score, recommendation, good_ingredients, bad_ingredients },
-             skin_condition, image_url }
-      400  { error }  — image upload failed / ingredient section not found / < 3 ingredients
-      503  { error }  — Cloudinary not configured
-    """
-    # ── 0. Parse inputs ──────────────────────────────────────────────────────
     f   = request.files.get('image')
     uid = parse_user_id(request.form.get('user_id'))
     debug_mode = request.args.get('debug', '').lower() == 'true'
@@ -465,26 +514,25 @@ def analyze_prod():
 
     b = f.read()
 
-    # ── 1. Upload image to Cloudinary ────────────────────────────────────────
+    # 1. Upload to Cloudinary
     url = upload_img(b, "skinbiee/product_scans")
     if not url:
         return jsonify({"error": "Image upload failed. Configure Cloudinary."}), 503
 
-    # ── 2. Run OCR (pre-processed) → raw text (Step 3) ──────────────────────
-    ocr_raw = ocr_utils.extract_ingredients_from_image(b, confidence_threshold=0.3)
+    # 2. Forward to HF ML service for OCR
+    ml_resp = _call_ml_service(b, "product")
+    if ml_resp is None or ml_resp.get("status") != "success":
+        err_msg = ml_resp.get("error", "ML service unreachable") if ml_resp else "ML service unreachable"
+        return jsonify({"error": f"OCR failed: {err_msg}"}), 503
 
-    # ── 3. Parse ingredient section from raw OCR text (Step 1) ──────────────
-    ingredients_list = ocr_utils.extract_ingredient_section(ocr_raw)
+    ocr_raw = ml_resp.get("raw_text", "")
 
-    # Capture the raw ingredient section text before splitting (for debug)
-    # Re-derive it so we can expose it without re-running OCR.
+    # 3. Parse ingredient section (local — no ML)
+    ingredients_list = extract_ingredient_section(ocr_raw)
     ocr_ingredients_raw_text = _get_raw_ingredient_section(ocr_raw)
 
-    # ── 4. Failure handling — ingredient section not found (Step 6) ──────────
+    # 4. Handle failure
     if len(ingredients_list) < 1:
-        with open("SCANNER.log", "a") as f:
-            f.write(f"FAILED! Found 0 ingredients.\\n")
-            f.write(f"\\n--- OCR RAW START ---\\n{ocr_raw}\\n--- OCR RAW END ---\\n")
         resp = {
             "error": (
                 "We couldn't find the ingredient list in this photo. "
@@ -496,54 +544,46 @@ def analyze_prod():
             resp["ocr_ingredients_raw"] = ocr_ingredients_raw_text
         return jsonify(resp), 400
 
-    with open("SCANNER.log", "a") as f: f.write(f"OCR PASS! Found {len(ingredients_list)} ingredients! Proceeding to LLM.\\n")
-    # Unified ingredient string used by both LLM and rule-based analysers
     ingredients_text = ", ".join(ingredients_list)
 
-    # ── 5. Fetch user's skin condition from DB (Step 4) ──────────────────────
+    # 5. Fetch skin condition
     try:
         skin_condition = get_user_skin_condition(uid)
     except Exception as e:
         print(f"[analyze_prod] Could not fetch skin condition: {e}")
         skin_condition = "general"
 
-    # ── 6. Analyse ingredients (LLM → rule-based fallback) ──────────────────
+    # 6. Analyse (LLM → rule-based fallback)
     llm_an = analyze_ingredients_llm(ingredients_text, skin_condition)
-    if llm_an:
-        an = llm_an
-    else:
-        an = analyze_custom_ingredients(ingredients_text, skin_condition)
+    an = llm_an if llm_an else analyze_custom_ingredients(ingredients_text, skin_condition)
 
-    # ── 7. Build per-ingredient breakdown (Step 5) ───────────────────────────
-    ingredient_breakdown = _build_ingredient_breakdown(
-        ingredients_list, an, skin_condition
-    )
+    # 7. Per-ingredient breakdown
+    ingredient_breakdown = _build_ingredient_breakdown(ingredients_list, an, skin_condition)
 
-    # ── 8. Persist scan record ───────────────────────────────────────────────
+    # 8. Persist
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
         add_scan(uid, ts, "Product Scan", 1.0, an.get('recommendation', 'Info'), image_path=url)
     except Exception as e:
         return jsonify({"error": f"Failed to save scan: {e}"}), 500
 
-    # ── 9. Build response ────────────────────────────────────────────────────
+    # 9. Response
     resp = {
         "status":               "success",
         "skin_condition":       skin_condition,
         "ingredients_detected": ingredients_list,
         "ingredient_breakdown": ingredient_breakdown,
-        # Top-level 'analysis' kept for frontend backwards compatibility
         "analysis":             an,
         "image_url":            url,
     }
-
-    # Step 7 — optional debug fields
     if debug_mode:
         resp["ocr_raw"]              = ocr_raw
         resp["ocr_ingredients_raw"]  = ocr_ingredients_raw_text
 
-    with open("SCANNER.log", "a") as f: f.write(f"SUCCESS! Found {len(ingredients_list)} ingredients.\\n")
     return jsonify(resp)
+
+
+# ── Daily log + user data routes ──────────────────────────────────────────────
 
 @app.route('/api/daily-log', methods=['POST'])
 def save_log():
@@ -565,8 +605,9 @@ def save_log():
             add_daily_log(uid, d, am, pm, f, r, n, photo_path=photo_url)
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-        return jsonify({"status":"success","message":"Saved"}), 200
-    except Exception as e: return jsonify({"error":str(e)}), 500
+        return jsonify({"status": "success", "message": "Saved"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/user/data', methods=['GET'])
 def get_data():
@@ -586,7 +627,8 @@ def get_data():
             "streak": streak,
             "active_dates": sorted(active_dates),
         })
-    except Exception as e: return jsonify({"error":str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 7860))
