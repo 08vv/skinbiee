@@ -21,6 +21,9 @@ COPY models/ models/
 # Copy the ML service itself
 COPY ml_app.py .
 
+# Configured for Hugging Face Space: added system dependencies for OpenCV/EasyOCR,
+# single gunicorn worker, and extended timeout.
+
 # Expose Hugging Face default port
 EXPOSE 7860
 
