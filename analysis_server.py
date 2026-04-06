@@ -342,13 +342,18 @@ def ping():
 
 @app.after_request
 def add_header(response):
-    # Hugging Face Spaces are served in an iframe. 
-    # We must explicitly allow iframing by relaxing security headers.
-    response.headers['X-Frame-Options'] = 'ALLOWALL'
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    # Completely remove X-Frame-Options to allow modern browsers to default to CSP
+    if 'X-Frame-Options' in response.headers:
+        del response.headers['X-Frame-Options']
     
-    # Optional: Very relaxed CSP for development/prototype spaces
-    response.headers['Content-Security-Policy'] = "frame-ancestors *; default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:;"
+    # Relaxed Access Control
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+    
+    # Modern frame-ancestors to allow Hugging Face iframe
+    # Also added 'sandbox' permissions for good measure
+    response.headers['Content-Security-Policy'] = "frame-ancestors *; default-src * 'unsafe-inline' 'unsafe-eval'; img-src * data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *;"
     
     return response
 
