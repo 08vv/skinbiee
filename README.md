@@ -1,12 +1,19 @@
 ---
 title: Skinbiee
-emoji: 👀
-colorFrom: gray
-colorTo: red
+emoji: ✨
+colorFrom: blue
+colorTo: pink
 sdk: docker
 pinned: false
-license: mit
-short_description: SkinCare app
+app_port: 7860
 ---
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+# Skinbiee: Smart Skincare Analyst ✨
+
+Skinbiee is an AI-powered skincare companion that analyzes product ingredients, tracks your skincare routine, and helps you achieve your skin goals.
+
+### 🚀 Deployment
+This Space is configured as a Docker container running a Flask backend that also serves the static frontend.
+
+### 🛠️ Configuration
+For local development, refer to `RUN.md`. For Hugging Face deployment, refer to `HUGGINGFACE_DEPLOYMENT_GUIDE.md`.

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
@@ -317,6 +317,14 @@ def _build_ingredient_breakdown(
 
 
 @app.route('/')
+def home():
+    return send_from_directory('frontend', 'skinbiee.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('frontend', path)
+
+@app.route('/health')
 def health():
     return jsonify({"status": "ok"}), 200
 
@@ -520,7 +528,7 @@ def get_data():
     except Exception as e: return jsonify({"error":str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 7860))
     try:
         from waitress import serve
         print(f"🚀 AI Server started on {port}")

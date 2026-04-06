@@ -1,7 +1,6 @@
-// Automatically switches to production server when deployed
 const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? "http://localhost:5000" 
-    : "https://YOUR-BACKEND-URL-HERE.onrender.com"; // <-- 🚀 Update this line after backend is deployed!
+    ? "http://localhost:7860" 
+    : window.location.origin;
 
 /* ==========================================================================
    STATE & DOM ELEMENTS
