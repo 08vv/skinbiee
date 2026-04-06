@@ -17,7 +17,7 @@ import numpy as np
 import cv2
 import tensorflow as tf
 import easyocr
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from PIL import Image
 
 app = Flask(__name__)
@@ -38,7 +38,16 @@ def load_models_in_background():
         MODEL_PATH = os.path.join("models", "skin_model.h5")
         if os.path.exists(MODEL_PATH):
             print("[ML] Loading Skin Model…")
-            _skin_model = tf.keras.models.load_model(MODEL_PATH)
+            try:
+                _skin_model = tf.keras.models.load_model(
+                    MODEL_PATH, compile=False
+                )
+            except TypeError:
+                # TF 2.21+ adds quantization_config to Dense which older
+                # .h5 files don't expect — load with safe_mode off
+                _skin_model = tf.keras.models.load_model(
+                    MODEL_PATH, compile=False, safe_mode=False
+                )
             print("✅ [ML] Skin Model Ready")
         else:
             print("⚠️ [ML] Skin Model file not found – skin predictions will use mock")
@@ -102,6 +111,71 @@ def _run_ocr(img_array: np.ndarray, confidence_threshold: float) -> str:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+_STATUS_PAGE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Skinbiee ML Service</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f0f1a;
+         color:#e0e0e0;display:flex;align-items:center;justify-content:center;
+         min-height:100vh}
+    .card{background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:20px;
+          padding:48px;max-width:520px;width:90%%;text-align:center;
+          box-shadow:0 20px 60px rgba(0,0,0,.4)}
+    .emoji{font-size:64px;margin-bottom:16px}
+    h1{font-size:1.8rem;margin-bottom:8px;
+       background:linear-gradient(135deg,#f8a4d8,#a78bfa);-webkit-background-clip:text;
+       -webkit-text-fill-color:transparent}
+    .sub{color:#9ca3af;margin-bottom:28px;font-size:.95rem}
+    .badge{display:inline-block;padding:6px 18px;border-radius:999px;font-size:.85rem;
+           font-weight:600;margin-bottom:24px}
+    .badge.ok{background:#064e3b;color:#6ee7b7}
+    .badge.loading{background:#78350f;color:#fbbf24}
+    .badge.error{background:#7f1d1d;color:#fca5a5}
+    .info{text-align:left;background:rgba(255,255,255,.04);border-radius:12px;
+          padding:18px 22px;margin-top:20px;font-size:.85rem;line-height:1.8}
+    .info span{color:#9ca3af}
+    .info strong{color:#c4b5fd}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">🧬</div>
+    <h1>Skinbiee ML Service</h1>
+    <p class="sub">Unified inference API for skin analysis &amp; product OCR</p>
+    <div class="badge %(badge_class)s">%(badge_text)s</div>
+    <div class="info">
+      <span>TensorFlow:</span>  <strong>%(tf_ver)s</strong><br>
+      <span>EasyOCR:</span>     <strong>%(ocr_ver)s</strong><br>
+      <span>Endpoints:</span>   <strong>POST /predict?type=skin | product</strong><br>
+      <span>Health:</span>      <strong>GET /health</strong>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+@app.route("/", methods=["GET"])
+def index():
+    if _loading_status == "Ready":
+        bcls, btxt = "ok", "✅ Models Ready"
+    elif _loading_status.startswith("Error"):
+        bcls, btxt = "error", "❌ Load Error"
+    else:
+        bcls, btxt = "loading", "⏳ " + _loading_status
+    html = _STATUS_PAGE % {
+        "badge_class": bcls,
+        "badge_text": btxt,
+        "tf_ver": tf.__version__,
+        "ocr_ver": easyocr.__version__,
+    }
+    return html
+
 
 @app.route("/health", methods=["GET"])
 def health():
