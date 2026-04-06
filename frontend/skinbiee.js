@@ -5,15 +5,15 @@ const API_BASE_URL = (window.location.hostname === 'localhost' || window.locatio
 /* --- Safe LocalStorage Utility --- */
 const safeLS = {
     get: (key) => {
-        try { return safeLS.get(key); }
+        try { return localStorage.getItem(key); }
         catch (e) { console.warn("LS blocked:", e); return null; }
     },
     set: (key, val) => {
-        try { safeLS.set(key, val); }
+        try { localStorage.setItem(key, val); }
         catch (e) { console.warn("LS blocked:", e); }
     },
     remove: (key) => {
-        try { safeLS.remove(key); }
+        try { localStorage.removeItem(key); }
         catch (e) { console.warn("LS blocked:", e); }
     }
 };
@@ -398,25 +398,28 @@ function setupOnboardingListeners() {
     // Pill Selects
     document.querySelectorAll('.pill-group.single-select').forEach(group => {
         group.addEventListener('click', (e) => {
-            if (e.target.classList.contains('pill')) {
+            const btn = e.target.closest('.pill');
+            if (btn) {
                 group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-                e.target.classList.add('active');
+                btn.classList.add('active');
             }
         });
     });
 
     document.querySelectorAll('.pill-group.multi-select').forEach(group => {
         group.addEventListener('click', (e) => {
-            if (e.target.classList.contains('pill')) {
-                e.target.classList.toggle('active');
+            const btn = e.target.closest('.pill');
+            if (btn) {
+                btn.classList.toggle('active');
             }
         });
     });
 
     if (activesToggle) {
         activesToggle.addEventListener('click', (e) => {
-            if (e.target.classList.contains('pill')) {
-                const val = e.target.dataset.val;
+            const btn = e.target.closest('.pill');
+            if (btn) {
+                const val = btn.dataset.val;
                 const at = document.getElementById('ob-actives-text');
                 if (at) at.style.display = val === 'Yes' ? 'block' : 'none';
             }
