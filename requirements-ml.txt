@@ -2,7 +2,7 @@
 torch
 torchvision
 easyocr
-tensorflow-cpu<=2.15.0
+tensorflow-cpu
 flask
 gunicorn
 Pillow
