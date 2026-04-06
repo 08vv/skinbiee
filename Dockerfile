@@ -1,29 +1,28 @@
-# Use Python 3.11 slim as the base image
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV PORT 7860
-
-# Install system dependencies for OpenCV and other packages
+# System deps for OpenCV + EasyOCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
+    libgl1-mesa-glx \
     libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements file and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python deps first (better layer caching)
+COPY requirements-ml.txt .
+RUN pip install --no-cache-dir -r requirements-ml.txt
 
-# Copy the rest of the application code
-COPY . .
+# Copy the skin model
+COPY models/ models/
 
-# Expose the port used by Hugging Face Spaces
+# Copy the ML service itself
+COPY ml_app.py .
+
+# Expose Hugging Face default port
 EXPOSE 7860
 
-# Start the application using Gunicorn
-CMD ["gunicorn", "--timeout", "120", "--access-logfile", "-", "-w", "1", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:7860", "analysis_server:app"]
+# Single worker + extended timeout to stay within free-tier 16 GB RAM
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "1", "--timeout", "300", "ml_app:app"]
