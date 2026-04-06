@@ -23,7 +23,7 @@ We will now deploy `analysis_server.py`.
    - **Environment:** `Python 3`
    - **Region:** (Choose closest to you)
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `python analysis_server.py`
+   - **Start Command:** `gunicorn analysis_server:app`
 4. **Environment Variables:** Scroll down to "Environment Variables" and click "Add Environment Variable". Add all of these:
    - `DATABASE_URL` → (Paste the Postgres URL you copied in Step 1)
    - `CLOUDINARY_CLOUD_NAME` → (Your Cloudinary Name)

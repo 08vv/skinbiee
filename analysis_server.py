@@ -519,8 +519,10 @@ def get_data():
     except Exception as e: return jsonify({"error":str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get("PORT", 5000))
     try:
         from waitress import serve
-        print(f"🚀 AI Server started on {port}"); serve(app, host='0.0.0.0', port=port, threads=8)
-    except: app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)
+        print(f"🚀 AI Server started on {port}")
+        serve(app, host="0.0.0.0", port=port, threads=8)
+    except ImportError:
+        app.run(host="0.0.0.0", port=port, debug=True, use_reloader=False)
