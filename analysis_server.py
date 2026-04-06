@@ -19,7 +19,7 @@ from modules.auth import login_user, register_user
 import modules.ocr_utils as ocr_utils
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),

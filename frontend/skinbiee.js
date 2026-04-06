@@ -287,6 +287,8 @@ function setupAuthListeners() {
                 return;
             }
 
+            showLoading('Waking up server (may take 30-60s on first load)...');
+
             if (isSignup) {
                 try {
                     const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
@@ -295,6 +297,7 @@ function setupAuthListeners() {
                         body: JSON.stringify({ username: uname, password })
                     });
                     const data = await res.json().catch(() => ({}));
+                    hideLoading();
                     if (!res.ok) {
                         showToast(data.error || 'Could not create account.');
                         return;
@@ -304,6 +307,7 @@ function setupAuthListeners() {
                     switchView('onboarding');
                 } catch (err) {
                     console.error(err);
+                    hideLoading();
                     showToast('Connection error — is the API server running?');
                 }
             } else {
@@ -314,6 +318,7 @@ function setupAuthListeners() {
                         body: JSON.stringify({ username: uname, password })
                     });
                     const data = await res.json().catch(() => ({}));
+                    hideLoading();
                     if (!res.ok) {
                         showToast(data.error || 'Invalid username or password.');
                         return;
@@ -338,6 +343,7 @@ function setupAuthListeners() {
                     renderScanHistory();
                 } catch (err) {
                     console.error(err);
+                    hideLoading();
                     showToast('Connection error — is the API server running?');
                 }
             }
@@ -2050,7 +2056,15 @@ function triggerMascotAnim(animType) {
     }
 }
 
-function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+function showLoading(msg) {
+    const overlay = document.getElementById('loading-overlay');
+    const textEl = overlay.querySelector('.loading-text');
+    if (textEl) {
+        if (msg) textEl.textContent = msg;
+        else textEl.textContent = 'Analyzing...';
+    }
+    overlay.style.display = 'flex';
+}
 function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
 function showToast(message) {
     const container = document.getElementById('toast-container');
@@ -2068,3 +2082,62 @@ document.addEventListener('click', (e) => {
         setTimeout(() => { triggerMascotAnim('idle'); }, 800);
     }
 });
+
+/* ==========================================================================
+   PWA INTEGRATION LOGIC
+   ========================================================================== */
+let deferredPrompt;
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then((reg) => {
+            console.log('PWA SW registered:', reg.scope);
+        }).catch((err) => {
+            console.log('PWA SW registration failed:', err);
+        });
+    });
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Show custom modal after 4 seconds of entering the app
+    setTimeout(() => {
+        const pwaModal = document.getElementById('pwa-install-overlay');
+        if (pwaModal) pwaModal.style.display = 'flex';
+    }, 4000);
+});
+
+const pwaInstallBtn = document.getElementById('pwa-install-btn');
+if (pwaInstallBtn) {
+    pwaInstallBtn.addEventListener('click', async () => {
+        const pwaModal = document.getElementById('pwa-install-overlay');
+        if (pwaModal) pwaModal.style.display = 'none';
+        
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`Install prompt outcome: ${outcome}`);
+            deferredPrompt = null;
+        }
+    });
+}
+
+window.addEventListener('appinstalled', (evt) => {
+    console.log('Skinbiee was installed to Home Screen successfully!');
+});
+
+// iOS Safari detection and manual install banner
+const isIos = () => {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent);
+};
+const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+if (isIos() && !isInStandaloneMode()) {
+    setTimeout(() => {
+        const iosBanner = document.getElementById('ios-install-banner');
+        if (iosBanner) iosBanner.style.display = 'block';
+    }, 4000);
+}
