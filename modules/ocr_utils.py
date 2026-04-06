@@ -36,6 +36,17 @@ def _get_reader() -> easyocr.Reader:
 
 # ── Image decoders ────────────────────────────────────────────────────────────
 
+def _ensure_smaller_res(img_bgr: np.ndarray, max_dim: int = 1000) -> np.ndarray:
+    """Resize image so its largest dimension is at most max_dim, keeping aspect ratio."""
+    h, w = img_bgr.shape[:2]
+    if max(h, w) <= max_dim:
+        return img_bgr
+    
+    scale = max_dim / max(h, w)
+    new_w, new_h = int(w * scale), int(h * scale)
+    return cv2.resize(img_bgr, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+
 def _decode_bgr(image_bytes: bytes) -> np.ndarray:
     """Decode raw bytes → OpenCV BGR array. Falls back to PIL for exotic formats."""
     nparr = np.frombuffer(image_bytes, np.uint8)
@@ -114,7 +125,11 @@ def extract_ingredients_from_image(
         A single newline-joined string of all recognised text blocks.
     """
     try:
-        img_bgr = _decode_bgr(image_bytes)
+        img_raw = _decode_bgr(image_bytes)
+        
+        # ── Optimize: Resize for speed (OCR doesn't need 12MP)
+        img_bgr = _ensure_smaller_res(img_raw, max_dim=1000)
+        print(f"[OCR] Resized input to {img_bgr.shape[1]}x{img_bgr.shape[0]} for speed.")
 
         # ── Pass 1: original image
         raw_text_1 = _run_ocr(img_bgr, confidence_threshold)

@@ -638,12 +638,23 @@ function setupAnalyzer() {
             formData.append('user_id', state.userId);
 
             try {
-                showToast("Mascot is scanning your product... 🧴");
+                const processingTitle = document.getElementById('prod-processing-title-sb');
+                const processingSub = document.getElementById('prod-processing-subtitle-sb');
+                if (processingTitle) processingTitle.innerText = "Reading ingredients...";
+                if (processingSub) processingSub.innerText = "AI is scanning your image label.";
+
+                // Change message after 8s if it's still running
+                const msgTimeout = setTimeout(() => {
+                    if (processingTitle) processingTitle.innerText = "Analyzing benefits...";
+                    if (processingSub) processingSub.innerText = "Checking ingredients for your skin type.";
+                }, 8000);
+
                 const response = await fetch(`${API_BASE_URL}/api/analyze-product`, {
                     method: 'POST',
                     body: formData
                 });
                 const data = await response.json();
+                clearTimeout(msgTimeout);
 
                 if (data.status === 'success') {
                     showToast("Ingredient analysis ready!");
