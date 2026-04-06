@@ -2,3 +2,6 @@ venv_hidden/
 __pycache__/
 *.pyc
 .env
+encyclopidia.txt
+information.txt
+ocrinfo.txt
