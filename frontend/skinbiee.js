@@ -4,9 +4,10 @@ const API_BASE_URL = (window.location.hostname === 'localhost' || window.locatio
 
 /* --- Safe LocalStorage Utility --- */
 const safeStorage = {
-  get: (key) => { try { return safeStorage.get(key); } catch(e) { return null; } },
-  set: (key, val) => { try { safeStorage.set(key, val); } catch(e) {} },
-  remove: (key) => { try { safeStorage.remove(key); } catch(e) {} }
+  get: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
+  set: (key, val) => { try { localStorage.setItem(key, val); } catch(e) {} },
+  remove: (key) => { try { localStorage.removeItem(key); } catch(e) {} },
+  clear: () => { try { safeStorage.clear(); } catch(e) {} }
 };
 
 /* ==========================================================================
@@ -2166,7 +2167,7 @@ function closeClearDataModal() {
 }
 
 function executeClearData() {
-    localStorage.clear();
+    safeStorage.clear();
     clearSession();
     closeClearDataModal();
     showToast('All personal data cleared.');
