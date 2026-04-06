@@ -188,8 +188,219 @@ function switchView(viewName) {
     }
 }
 
-function switchTab(viewName) {
-    switchView(viewName);
+/* ==========================================================================
+   AUTH FLOW
+   ========================================================================== */
+function setupAuthListeners() {
+    const authForm = document.getElementById('auth-form');
+    const submitBtn = document.getElementById('auth-submit-btn');
+    const switchTextEl = document.getElementById('auth-switch-text');
+    let isSignup = true;
+
+    if (switchTextEl) {
+        switchTextEl.onclick = (e) => {
+            if (e.target.id === 'auth-switch-link') {
+                e.preventDefault();
+                isSignup = !isSignup;
+                
+                const emailGroup = document.querySelector('.signup-only');
+                const forgotLink = document.querySelector('.login-only');
+                
+                if (isSignup) {
+                    if (emailGroup) emailGroup.style.display = 'block';
+                    if (forgotLink) forgotLink.style.display = 'none';
+                    if (submitBtn) submitBtn.textContent = 'Create Account';
+                    switchTextEl.innerHTML = `Already have an account? <a href="#" id="auth-switch-link">Log In</a>`;
+                } else {
+                    if (emailGroup) emailGroup.style.display = 'none';
+                    if (forgotLink) forgotLink.style.display = 'block';
+                    if (submitBtn) submitBtn.textContent = 'Log In';
+                    switchTextEl.innerHTML = `New here? <a href="#" id="auth-switch-link">Sign Up</a>`;
+                }
+            }
+        };
+    }
+
+    if (authForm) {
+        authForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const uname = document.getElementById('auth-username').value.trim();
+            const pass = document.getElementById('auth-password').value;
+            const email = isSignup ? document.getElementById('auth-email').value.trim() : null;
+
+            try {
+                showToast(isSignup ? "Creating your portal... 🪄" : "Opening the gates... 🏰");
+                const endpoint = isSignup ? '/api/signup' : '/api/login';
+                const body = { username: uname, password: pass };
+                if (isSignup) body.email = email;
+
+                const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    persistSession(data.user_id, data.username);
+                    if (isSignup) {
+                        switchView('onboarding');
+                    } else {
+                        applyUserProfile(loadUserProfile());
+                        switchView('home');
+                        triggerMascotAnim('happy');
+                        refreshUserDataFromServer();
+                    }
+                } else {
+                    showToast(data.error || "Authentication failed");
+                }
+            } catch (err) {
+                console.error(err);
+                showToast("Connection error. Is the server awake?");
+            }
+        };
+    }
+
+    const eyeToggle = document.querySelector('.eye-toggle');
+    if (eyeToggle) {
+        eyeToggle.onclick = function () {
+            const input = document.getElementById('auth-password');
+            const icon = this.querySelector('i');
+            if (input && icon) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.replace('fa-eye', 'fa-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.replace('fa-eye-slash', 'fa-eye');
+                }
+            }
+        };
+    }
+}
+
+/* ==========================================================================
+   ONBOARDING FLOW
+   ========================================================================== */
+function setupOnboardingListeners() {
+    const nextBtn = document.getElementById('ob-next-btn');
+    const backBtn = document.getElementById('ob-back');
+    const mascot = document.getElementById('ob-mascot');
+
+    // Pill Selects
+    document.querySelectorAll('.pill-group.single-select').forEach(group => {
+        group.addEventListener('click', (e) => {
+            const pill = e.target.closest('.pill');
+            if (pill) {
+                group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+            }
+        });
+    });
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const currentStep = document.getElementById(`ob-step-${state.onboardingStep}`);
+            let isValid = true;
+
+            if (state.onboardingStep === 1) {
+                const age = document.getElementById('ob-age').value;
+                const gender = currentStep.querySelector('.pill.active');
+                if (!age || !gender) isValid = false;
+            } else if (state.onboardingStep === 2) {
+                const skinType = currentStep.querySelector('[data-target="ob-skintype"] .pill.active');
+                const concern = currentStep.querySelector('[data-target="ob-concern"] .pill.active');
+                const sensitive = currentStep.querySelector('[data-target="ob-sensitive"] .pill.active');
+                if (!skinType || !concern || !sensitive) isValid = false;
+            } else if (state.onboardingStep >= 3 && state.onboardingStep <= 4) {
+                const groups = currentStep.querySelectorAll('.pill-group.single-select');
+                groups.forEach(g => {
+                    if (!g.querySelector('.pill.active')) isValid = false;
+                });
+            }
+
+            if (!isValid) {
+                showToast('Please answer all questions to continue');
+                return;
+            }
+
+            if (state.onboardingStep < 4) {
+                document.getElementById(`ob-step-${state.onboardingStep}`).classList.remove('active');
+                state.onboardingStep++;
+                document.getElementById(`ob-step-${state.onboardingStep}`).classList.add('active');
+                document.getElementById('ob-step-num').textContent = state.onboardingStep;
+                if (backBtn) backBtn.style.visibility = 'visible';
+            } else if (state.onboardingStep === 4) {
+                const profileData = {
+                    username: state.username,
+                    age: document.getElementById('ob-age').value,
+                    gender: (document.querySelector('#ob-step-1 .pill.active') || {}).textContent || '',
+                    skinType: (document.querySelector('[data-target="ob-skintype"] .pill.active') || {}).textContent || '',
+                    concern: (document.querySelector('[data-target="ob-concern"] .pill.active') || {}).textContent || '',
+                    sensitive: (document.querySelector('[data-target="ob-sensitive"] .pill.active') || {}).textContent || '',
+                };
+                saveUserProfile(profileData);
+
+                document.getElementById(`ob-step-4`).classList.remove('active');
+                document.getElementById(`ob-step-done`).classList.add('active');
+
+                if (mascot) mascot.classList.replace('idle', 'happy');
+                const progress = document.querySelector('.ob-progress');
+                if (progress) progress.style.display = 'none';
+                if (backBtn) backBtn.style.visibility = 'hidden';
+
+                nextBtn.textContent = 'Go to Home';
+                state.onboardingStep = 5;
+            } else {
+                applyUserProfile(loadUserProfile());
+                switchView('home');
+            }
+        });
+    }
+
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            if (state.onboardingStep > 1) {
+                document.getElementById(`ob-step-${state.onboardingStep}`).classList.remove('active');
+                state.onboardingStep--;
+                document.getElementById(`ob-step-${state.onboardingStep}`).classList.add('active');
+                document.getElementById('ob-step-num').textContent = state.onboardingStep;
+                if (state.onboardingStep === 1) backBtn.style.visibility = 'hidden';
+            }
+        });
+    }
+}
+
+function resetOnboarding() {
+    state.onboardingStep = 1;
+    document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
+    const step1 = document.getElementById('ob-step-1');
+    if (step1) step1.classList.add('active');
+    const nextBtn = document.getElementById('ob-next-btn');
+    if (nextBtn) nextBtn.textContent = 'Continue';
+    const stepNum = document.getElementById('ob-step-num');
+    if (stepNum) stepNum.textContent = '1';
+    const backBtn = document.getElementById('ob-back');
+    if (backBtn) backBtn.style.visibility = 'hidden';
+    const progress = document.querySelector('.ob-progress');
+    if (progress) progress.style.display = 'block';
+    const mascot = document.getElementById('ob-mascot');
+    if (mascot) {
+        mascot.classList.remove('happy');
+        mascot.classList.add('idle');
+    }
+}
+
+/* ==========================================================================
+   NAVIGATION
+   ========================================================================== */
+function setupBottomNav() {
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.target;
+            switchTab(target);
+        });
+    });
 }
 
 /* ==========================================================================
