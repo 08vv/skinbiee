@@ -1,17 +1,27 @@
-/* PWA Service Worker for Skinbiee */
-const CACHE_NAME = 'skinbiee-cache-v2';
+const CACHE_NAME = 'skinbiee-cache-v3';
 const ASSETS_TO_CACHE = [
     '/',
     '/skinbiee.html',
     '/style.css',
     '/skinbiee.css',
     '/skinbiee.js',
+    '/manifest.json',
+    '/assets/apple-touch-icon.png',
+    '/assets/blue-flame.png',
     '/assets/girl_normal.png',
     '/assets/girl_thumbs.png',
     '/assets/icon-192x192.png',
     '/assets/icon-512x512.png',
-    '/assets/apple-touch-icon.png',
-    '/manifest.json'
+    '/assets/mascot-done.png',
+    '/assets/mascot-thumbs-up.png',
+    '/assets/planner-calendar.png',
+    '/assets/scan-face-trans.png',
+    '/assets/scan-face.jpg',
+    '/assets/scan-face.png',
+    '/assets/scan-product-trans.png',
+    '/assets/scan-product.png',
+    '/assets/timeline-icon.png',
+    '/assets/timeline.png'
 ];
 
 self.addEventListener('install', (event) => {
