@@ -1,6 +1,6 @@
 const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? "http://localhost:7860" 
-    : window.location.origin;
+    ? "http://localhost:5000" 
+    : "https://skinbiee-backend-hxkz.onrender.com";
 
 /* --- Safe LocalStorage Utility --- */
 const safeLS = {
