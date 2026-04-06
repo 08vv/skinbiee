@@ -26,4 +26,4 @@ COPY . .
 EXPOSE 7860
 
 # Start the application using Gunicorn
-CMD ["gunicorn", "--timeout", "120", "--access-logfile", "-", "-w", "2", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:7860", "analysis_server:app"]
+CMD ["gunicorn", "--timeout", "120", "--access-logfile", "-", "-w", "1", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:7860", "analysis_server:app"]

@@ -151,13 +151,29 @@ def compute_streak_and_active_dates(log_records):
     return active_dates, best
 
 
-MODEL_PATH = os.path.join('models', 'skin_model.h5')
-class MockModel:
-    def predict(self, p): return [np.array([0.1, 0.05, 0.6, 0.05, 0.2])]
-try:
-    if os.path.exists(MODEL_PATH): model = tf.keras.models.load_model(MODEL_PATH); print("✅ Model Loaded")
-    else: model = MockModel(); print("⚠️ Mock Model")
-except: model = MockModel(); print("⚠️ Mock Fallback")
+# Global model cache
+_skin_model = None
+
+def _get_skin_model():
+    """Lazy load the skin model to save memory during startup."""
+    global _skin_model
+    if _skin_model is None:
+        MODEL_PATH = os.path.join('models', 'skin_model.h5')
+        class MockModel:
+            def predict(self, p): return [np.array([0.1, 0.05, 0.6, 0.05, 0.2])]
+        
+        try:
+            if os.path.exists(MODEL_PATH):
+                print("[AI] Initialising Skin Model (tensorflow)…")
+                _skin_model = tf.keras.models.load_model(MODEL_PATH)
+                print("✅ [AI] Model Loaded")
+            else:
+                _skin_model = MockModel()
+                print("⚠️ [AI] Mock Model (File not found)")
+        except Exception as e:
+            _skin_model = MockModel()
+            print(f"⚠️ [AI] Mock Fallback (Error: {e})")
+    return _skin_model
 
 # EasyOCR reader is now owned by modules/ocr_utils.py (_get_reader()).
 # No global reader is initialised here.
@@ -408,6 +424,9 @@ def analyze_skin():
     url = upload_img(b, "skinbiee/face_scans")
     if not url:
         return jsonify({"error": "Image upload failed. Configure Cloudinary (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)."}), 503
+    # Ensure model is loaded (lazy)
+    model = _get_skin_model()
+    
     img = Image.open(io.BytesIO(b)).convert('RGB')
     p = np.expand_dims(np.array(cv2.resize(np.array(img),(224,224)))/255.0, 0)
     preds = model.predict(p)[0]; labels = ["Acne","Dark Spots","Oiliness","Dryness","Normal"]
