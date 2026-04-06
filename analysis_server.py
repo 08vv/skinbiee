@@ -317,7 +317,8 @@ def _build_ingredient_breakdown(
 
 
 @app.route('/')
-def health(): return jsonify({"status":"healthy","db":"Cloud" if os.getenv("DATABASE_URL") else "Local"}), 200
+def health():
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route('/api/auth/register', methods=['POST'])
