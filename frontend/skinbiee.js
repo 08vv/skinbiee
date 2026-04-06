@@ -2,6 +2,22 @@ const API_BASE_URL = (window.location.hostname === 'localhost' || window.locatio
     ? "http://localhost:7860" 
     : window.location.origin;
 
+/* --- Safe LocalStorage Utility --- */
+const safeLS = {
+    get: (key) => {
+        try { return safeLS.get(key); }
+        catch (e) { console.warn("LS blocked:", e); return null; }
+    },
+    set: (key, val) => {
+        try { safeLS.set(key, val); }
+        catch (e) { console.warn("LS blocked:", e); }
+    },
+    remove: (key) => {
+        try { safeLS.remove(key); }
+        catch (e) { console.warn("LS blocked:", e); }
+    }
+};
+
 /* ==========================================================================
    STATE & DOM ELEMENTS
    ========================================================================== */
@@ -25,8 +41,8 @@ function userStorageKey(base) {
 function persistSession(userId, username) {
     state.userId = userId;
     state.username = username;
-    localStorage.setItem('sc-user-id', String(userId));
-    localStorage.setItem('sc-username', username);
+    safeLS.set('sc-user-id', String(userId));
+    safeLS.set('sc-username', username);
     const userDisp = document.getElementById('user-display-name');
     if (userDisp) userDisp.textContent = username;
 }
@@ -35,19 +51,19 @@ function clearSession() {
     state.userId = null;
     state.username = '';
     state.activeDates = new Set();
-    localStorage.removeItem('sc-user-id');
-    localStorage.removeItem('sc-username');
+    safeLS.remove('sc-user-id');
+    safeLS.remove('sc-username');
 }
 
 function restoreSession() {
-    const raw = localStorage.getItem('sc-user-id');
+    const raw = safeLS.get('sc-user-id');
     const uid = raw != null ? parseInt(raw, 10) : NaN;
     if (!Number.isFinite(uid) || uid < 1) {
         state.userId = null;
         return false;
     }
     state.userId = uid;
-    state.username = localStorage.getItem('sc-username') || '';
+    state.username = safeLS.get('sc-username') || '';
     const userDisp = document.getElementById('user-display-name');
     if (userDisp) userDisp.textContent = state.username;
     return true;
@@ -70,7 +86,7 @@ async function refreshUserDataFromServer() {
         if (typeof data.streak === 'number') {
             plannerState.streak = data.streak;
             state.streak = data.streak;
-            localStorage.setItem(userStorageKey('planner-streak'), String(data.streak));
+            safeLS.set(userStorageKey('planner-streak'), String(data.streak));
         }
 
         const sBadge = document.getElementById('streak-count');
@@ -95,10 +111,11 @@ const themeToggleBtn = document.getElementById('theme-toggle');
    INITIALIZATION
    ========================================================================== */
 function init() {
+    console.log("DEBUG: Skinbiee Initializing...");
     const hadSession = restoreSession();
     syncPlannerStateFromStorage();
 
-    const savedTheme = localStorage.getItem('sc-theme');
+    const savedTheme = safeLS.get('sc-theme');
     if (savedTheme === 'dark') {
         toggleTheme();
     }
@@ -186,7 +203,7 @@ function toggleTheme() {
     if (themeToggleBtn) {
         themeToggleBtn.innerHTML = state.theme === 'dark' ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
     }
-    localStorage.setItem('sc-theme', state.theme);
+    safeLS.set('sc-theme', state.theme);
 
     // Update Setting toggle if exists
     const settingsPills = document.querySelectorAll('.pill-group[data-target="theme"] .pill');
@@ -211,13 +228,13 @@ function changeMascotColor(colorName) {
    USER PROFILE (localStorage)
    ========================================================================== */
 function saveUserProfile(profile) {
-    localStorage.setItem(profileStorageKey(), JSON.stringify(profile));
+    safeLS.set(profileStorageKey(), JSON.stringify(profile));
 }
 
 function loadUserProfile() {
-    let raw = localStorage.getItem(profileStorageKey());
+    let raw = safeLS.get(profileStorageKey());
     if (!raw && state.userId != null) {
-        raw = localStorage.getItem('sc-user-profile');
+        raw = safeLS.get('sc-user-profile');
     }
     return raw ? JSON.parse(raw) : null;
 }
@@ -578,7 +595,7 @@ function setupAnalyzer() {
                         type: 'face'
                     };
                     plannerState.scans.unshift(scanRecord);
-                    localStorage.setItem(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
+                    safeLS.set(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
 
                     renderSkinResultsSB(data.results, previewUrl);
                     showAnalyzerSubStateSB('skin', 'results');
@@ -667,7 +684,7 @@ function setupAnalyzer() {
                         type: 'product'
                     };
                     plannerState.scans.unshift(scanRecord);
-                    localStorage.setItem(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
+                    safeLS.set(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
 
                     renderProdResultsSB(data);
                     showAnalyzerSubStateSB('prod', 'results');
@@ -1259,13 +1276,13 @@ const plannerQuestions = [
 
 /* ── Storage Helpers ──────────────────────────────────────────────────── */
 function syncPlannerStateFromStorage() {
-    plannerState.plannerOnboardingDone = localStorage.getItem(userStorageKey('planner-ob-done')) === 'true';
-    try { plannerState.morningRoutine = JSON.parse(localStorage.getItem(userStorageKey('planner-morning-routine')) || 'null') || []; } catch(_) { plannerState.morningRoutine = []; }
-    try { plannerState.nightRoutine = JSON.parse(localStorage.getItem(userStorageKey('planner-night-routine')) || 'null') || []; } catch(_) { plannerState.nightRoutine = []; }
+    plannerState.plannerOnboardingDone = safeLS.get(userStorageKey('planner-ob-done')) === 'true';
+    try { plannerState.morningRoutine = JSON.parse(safeLS.get(userStorageKey('planner-morning-routine')) || 'null') || []; } catch(_) { plannerState.morningRoutine = []; }
+    try { plannerState.nightRoutine = JSON.parse(safeLS.get(userStorageKey('planner-night-routine')) || 'null') || []; } catch(_) { plannerState.nightRoutine = []; }
     // Legacy compat
     if (!plannerState.morningRoutine.length && !plannerState.nightRoutine.length) {
         try {
-            const old = JSON.parse(localStorage.getItem(userStorageKey('planner-routine')) || 'null');
+            const old = JSON.parse(safeLS.get(userStorageKey('planner-routine')) || 'null');
             if (Array.isArray(old) && old.length) {
                 plannerState.morningRoutine = old;
                 plannerState.nightRoutine = old;
@@ -1273,24 +1290,24 @@ function syncPlannerStateFromStorage() {
         } catch(_) {}
     }
     // Also check legacy hasSetup
-    if (!plannerState.plannerOnboardingDone && localStorage.getItem(userStorageKey('planner-has-setup')) === 'true') {
+    if (!plannerState.plannerOnboardingDone && safeLS.get(userStorageKey('planner-has-setup')) === 'true') {
         plannerState.plannerOnboardingDone = true;
-        localStorage.setItem(userStorageKey('planner-ob-done'), 'true');
+        safeLS.set(userStorageKey('planner-ob-done'), 'true');
     }
-    plannerState.streak = parseInt(localStorage.getItem(userStorageKey('planner-streak')) || '0', 10) || 0;
-    try { plannerState.scans = JSON.parse(localStorage.getItem(userStorageKey('planner-scans')) || '[]'); } catch(_) { plannerState.scans = []; }
+    plannerState.streak = parseInt(safeLS.get(userStorageKey('planner-streak')) || '0', 10) || 0;
+    try { plannerState.scans = JSON.parse(safeLS.get(userStorageKey('planner-scans')) || '[]'); } catch(_) { plannerState.scans = []; }
     plannerState.currentMonth = new Date().getMonth();
     plannerState.currentYear = new Date().getFullYear();
     state.streak = plannerState.streak;
 
     // Today's completion status
     const todayKey = getLocalDateKey();
-    plannerState.amDoneToday = localStorage.getItem(userStorageKey('planner-am-done-date')) === todayKey;
-    plannerState.pmDoneToday = localStorage.getItem(userStorageKey('planner-pm-done-date')) === todayKey;
+    plannerState.amDoneToday = safeLS.get(userStorageKey('planner-am-done-date')) === todayKey;
+    plannerState.pmDoneToday = safeLS.get(userStorageKey('planner-pm-done-date')) === todayKey;
 }
 
-function saveMorningRoutine() { localStorage.setItem(userStorageKey('planner-morning-routine'), JSON.stringify(plannerState.morningRoutine)); }
-function saveNightRoutine() { localStorage.setItem(userStorageKey('planner-night-routine'), JSON.stringify(plannerState.nightRoutine)); }
+function saveMorningRoutine() { safeLS.set(userStorageKey('planner-morning-routine'), JSON.stringify(plannerState.morningRoutine)); }
+function saveNightRoutine() { safeLS.set(userStorageKey('planner-night-routine'), JSON.stringify(plannerState.nightRoutine)); }
 
 function getLocalDateKey(date = new Date()) {
     const year = date.getFullYear();
@@ -1300,8 +1317,8 @@ function getLocalDateKey(date = new Date()) {
 }
 
 function checkStreakMaintenance() {
-    const lastAM = localStorage.getItem(userStorageKey('planner-am-done-date')) || '';
-    const lastPM = localStorage.getItem(userStorageKey('planner-pm-done-date')) || '';
+    const lastAM = safeLS.get(userStorageKey('planner-am-done-date')) || '';
+    const lastPM = safeLS.get(userStorageKey('planner-pm-done-date')) || '';
     const lastDone = lastAM > lastPM ? lastAM : lastPM;
     if (!lastDone) return;
     const todayStr = getLocalDateKey();
@@ -1309,7 +1326,7 @@ function checkStreakMaintenance() {
     const yesterdayStr = getLocalDateKey(yesterday);
     if (lastDone !== todayStr && lastDone !== yesterdayStr) {
         plannerState.streak = 0;
-        localStorage.setItem(userStorageKey('planner-streak'), '0');
+        safeLS.set(userStorageKey('planner-streak'), '0');
     }
 }
 
@@ -1317,7 +1334,7 @@ function checkStreakMaintenance() {
 function setupPlanner() {
     syncPlannerStateFromStorage();
     checkStreakMaintenance();
-    plannerState.streak = parseInt(localStorage.getItem(userStorageKey('planner-streak')) || '0', 10) || 0;
+    plannerState.streak = parseInt(safeLS.get(userStorageKey('planner-streak')) || '0', 10) || 0;
     state.streak = plannerState.streak;
 
     const obOverlay = document.getElementById('planner-onboarding-overlay');
@@ -1460,10 +1477,10 @@ function showRoutineReveal() {
 
 function finishPlannerOnboarding() {
     plannerState.plannerOnboardingDone = true;
-    localStorage.setItem(userStorageKey('planner-ob-done'), 'true');
+    safeLS.set(userStorageKey('planner-ob-done'), 'true');
     // Also set legacy flag for compat
-    localStorage.setItem(userStorageKey('planner-has-setup'), 'true');
-    try { localStorage.setItem(userStorageKey('planner-ob-answers'), JSON.stringify(plannerState.obAnswers)); } catch(_) {}
+    safeLS.set(userStorageKey('planner-has-setup'), 'true');
+    try { safeLS.set(userStorageKey('planner-ob-answers'), JSON.stringify(plannerState.obAnswers)); } catch(_) {}
     setupPlanner();
 }
 
@@ -1500,8 +1517,8 @@ function renderNightCard() {
 
 function updateBlurStates() {
     const todayKey = getLocalDateKey();
-    plannerState.amDoneToday = localStorage.getItem(userStorageKey('planner-am-done-date')) === todayKey;
-    plannerState.pmDoneToday = localStorage.getItem(userStorageKey('planner-pm-done-date')) === todayKey;
+    plannerState.amDoneToday = safeLS.get(userStorageKey('planner-am-done-date')) === todayKey;
+    plannerState.pmDoneToday = safeLS.get(userStorageKey('planner-pm-done-date')) === todayKey;
 
     const morningBlur = document.getElementById('morning-blur-overlay');
     const nightBlur = document.getElementById('night-blur-overlay');
@@ -1556,10 +1573,10 @@ async function finishChecklist() {
     // Mark this routine as done today
     if (type === 'morning') {
         plannerState.amDoneToday = true;
-        localStorage.setItem(userStorageKey('planner-am-done-date'), todayKey);
+        safeLS.set(userStorageKey('planner-am-done-date'), todayKey);
     } else {
         plannerState.pmDoneToday = true;
-        localStorage.setItem(userStorageKey('planner-pm-done-date'), todayKey);
+        safeLS.set(userStorageKey('planner-pm-done-date'), todayKey);
     }
 
     // Save to server
@@ -1751,7 +1768,7 @@ function setupSettings() {
                 document.documentElement.removeAttribute('data-theme');
                 state.theme = 'light';
             }
-            localStorage.setItem('sc-theme', state.theme);
+            safeLS.set('sc-theme', state.theme);
         });
     });
 
