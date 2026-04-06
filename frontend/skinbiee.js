@@ -536,9 +536,9 @@ function setupAnalyzer() {
     if (state.analyzerInitialized) return;
     state.analyzerInitialized = true;
 
-    const btnSkinCamera = document.getElementById('btn-skin-camera');
-    const btnSkinGallery = document.getElementById('btn-skin-gallery');
-    const skinFileInput = document.getElementById('skin-file-input');
+    const btnSkinCamera = document.getElementById('btn-skin-camera-sb');
+    const btnSkinGallery = document.getElementById('btn-skin-gallery-sb');
+    const skinFileInput = document.getElementById('skin-file-input-sb');
 
     if (btnSkinCamera) btnSkinCamera.onclick = () => skinFileInput.click();
     if (btnSkinGallery) btnSkinGallery.onclick = () => skinFileInput.click();
@@ -548,9 +548,9 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = document.getElementById('skin-img-preview');
+                    const preview = document.getElementById('skin-img-preview-sb');
                     if (preview) preview.src = event.target.result;
-                    showAnalyzerSubState('skin', 'preview');
+                    showAnalyzerSubStateSB('skin', 'preview');
                     triggerMascotAnim('surprised');
                 };
                 reader.readAsDataURL(e.target.files[0]);
@@ -558,7 +558,7 @@ function setupAnalyzer() {
         };
     }
 
-    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin');
+    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin-sb');
     if (btnAnalyzeSkin) {
         btnAnalyzeSkin.onclick = async () => {
             const file = skinFileInput.files[0];
@@ -572,10 +572,10 @@ function setupAnalyzer() {
             }
 
             console.log("DEBUG: Starting skin analysis...");
-            const preview = document.getElementById('skin-img-processing');
-            if (preview) preview.src = document.getElementById('skin-img-preview').src;
+            const preview = document.getElementById('skin-img-processing-sb');
+            if (preview) preview.src = document.getElementById('skin-img-preview-sb').src;
             
-            showAnalyzerSubState('skin', 'processing');
+            showAnalyzerSubStateSB('skin', 'processing');
             triggerMascotAnim('thinking');
 
             const formData = new FormData();
@@ -603,24 +603,24 @@ function setupAnalyzer() {
                     plannerState.scans.unshift(scanRecord);
                     safeLS.set(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
 
-                    renderSkinResults(data.results, previewUrl);
-                    showAnalyzerSubState('skin', 'results');
+                    renderSkinResultsSB(data.results, previewUrl);
+                    showAnalyzerSubStateSB('skin', 'results');
                     triggerMascotAnim('happy');
                 } else {
                     showToast("Analysis failed: " + (data.error || 'Unknown error'));
-                    showAnalyzerSubState('skin', 'input');
+                    showAnalyzerSubStateSB('skin', 'input');
                 }
             } catch (err) {
                 console.error("DEBUG: FETCH ERROR:", err);
-                showToast("Connection Error: Is the AI Server running?");
-                showAnalyzerSubState('skin', 'input');
+                showToast("Connection error. Try again?");
+                showAnalyzerSubStateSB('skin', 'input');
             }
         };
     }
 
-    const btnProdCamera = document.getElementById('btn-prod-camera');
-    const btnProdGallery = document.getElementById('btn-prod-gallery');
-    const prodFileInput = document.getElementById('prod-file-input');
+    const btnProdCamera = document.getElementById('btn-prod-camera-sb');
+    const btnProdGallery = document.getElementById('btn-prod-gallery-sb');
+    const prodFileInput = document.getElementById('prod-file-input-sb');
 
     if (btnProdCamera) btnProdCamera.onclick = () => prodFileInput.click();
     if (btnProdGallery) btnProdGallery.onclick = () => prodFileInput.click();
@@ -630,16 +630,16 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = document.getElementById('prod-img-preview');
+                    const preview = document.getElementById('prod-img-preview-sb');
                     if (preview) preview.src = event.target.result;
-                    showAnalyzerSubState('prod', 'preview');
+                    showAnalyzerSubStateSB('prod', 'preview');
                 };
                 reader.readAsDataURL(e.target.files[0]);
             }
         };
     }
 
-    const btnAnalyzeProd = document.getElementById('btn-analyze-prod');
+    const btnAnalyzeProd = document.getElementById('btn-analyze-prod-sb');
     if (btnAnalyzeProd) {
         btnAnalyzeProd.onclick = async () => {
             const file = prodFileInput.files[0];
@@ -650,10 +650,10 @@ function setupAnalyzer() {
             }
 
             console.log("DEBUG: Starting product scan...");
-            const preview = document.getElementById('prod-img-processing');
-            if (preview) preview.src = document.getElementById('prod-img-preview').src;
+            const preview = document.getElementById('prod-img-processing-sb');
+            if (preview) preview.src = document.getElementById('prod-img-preview-sb').src;
 
-            showAnalyzerSubState('prod', 'processing');
+            showAnalyzerSubStateSB('prod', 'processing');
             triggerMascotAnim('thinking');
 
             const formData = new FormData();
@@ -661,8 +661,8 @@ function setupAnalyzer() {
             formData.append('user_id', state.userId);
 
             try {
-                const processingTitle = document.getElementById('prod-processing-title');
-                const processingSub = document.getElementById('prod-processing-subtitle');
+                const processingTitle = document.getElementById('prod-processing-title-sb');
+                const processingSub = document.getElementById('prod-processing-subtitle-sb');
                 if (processingTitle) processingTitle.innerText = "Reading ingredients...";
                 if (processingSub) processingSub.innerText = "AI is scanning your image label.";
 
