@@ -18,6 +18,15 @@ from modules.history_db import (
 from modules.auth import login_user, register_user
 import modules.ocr_utils as ocr_utils
 
+# Force absolute base directory for static serving
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'frontend'))
+print(f"[DEBUG] App directory: {os.path.abspath(os.path.dirname(__file__))}")
+print(f"[DEBUG] Frontend directory: {FRONTEND_DIR}")
+if os.path.exists(FRONTEND_DIR):
+    print(f"[DEBUG] Frontend folder contents: {os.listdir(FRONTEND_DIR)}")
+else:
+    print(f"[DEBUG] WARNING: Frontend folder NOT FOUND at {FRONTEND_DIR}")
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
@@ -318,11 +327,11 @@ def _build_ingredient_breakdown(
 
 @app.route('/')
 def home():
-    return send_from_directory('frontend', 'skinbiee.html')
+    return send_from_directory(FRONTEND_DIR, 'skinbiee.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    response = send_from_directory('frontend', path)
+    response = send_from_directory(FRONTEND_DIR, path)
     
     # Explicitly set MIME types for common web formats to prevent 404/Block issues
     if path.endswith('.js'):
