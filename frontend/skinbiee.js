@@ -1875,26 +1875,30 @@ function openSettingsToOnboarding() {
 
 function openSettingsSubPage(pageId) {
     try {
-        const targetId = `settings-${pageId}`;
-        const el = document.getElementById(targetId);
+        const cleanId = String(pageId).trim();
+        const targetId = `settings-${cleanId}`;
+        let el = document.getElementById(targetId);
+        
+        // Fallback: try finding by raw pageId if settings- prefix fails
+        if (!el) el = document.getElementById(cleanId);
+
         console.log('[DEBUG] openSettingsSubPage:', { pageId, targetId, found: !!el });
         
         if (el) {
-            // Force flex display with !important to override any other rules
             el.style.setProperty('display', 'flex', 'important');
         } else {
             console.error('[ERROR] Element not found:', targetId);
-            showToast('Something went wrong opening that page. 🥺');
+            showToast(`Could not find page: ${targetId} 🥺`);
             return;
         }
         
         const profile = loadUserProfile() || {};
         console.log('[DEBUG] Profile loaded for sub-page:', !!profile);
 
-    if (pageId === 'account-details') {
-        const input = document.getElementById('profile-edit-username');
+    if (cleanId === 'account-details') {
+        const input = document.getElementById('settings-profile-username');
         if (input) input.value = state.username || '';
-    } else if (pageId === 'skin-profile') {
+    } else if (cleanId === 'skin-profile') {
         // Sync Pills from Profile
         document.querySelectorAll('#settings-skin-profile [data-profile-key]').forEach(group => {
             const key = group.dataset.profileKey;
@@ -1949,7 +1953,8 @@ function saveSkinProfile() {
 }
 
 function saveAccountDetails() {
-    const newName = document.getElementById('profile-edit-username').value.trim();
+    const input = document.getElementById('settings-profile-username') || document.getElementById('onboarding-profile-username');
+    const newName = input ? input.value.trim() : '';
     if (newName) {
         state.username = newName;
         const displayNameEl = document.getElementById('user-display-name');
