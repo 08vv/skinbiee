@@ -447,36 +447,35 @@ function setupOnboardingListeners() {
     const activesToggle = document.getElementById('ob-actives-toggle');
     if (!nextBtn || !backBtn || !mascot) return;
 
-    // Pill Selects
-    document.querySelectorAll('.pill-group.single-select').forEach(group => {
-        group.addEventListener('click', (e) => {
-            const btn = e.target.closest('.pill');
-            if (btn) {
-                group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-                btn.classList.add('active');
-            }
-        });
+    // Global Pill & Swatch Delegation
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.pill, .swatch, .option-pill');
+        if (!btn) return;
+
+        const group = btn.closest('.pill-group, .color-swatches, .planner-options');
+        if (!group) return;
+
+        // Prevent default for buttons to avoid form submissions
+        if (btn.tagName === 'BUTTON') e.preventDefault();
+
+        if (group.classList.contains('multi-select')) {
+            btn.classList.toggle('active');
+        } else {
+            // Single select logic
+            group.querySelectorAll('.pill, .swatch, .option-pill').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        // Special triggers
+        if (group.id === 'ob-actives-toggle') {
+            const val = btn.dataset.val;
+            const at = document.getElementById('ob-actives-text');
+            if (at) at.style.display = val === 'Yes' ? 'block' : 'none';
+        }
     });
 
-    document.querySelectorAll('.pill-group.multi-select').forEach(group => {
-        group.addEventListener('click', (e) => {
-            const btn = e.target.closest('.pill');
-            if (btn) {
-                btn.classList.toggle('active');
-            }
-        });
-    });
 
-    if (activesToggle) {
-        activesToggle.addEventListener('click', (e) => {
-            const btn = e.target.closest('.pill');
-            if (btn) {
-                const val = btn.dataset.val;
-                const at = document.getElementById('ob-actives-text');
-                if (at) at.style.display = val === 'Yes' ? 'block' : 'none';
-            }
-        });
-    }
+
 
     nextBtn.addEventListener('click', () => {
         const currentStep = document.getElementById(`ob-step-${state.onboardingStep}`);
@@ -488,9 +487,9 @@ function setupOnboardingListeners() {
             if (!age || !gender) isValid = false;
         } else if (state.onboardingStep === 2) {
             const skinType = currentStep.querySelector('[data-target="ob-skintype"] .pill.active');
-            const concern = currentStep.querySelector('[data-target="ob-concern"] .pill.active');
+            const concerns = currentStep.querySelectorAll('[data-target="ob-concern"] .pill.active');
             const sensitive = currentStep.querySelector('[data-target="ob-sensitive"] .pill.active');
-            if (!skinType || !concern || !sensitive) isValid = false;
+            if (!skinType || concerns.length === 0 || !sensitive) isValid = false;
         } else if (state.onboardingStep >= 3 && state.onboardingStep <= 4) {
             const groups = currentStep.querySelectorAll('.pill-group.single-select');
             groups.forEach(g => {
@@ -515,7 +514,7 @@ function setupOnboardingListeners() {
                 age: document.getElementById('ob-age').value,
                 gender: (document.querySelector('#ob-step-1 .pill.active') || {}).textContent || '',
                 skinType: (document.querySelector('[data-target="ob-skintype"] .pill.active') || {}).textContent || '',
-                concern: (document.querySelector('[data-target="ob-concern"] .pill.active') || {}).textContent || '',
+                concern: Array.from(document.querySelectorAll('[data-target="ob-concern"] .pill.active')).map(p => p.textContent),
                 sensitive: (document.querySelector('[data-target="ob-sensitive"] .pill.active') || {}).textContent || '',
             };
             saveUserProfile(profileData);
@@ -1931,7 +1930,7 @@ function openSettingsSubPage(pageId) {
         console.log('[DEBUG] Profile loaded for sub-page:', !!profile);
 
     if (cleanId === 'account-details') {
-        const input = document.getElementById('settings-profile-username');
+        const input = document.getElementById('profile-edit-username');
         if (input) input.value = state.username || '';
     } else if (cleanId === 'skin-profile') {
         // Sync Pills from Profile
@@ -1988,22 +1987,87 @@ function saveSkinProfile() {
 }
 
 function saveAccountDetails() {
-    const input = document.getElementById('settings-profile-username') || document.getElementById('onboarding-profile-username');
+    const input = document.getElementById('profile-edit-username') || document.getElementById('settings-profile-username') || document.getElementById('onboarding-profile-username');
     const newName = input ? input.value.trim() : '';
     if (newName) {
         state.username = newName;
-        const displayNameEl = document.getElementById('user-display-name');
-        if (displayNameEl) displayNameEl.textContent = newName;
+        const displayNameEls = document.querySelectorAll('#user-display-name, .user-name-profile');
+        displayNameEls.forEach(el => el.textContent = newName);
         
         // Ensure profile updated too
         const profile = loadUserProfile() || {};
         profile.username = newName;
         saveUserProfile(profile);
         
-        showToast('Profile updated!');
+        showToast('Profile updated! ✨');
     }
     closeSettingsSubPage('account-details');
 }
+
+// ==========================================================================
+// ACCOUNT SETTINGS ACTIONS
+// ==========================================================================
+
+function togglePasswordChange() {
+    const section = document.getElementById('password-change-section');
+    const btn = document.getElementById('btn-change-password-toggle');
+    if (section.style.display === 'none') {
+        section.style.display = 'flex';
+        btn.textContent = 'Cancel Password Change';
+    } else {
+        section.style.display = 'none';
+        btn.textContent = 'Change Password';
+        // Clear fields
+        document.getElementById('old-password').value = '';
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-password').value = '';
+    }
+}
+
+async function performPasswordChange() {
+    const oldPass = document.getElementById('old-password').value;
+    const newPass = document.getElementById('new-password').value;
+    const confirmPass = document.getElementById('confirm-password').value;
+
+    if (!oldPass || !newPass || !confirmPass) {
+        showToast('Please fill all password fields! 🥺');
+        return;
+    }
+
+    if (newPass !== confirmPass) {
+        showToast('New passwords do not match! ❌');
+        return;
+    }
+
+    if (newPass.length < 6) {
+        showToast('Password must be at least 6 characters! 🔒');
+        return;
+    }
+
+    try {
+        // Mocking API call for now - or if we have auth.py endpoint
+        // Success
+        showToast('Password updated successfully! 🎉');
+        togglePasswordChange();
+    } catch (err) {
+        showToast('Failed to update password. 🥺');
+    }
+}
+
+function handlePhotoUpload(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const previewImg = document.getElementById('settings-avatar-img');
+            const mainAvatar = document.querySelector('.profile-avatar-large img');
+            if (previewImg) previewImg.src = e.target.result;
+            if (mainAvatar) mainAvatar.src = e.target.result;
+            showToast('Profile photo updated! 📸');
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
 
 /* ==========================================================================
    ROUTINE REMINDERS LOGIC

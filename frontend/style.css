@@ -3058,3 +3058,10 @@ input:checked+.slider:before {
     letter-spacing: 1px;
 }
 
+
+
+/* TACTILE FEEDBACK - PUSH EFFECTS */
+.primary-btn:active, .secondary-btn:active, .pill:active, .swatch:active, .option-pill:active, .text-btn:active {
+    transform: scale(0.96);
+    transition: transform 0.1s ease;
+}

@@ -52,6 +52,16 @@
                     </div>
 
                     <div class="mascot-auth-container">
+                        <div class="profile-header-settings">
+                            <div class="profile-avatar-large" id="settings-avatar-preview">
+                                <img src="assets/default-avatar.png" alt="Avatar" id="settings-avatar-img">
+                                <div class="avatar-edit-badge" onclick="document.getElementById('profile-photo-input').click()">
+                                    <i class="fa-solid fa-camera"></i>
+                                </div>
+                            </div>
+                            <input type="file" id="profile-photo-input" style="display:none;" accept="image/*" onchange="handlePhotoUpload(this)">
+                            <button class="secondary-btn btn-sm" onclick="document.getElementById('profile-photo-input').click()">Change Photo</button>
+                        </div>
                         <div class="mascot-blob idle">
                             <div class="mascot-face">
                                 <div class="eye left"></div>
@@ -129,10 +139,10 @@
                         <div class="form-group">
                             <label>What is your gender?</label>
                             <div class="pill-group single-select" data-target="ob-gender">
-                                <button class="pill" data-val="Female">Female</button>
-                                <button class="pill" data-val="Male">Male</button>
-                                <button class="pill" data-val="Non-binary">Non-binary</button>
-                                <button class="pill" data-val="Prefer not to say">Prefer not to say</button>
+                                <button type="button" class="pill" data-val="Female">Female</button>
+                                <button type="button" class="pill" data-val="Male">Male</button>
+                                <button type="button" class="pill" data-val="Non-binary">Non-binary</button>
+                                <button type="button" class="pill" data-val="Prefer not to say">Prefer not to say</button>
                             </div>
                         </div>
                     </div>
@@ -143,29 +153,29 @@
                         <div class="form-group">
                             <label>What is your skin type?</label>
                             <div class="pill-group single-select" data-target="ob-skintype">
-                                <button class="pill" data-val="Oily">Oily</button>
-                                <button class="pill" data-val="Dry">Dry</button>
-                                <button class="pill" data-val="Combination">Combination</button>
-                                <button class="pill" data-val="Normal">Normal</button>
-                                <button class="pill" data-val="Not sure">Not sure</button>
+                                <button type="button" class="pill" data-val="Oily">Oily</button>
+                                <button type="button" class="pill" data-val="Dry">Dry</button>
+                                <button type="button" class="pill" data-val="Combination">Combination</button>
+                                <button type="button" class="pill" data-val="Normal">Normal</button>
+                                <button type="button" class="pill" data-val="Not sure">Not sure</button>
                             </div>
                         </div>
                         <div class="form-group">
                             <label>Main skin concern?</label>
                             <div class="pill-group multi-select" data-target="ob-concern">
-                                <button class="pill" data-val="Acne">Acne</button>
-                                <button class="pill" data-val="Dark spots">Dark spots</button>
-                                <button class="pill" data-val="Dryness">Dryness</button>
-                                <button class="pill" data-val="Anti-aging">Anti-aging</button>
-                                <button class="pill" data-val="Redness">Redness</button>
-                                <button class="pill" data-val="None">None</button>
+                                <button type="button" class="pill" data-val="Acne">Acne</button>
+                                <button type="button" class="pill" data-val="Dark spots">Dark spots</button>
+                                <button type="button" class="pill" data-val="Dryness">Dryness</button>
+                                <button type="button" class="pill" data-val="Anti-aging">Anti-aging</button>
+                                <button type="button" class="pill" data-val="Redness">Redness</button>
+                                <button type="button" class="pill" data-val="None">None</button>
                             </div>
                         </div>
                         <div class="form-group">
                             <label>Sensitive skin?</label>
                             <div class="pill-group single-select" data-target="ob-sensitive">
-                                <button class="pill" data-val="Yes">Yes</button>
-                                <button class="pill" data-val="No">No</button>
+                                <button type="button" class="pill" data-val="Yes">Yes</button>
+                                <button type="button" class="pill" data-val="No">No</button>
                             </div>
                         </div>
                     </div>
@@ -176,24 +186,24 @@
                         <div class="form-group">
                             <label>Have a skincare routine?</label>
                             <div class="pill-group single-select">
-                                <button class="pill">Yes</button>
-                                <button class="pill">No</button>
-                                <button class="pill">Sometimes</button>
+                                <button type="button" class="pill">Yes</button>
+                                <button type="button" class="pill">No</button>
+                                <button type="button" class="pill">Sometimes</button>
                             </div>
                         </div>
                         <div class="form-group">
                             <label>Wear sunscreen daily?</label>
                             <div class="pill-group single-select">
-                                <button class="pill">Yes</button>
-                                <button class="pill">No</button>
-                                <button class="pill">Sometimes</button>
+                                <button type="button" class="pill">Yes</button>
+                                <button type="button" class="pill">No</button>
+                                <button type="button" class="pill">Sometimes</button>
                             </div>
                         </div>
                         <div class="form-group">
                             <label>Using active ingredients?</label>
                             <div class="pill-group single-select" id="ob-actives-toggle">
-                                <button class="pill" data-val="Yes">Yes</button>
-                                <button class="pill" data-val="No">No</button>
+                                <button type="button" class="pill" data-val="Yes">Yes</button>
+                                <button type="button" class="pill" data-val="No">No</button>
                             </div>
                             <input type="text" id="ob-actives-text" class="kawaii-input mt-2"
                                 placeholder="Which ones? (optional)" style="display:none;">
@@ -206,9 +216,9 @@
                         <div class="form-group">
                             <label>Time per session?</label>
                             <div class="pill-group single-select">
-                                <button class="pill">Quick (< 5m)</button>
-                                        <button class="pill">Medium (5-10m)</button>
-                                        <button class="pill">Full (10m+)</button>
+                                <button type="button" class="pill">Quick (< 5m)</button>
+                                        <button type="button" class="pill">Medium (5-10m)</button>
+                                        <button type="button" class="pill">Full (10m+)</button>
                             </div>
                         </div>
                         <div class="form-group flex-between">
@@ -222,9 +232,9 @@
                         <div class="form-group mt-4">
                             <label>Monthly budget?</label>
                             <div class="pill-group single-select">
-                                <button class="pill">Low</button>
-                                <button class="pill">Medium</button>
-                                <button class="pill">High</button>
+                                <button type="button" class="pill">Low</button>
+                                <button type="button" class="pill">Medium</button>
+                                <button type="button" class="pill">High</button>
                             </div>
                         </div>
                     </div>
@@ -787,8 +797,8 @@
                             <i class="fa-solid fa-palette icon"></i>
                             <span>Theme</span>
                             <div class="pill-group mini single-select">
-                                <button class="pill active" data-theme="light">Light</button>
-                                <button class="pill" data-theme="dark">Dark</button>
+                                <button type="button" class="pill active" data-theme="light">Light</button>
+                                <button type="button" class="pill" data-theme="dark">Dark</button>
                             </div>
                         </div>
                     </div>
@@ -840,7 +850,23 @@
                             <label class="micro-text bold mb-2" style="display:block;">Date of Birth</label>
                             <input type="date" class="sub-page-input">
                         </div>
-                        <button class="text-btn" style="color: var(--primary); align-self: flex-start; padding: 0;">Change Password</button>
+                        <button class="text-btn" id="btn-change-password-toggle" style="color: var(--primary); align-self: flex-start; padding: 0;" onclick="togglePasswordChange()">Change Password</button>
+
+                        <div id="password-change-section" style="display: none; flex-direction: column; gap: 12px; margin-top: 10px; width: 100%;">
+                            <div class="form-group">
+                                <label>Old Password</label>
+                                <input type="password" id="old-password" class="kawaii-input" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="new-password" class="kawaii-input" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" id="confirm-password" class="kawaii-input" placeholder="••••••••">
+                            </div>
+                            <button class="primary-btn btn-sm" onclick="performPasswordChange()">Update Password</button>
+                        </div>
                     </div>
                     <button class="primary-btn mt-4 full-width" onclick="saveAccountDetails()">Save Changes</button>
                 </div>
@@ -855,11 +881,11 @@
                         <div>
                             <label class="micro-text bold mb-2" style="display:block;">Skin Type</label>
                             <div class="pill-group single-select" data-profile-key="skinType">
-                                <button class="pill active" data-val="Normal">Normal</button>
-                                <button class="pill" data-val="Oily">Oily</button>
-                                <button class="pill" data-val="Dry">Dry</button>
-                                <button class="pill" data-val="Combination">Combination</button>
-                                <button class="pill" data-val="Sensitive">Sensitive</button>
+                                <button type="button" class="pill active" data-val="Normal">Normal</button>
+                                <button type="button" class="pill" data-val="Oily">Oily</button>
+                                <button type="button" class="pill" data-val="Dry">Dry</button>
+                                <button type="button" class="pill" data-val="Combination">Combination</button>
+                                <button type="button" class="pill" data-val="Sensitive">Sensitive</button>
                             </div>
                         </div>
                         <div>
@@ -875,12 +901,12 @@
                         <div>
                             <label class="micro-text bold mb-2" style="display:block;">Primary Concerns</label>
                             <div class="pill-group multi-select" data-profile-key="concern">
-                                <button class="pill active" data-val="Acne">Acne</button>
-                                <button class="pill" data-val="Glow">Glow</button>
-                                <button class="pill" data-val="Dark spots">Dark spots</button>
-                                <button class="pill" data-val="Dryness">Dryness</button>
-                                <button class="pill" data-val="Anti-aging">Anti-aging</button>
-                                <button class="pill" data-val="Sensitivity">Sensitivity</button>
+                                <button type="button" class="pill active" data-val="Acne">Acne</button>
+                                <button type="button" class="pill" data-val="Glow">Glow</button>
+                                <button type="button" class="pill" data-val="Dark spots">Dark spots</button>
+                                <button type="button" class="pill" data-val="Dryness">Dryness</button>
+                                <button type="button" class="pill" data-val="Anti-aging">Anti-aging</button>
+                                <button type="button" class="pill" data-val="Sensitivity">Sensitivity</button>
                             </div>
                         </div>
                         <div>
