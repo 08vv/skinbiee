@@ -500,16 +500,30 @@ function setupBottomNav() {
    TAB: ANALYZER (Restored Action Cards)
    ========================================================================== */
 function setupAnalyzer() {
-    // Buttons for Skin Analysis
+    // --- Face Scanner ---
     const btnSkinCamera = document.getElementById('btn-skin-camera');
     const btnSkinGallery = document.getElementById('btn-skin-gallery');
     const skinFileInput = document.getElementById('skin-file-input');
 
-    if (btnSkinCamera) btnSkinCamera.onclick = () => skinFileInput.click();
-    if (btnSkinGallery) btnSkinGallery.onclick = () => skinFileInput.click();
+    if (btnSkinCamera) {
+        btnSkinCamera.onclick = () => {
+            if (skinFileInput) {
+                skinFileInput.setAttribute('capture', 'user');
+                skinFileInput.click();
+            }
+        };
+    }
+    if (btnSkinGallery) {
+        btnSkinGallery.onclick = () => {
+            if (skinFileInput) {
+                skinFileInput.removeAttribute('capture');
+                skinFileInput.click();
+            }
+        };
+    }
 
     if (skinFileInput) {
-        skinFileInput.addEventListener('change', (e) => {
+        skinFileInput.onchange = (e) => {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -522,7 +536,7 @@ function setupAnalyzer() {
                 };
                 reader.readAsDataURL(e.target.files[0]);
             }
-        });
+        };
     }
 
     const btnAnalyzeSkin = document.getElementById('btn-analyze-skin');
@@ -570,16 +584,30 @@ function setupAnalyzer() {
         };
     }
 
-    // Buttons for Product Analysis
+    // --- Product Scanner ---
     const btnProdCamera = document.getElementById('btn-prod-camera');
     const btnProdGallery = document.getElementById('btn-prod-gallery');
     const prodFileInput = document.getElementById('prod-file-input');
 
-    if (btnProdCamera) btnProdCamera.onclick = () => prodFileInput.click();
-    if (btnProdGallery) btnProdGallery.onclick = () => prodFileInput.click();
+    if (btnProdCamera) {
+        btnProdCamera.onclick = () => {
+            if (prodFileInput) {
+                prodFileInput.setAttribute('capture', 'environment');
+                prodFileInput.click();
+            }
+        };
+    }
+    if (btnProdGallery) {
+        btnProdGallery.onclick = () => {
+            if (prodFileInput) {
+                prodFileInput.removeAttribute('capture');
+                prodFileInput.click();
+            }
+        };
+    }
 
     if (prodFileInput) {
-        prodFileInput.addEventListener('change', (e) => {
+        prodFileInput.onchange = (e) => {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -588,10 +616,11 @@ function setupAnalyzer() {
                     const processingPreview = document.getElementById('prod-img-processing');
                     if (processingPreview) processingPreview.src = event.target.result;
                     showAnalyzerSubState('prod', 'preview');
+                    triggerMascotAnim('surprised');
                 };
                 reader.readAsDataURL(e.target.files[0]);
             }
-        });
+        };
     }
 
     const btnAnalyzeProd = document.getElementById('btn-analyze-prod');
@@ -645,14 +674,6 @@ function setupAnalyzer() {
     
     const removeProd = document.getElementById('remove-prod-preview');
     if (removeProd) removeProd.onclick = () => showAnalyzerSubState('prod', 'input');
-
-    const goProductsBtn = document.getElementById('btn-go-products');
-    if (goProductsBtn) {
-        goProductsBtn.onclick = () => {
-            const query = safeStorage.get('sc-last-amazon-query') || 'skincare products';
-            window.open(`https://www.amazon.in/s?k=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
-        };
-    }
 }
 
 /**
@@ -753,7 +774,7 @@ function renderSkinResults(results, imgUrl) {
     for (const concern of detectedConcerns) {
         if (skinTypeMap[concern]) { skinType = skinTypeMap[concern]; break; }
     }
-    if (title) title.textContent = skinType;
+    if (title) title.textContent = `Skin Type: ${skinType}`;
 
     const mainConcern = results.sort((a,b) => b.confidence - a.confidence)[0];
     if (desc) {
@@ -875,42 +896,92 @@ function renderSkinProductRecommendations(results) {
 }
 
 function renderProdResults(data) {
-    const analysis   = data.analysis   || {};
-    const breakdown  = data.ingredient_breakdown || [];
-    const rawIngredients = data.ingredients || [];
-    
-    let score = typeof analysis.score === 'number' ? analysis.score : 5.0;
-    if (score > 10.5) score = score / 10;
-    score = Math.min(10, Math.max(0, score));
+    try {
+        const analysis   = data.analysis   || {};
+        const breakdown  = data.ingredient_breakdown || [];
+        const skinCond   = data.skin_condition || 'general';
+        const rawIngredients = data.ingredients || [];
 
-    const isGood = score >= 7.0;
-    const isWarn = score >= 4.0 && score < 7.0;
+        // 1. Score handling (0-10 scale)
+        let score = typeof analysis.score === 'number' ? analysis.score : 5.0;
+        if (score > 10.5) score = score / 10;
+        score = Math.min(10, Math.max(0, score));
 
-    const title = document.getElementById('prod-result-title');
-    const scoreBadge = document.getElementById('prod-score-badge');
-    const desc = document.getElementById('prod-result-desc');
-    const ingredients = document.getElementById('prod-ingredients-text');
+        const isGood = score >= 7.0;
+        const isWarn = score >= 4.0 && score < 7.0;
+        const barColor = isGood ? '#6bcb77' : isWarn ? '#ffd93d' : '#ff6b6b';
 
-    if (title) title.textContent = isGood ? "Safe for you! ✅" : isWarn ? "Use With Caution ⚠️" : "Not Recommended ❌";
-    
-    if (scoreBadge) {
-        scoreBadge.className = `severity-badge ${isGood ? 'badge-green' : isWarn ? 'badge-yellow' : 'badge-red'}`;
-        scoreBadge.textContent = `Compatibility: ${score.toFixed(1)}/10`;
-    }
-    
-    if (desc) {
-        const skinCond = (data.skin_condition || 'your skin').replace(/_/g, ' ');
-        desc.textContent = analysis.recommendation || `We evaluated this product against ${skinCond}.`;
-    }
-    
-    if (ingredients) {
-        if (breakdown.length > 0) {
-            ingredients.textContent = breakdown.map(i => i.name).join(', ');
-        } else if (rawIngredients && rawIngredients.length > 0) {
-            ingredients.textContent = typeof rawIngredients === 'string' ? (rawIngredients.substring(0, 300) + (rawIngredients.length > 300 ? "..." : "")) : "";
-        } else {
-            ingredients.textContent = "No ingredients were reliably detected.";
+        // 2. Verdict Card
+        const vTitle = document.getElementById('prod-verdict-title');
+        const vSub   = document.getElementById('prod-verdict-subtitle');
+        const vFill  = document.getElementById('prod-score-fill');
+        const vText  = document.getElementById('prod-score-text');
+        const vCount = document.getElementById('prod-ing-count');
+
+        if (vTitle) vTitle.innerText = isGood ? 'Good Match' : isWarn ? 'Use With Caution' : 'Not Recommended';
+        if (vSub) {
+            const dispCond = skinCond.replace(/_/g, ' ');
+            const suffix = dispCond.endsWith('skin') ? '' : ' skin';
+            const fullCond = dispCond + suffix;
+            
+            vSub.innerText = isGood 
+                ? `This product is a great choice for your ${fullCond}.` 
+                : isWarn 
+                ? `Mind the details — some ingredients may not suit ${fullCond}.` 
+                : `We found ingredients that might be harsh for ${fullCond}.`;
         }
+        if (vFill) {
+            vFill.style.width = (score * 10) + '%';
+            vFill.style.background = barColor;
+        }
+        if (vText) {
+            vText.innerText = score.toFixed(1) + ' / 10';
+            vText.style.color = barColor;
+        }
+        if (vCount) vCount.innerText = `${breakdown.length || (typeof rawIngredients === 'string' ? 0 : rawIngredients.length)} ingredients detected`;
+
+        // 3. Fast Facts Card (Pills)
+        const factsCard = document.getElementById('prod-fast-facts-card');
+        const pillsCont = document.getElementById('prod-pills-container');
+        if (pillsCont) {
+            pillsCont.innerHTML = '';
+            const allIngs = (Array.isArray(breakdown) ? breakdown.map(i => i.name.toLowerCase()).join(' ') : "") + 
+                            (typeof rawIngredients === 'string' ? rawIngredients.toLowerCase() : "");
+            
+            const facts = [];
+            if (!allIngs.includes('alcohol') || allIngs.includes('alcohol free')) facts.push('Alcohol-Free');
+            if (!allIngs.includes('fragrance') && !allIngs.includes('parfum')) facts.push('Fragrance-Free');
+            if (!allIngs.includes('sulfate')) facts.push('Sulfate-Free');
+            if (!allIngs.includes('paraben')) facts.push('Paraben-Free');
+            if (!allIngs.includes('silicone') && !allIngs.includes('dimethicone')) facts.push('Silicone-Free');
+            if (!allIngs.includes('oil ') && !allIngs.includes('mineral oil')) facts.push('Oil-Free');
+
+            if (facts.length > 0) {
+                if (factsCard) factsCard.style.display = 'block';
+                facts.forEach(f => {
+                    const pill = document.createElement('div');
+                    pill.className = 'pill-item';
+                    pill.textContent = f;
+                    pillsCont.appendChild(pill);
+                });
+            } else {
+                if (factsCard) factsCard.style.display = 'none';
+            }
+        }
+
+        // 4. Ingredients breakdown
+        const ingredientsText = document.getElementById('prod-ingredients-text');
+        if (ingredientsText) {
+            if (breakdown.length > 0) {
+                ingredientsText.textContent = breakdown.map(i => i.name).join(', ');
+            } else if (rawIngredients && rawIngredients.length > 0) {
+                ingredientsText.textContent = typeof rawIngredients === 'string' ? (rawIngredients.substring(0, 300) + (rawIngredients.length > 300 ? "..." : "")) : "";
+            } else {
+                ingredientsText.textContent = "No ingredients were reliably detected.";
+            }
+        }
+    } catch (err) {
+        console.error("[UI] Product rendering error:", err);
     }
 }
 

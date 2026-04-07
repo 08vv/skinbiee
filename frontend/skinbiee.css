@@ -2106,3 +2106,85 @@ input:checked+.slider:before {
 }
 
 
+/* ==========================================================================
+   ANALYZER RESULTS (Restored Yesterday's Look)
+   ========================================================================== */
+.results-state {
+    padding-bottom: 40px;
+}
+
+.verdict-card {
+    background: #ffffff;
+    border-radius: 30px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.score-container {
+    padding: 0 10px;
+}
+
+.score-bar-bg {
+    height: 12px;
+    background: #f1f5f9;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.score-bar-fill {
+    height: 100%;
+    width: 0%; /* Dynamic */
+    border-radius: 6px;
+    transition: width 1.5s cubic-bezier(0.1, 0, 0, 1);
+}
+
+.facts-card {
+    background: transparent;
+}
+
+.pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+.pill-item {
+    background: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid #f1f5f9;
+}
+
+.ing-card {
+    background: white;
+    border-radius: 20px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
+.severity-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.badge-green  { background: #e6fffa; color: #319795; }
+.badge-yellow { background: #fffaf0; color: #dd6b20; }
+.badge-red    { background: #fff5f5; color: #e53e3e; }
+
+.result-card-entry {
+    animation: slideUpFade 0.5s ease-out forwards;
+}
+
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
