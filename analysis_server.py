@@ -13,6 +13,8 @@ This server contains ZERO TensorFlow / EasyOCR code.
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import numpy as np
 import os, io, math, requests as http_requests
 from datetime import datetime, date, timedelta
@@ -27,7 +29,7 @@ from modules.history_db import (
     add_scan, add_daily_log, get_all_scans, get_daily_logs,
     get_user_by_username, get_user_skin_condition,
 )
-from modules.auth import login_user, register_user
+from modules.auth import login_user, register_user, create_token, verify_token
 
 # ── ML Inference bridge ──────────────────────────────────────────────────────
 ML_INFERENCE_URL = os.getenv(
@@ -46,6 +48,25 @@ else:
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# ── Rate limiter ──────────────────────────────────────────────────────────────
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],               # no global limit; applied per-route
+    storage_uri="memory://",
+)
+
+
+# ── JWT auth helper ───────────────────────────────────────────────────────────
+
+def get_current_user():
+    """Read the Authorization: Bearer <token> header and return decoded payload or None."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header[7:]
+    return verify_token(token)
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -441,6 +462,7 @@ def health():
 # ── Auth routes ───────────────────────────────────────────────────────────────
 
 @app.route('/api/auth/register', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_register():
     data = request.get_json(silent=True) or {}
     username = (data.get('username') or '').strip()
@@ -451,18 +473,21 @@ def api_register():
         user = get_user_by_username(username)
         if not user:
             return jsonify({"error": "Registration failed"}), 500
-        return jsonify({"status": "success", "user_id": user['id'], "username": user['username']})
+        token = create_token(user['id'], user['username'])
+        return jsonify({"status": "success", "token": token, "user_id": user['id'], "username": user['username']})
     return jsonify({"error": "Username already taken"}), 409
 
 
 @app.route('/api/auth/login', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_login():
     data = request.get_json(silent=True) or {}
     username = (data.get('username') or '').strip()
     password = data.get('password') or ''
     user = login_user(username, password)
     if user:
-        return jsonify({"status": "success", "user_id": user['id'], "username": user['username']})
+        token = create_token(user['id'], user['username'])
+        return jsonify({"status": "success", "token": token, "user_id": user['id'], "username": user['username']})
     return jsonify({"error": "Invalid username or password"}), 401
 
 
@@ -470,10 +495,11 @@ def api_login():
 
 @app.route('/api/analyze-skin', methods=['POST'])
 def analyze_skin():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    uid = user["user_id"]
     f = request.files.get('image')
-    uid = parse_user_id(request.form.get('user_id'))
-    if uid is None:
-        return jsonify({"error": "Valid user_id required"}), 400
     if not f:
         return jsonify({"error": "No image"}), 400
 
@@ -503,12 +529,12 @@ def analyze_skin():
 
 @app.route('/api/analyze-product', methods=['POST'])
 def analyze_prod():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    uid = user["user_id"]
     f   = request.files.get('image')
-    uid = parse_user_id(request.form.get('user_id'))
     debug_mode = request.args.get('debug', '').lower() == 'true'
-
-    if uid is None:
-        return jsonify({"error": "Valid user_id required"}), 400
     if not f:
         return jsonify({"error": "No image"}), 400
 
@@ -588,9 +614,10 @@ def analyze_prod():
 @app.route('/api/daily-log', methods=['POST'])
 def save_log():
     try:
-        uid = parse_user_id(request.form.get('user_id'))
-        if uid is None:
-            return jsonify({"error": "Valid user_id required"}), 400
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+        uid = user["user_id"]
         d = request.form.get('date', datetime.now().strftime("%Y-%m-%d"))
         am = int(request.form.get('am_done', 0)); pm = int(request.form.get('pm_done', 0))
         f = request.form.get('skin_feeling', 'Good'); r = int(request.form.get('skin_rating', 5))
@@ -611,9 +638,10 @@ def save_log():
 
 @app.route('/api/user/data', methods=['GET'])
 def get_data():
-    u = parse_user_id(request.args.get('user_id'))
-    if u is None:
-        return jsonify({"error": "Valid user_id required"}), 400
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    u = user["user_id"]
     try:
         scans_df = get_all_scans(u)
         logs_df = get_daily_logs(u)

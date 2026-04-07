@@ -109,6 +109,15 @@ def get_user_by_username(username):
         return {"id": row[0], "username": row[1], "password_hash": row[2]}
     return None
 
+def update_user_password_hash(user_id: int, new_hash: str):
+    """Update the password_hash for a user (used for SHA-256→bcrypt migration)."""
+    conn = get_connection()
+    c = conn.cursor()
+    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
+    c.execute(f'UPDATE users SET password_hash = {placeholder} WHERE id = {placeholder}', (new_hash, int(user_id)))
+    conn.commit()
+    conn.close()
+
 # CRUD for Scans
 def add_scan(user_id, timestamp, condition, confidence, severity, image_path=""):
     conn = get_connection()

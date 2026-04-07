@@ -49,11 +49,12 @@ function userStorageKey(base) {
     return `${base}-u${uid}`;
 }
 
-function persistSession(userId, username) {
+function persistSession(userId, username, token) {
     state.userId = userId;
     state.username = username;
     safeStorage.set('sc-user-id', String(userId));
     safeStorage.set('sc-username', username);
+    if (token) safeStorage.set('sc-token', token);
     const userDisp = document.getElementById('user-display-name');
     if (userDisp) userDisp.textContent = username;
 }
@@ -64,6 +65,20 @@ function clearSession() {
     state.activeDates = new Set();
     safeStorage.remove('sc-user-id');
     safeStorage.remove('sc-username');
+    safeStorage.remove('sc-token');
+}
+
+function authHeaders() {
+    return {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${safeStorage.get('sc-token')}`
+    };
+}
+
+function authHeadersRaw() {
+    return {
+        "Authorization": `Bearer ${safeStorage.get('sc-token')}`
+    };
 }
 
 function restoreSession() {
@@ -87,7 +102,7 @@ function profileStorageKey() {
 async function refreshUserDataFromServer() {
     if (state.userId == null) return;
     try {
-        const res = await fetch(`${API_BASE_URL}/api/user/data?user_id=${state.userId}`);
+        const res = await fetch(`${API_BASE_URL}/api/user/data`, { headers: authHeadersRaw() });
         const data = await res.json();
         if (data.status !== 'success') return;
         
@@ -334,7 +349,7 @@ function setupAuthListeners() {
                         showToast(data.error || 'Could not create account.');
                         return;
                     }
-                    persistSession(data.user_id, data.username);
+                    persistSession(data.user_id, data.username, data.token);
                     syncPlannerStateFromStorage();
                     switchView('onboarding');
                 } catch (err) {
@@ -355,7 +370,7 @@ function setupAuthListeners() {
                         showToast(data.error || 'Invalid username or password.');
                         return;
                     }
-                    persistSession(data.user_id, data.username);
+                    persistSession(data.user_id, data.username, data.token);
                     syncPlannerStateFromStorage();
                     let profile = loadUserProfile();
                     if (!profile) {
@@ -672,11 +687,11 @@ async function startSkinAnalysis() {
 
     const formData = new FormData();
     formData.append('image', file);
-    formData.append('user_id', state.userId);
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/analyze-skin`, {
             method: 'POST',
+            headers: authHeadersRaw(),
             body: formData
         });
         const data = await response.json();
@@ -730,7 +745,6 @@ async function startProductAnalysis() {
 
     const formData = new FormData();
     formData.append('image', file);
-    formData.append('user_id', state.userId);
 
     try {
         const processingTitle = document.getElementById('prod-processing-title');
@@ -740,6 +754,7 @@ async function startProductAnalysis() {
 
         const response = await fetch(`${API_BASE_URL}/api/analyze-product`, {
             method: 'POST',
+            headers: authHeadersRaw(),
             body: formData
         });
         const data = await response.json();
@@ -1221,7 +1236,7 @@ function renderScanHistory() {
         return;
     }
 
-    fetch(`${API_BASE_URL}/api/user/data?user_id=${state.userId}`)
+    fetch(`${API_BASE_URL}/api/user/data`, { headers: authHeadersRaw() })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
@@ -1649,7 +1664,6 @@ async function saveDailyLogToServer() {
     const file = fileInput ? fileInput.files[0] : null;
 
     const formData = new FormData();
-    formData.append('user_id', state.userId);
     formData.append('date', getLocalDateKey());
     formData.append('am_done', plannerState.amDoneToday ? 1 : 0);
     formData.append('pm_done', plannerState.pmDoneToday ? 1 : 0);
@@ -1657,7 +1671,7 @@ async function saveDailyLogToServer() {
     formData.append('skin_rating', 5);
     if (file) formData.append('image', file);
 
-    const res = await fetch(`${API_BASE_URL}/api/daily-log`, { method: 'POST', body: formData });
+    const res = await fetch(`${API_BASE_URL}/api/daily-log`, { method: 'POST', headers: authHeadersRaw(), body: formData });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Daily log failed');
     return data;
