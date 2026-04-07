@@ -132,6 +132,12 @@ function init() {
 /* ==========================================================================
    ROUTING / VIEW MANAGEMENT
    ========================================================================== */
+function switchTab(viewName) {
+    if (typeof switchView === 'function') {
+        switchView(viewName);
+    }
+}
+
 function switchView(viewName) {
     // Hide all views
     views.forEach(v => v.classList.remove('active'));
