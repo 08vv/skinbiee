@@ -1,7 +1,7 @@
-// Auto-detect API backend (Frontend 8001 -> Backend 5000 locally, otherwise current origin)
+// Auto-detect API backend (Frontend 8001 -> Backend 5000 locally, deployed frontend -> Render backend)
 const API_BASE_URL = (window.location.port === "8001" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
     ? "http://localhost:5000" 
-    : window.location.origin;
+    : "https://skinbiee-backend-hxkz.onrender.com";
 
 
 
