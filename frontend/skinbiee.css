@@ -468,15 +468,14 @@ a {
 .mascot-blob {
     width: 140px;
     height: 140px;
-    background: var(--mascot-color);
-    border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+    background-image: url('assets/app-logo.png');
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
     margin: 0 auto;
     position: relative;
-    box-shadow: inset -10px -10px 20px rgba(0, 0, 0, 0.05), inset 10px 10px 20px rgba(255, 255, 255, 0.5), var(--shadow-float);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: background 0.5s ease;
+    box-shadow: 0 10px 25px rgba(116, 192, 252, 0.4);
+    transition: all 0.5s ease;
 }
 
 .mascot-blob.smaller {
@@ -496,9 +495,7 @@ a {
 }
 
 .mascot-face {
-    width: 60%;
-    height: 50%;
-    position: relative;
+    display: none;
 }
 
 .eye {
@@ -1720,16 +1717,19 @@ input:checked+.slider:before {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     text-align: center;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--text-muted);
+    padding: 0 5px;
+    margin-bottom: 8px;
 }
 
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    min-height: 280px; /* Prevent collapse */
     width: 100%;
+    padding: 0 5px;
+    gap: 2px;
 }
 
 .cal-day {
