@@ -326,30 +326,30 @@
                                 </div>
 
                                 <div class="centered-action-group">
-                                    <button class="secondary-btn" id="btn-skin-camera-sb"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
-                                    <button class="secondary-btn" id="btn-skin-gallery-sb"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
+                                    <button class="secondary-btn" id="btn-skin-camera"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
+                                    <button class="secondary-btn" id="btn-skin-gallery"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
                                 </div>
                                 <p class="micro-text text-center mt-3">Max 5MB • JPG, PNG</p>
-                                <input type="file" id="skin-file-input-sb" accept="image/*" hidden>
+                                <input type="file" id="skin-file-input" accept="image/*" hidden>
 
-                                <div class="preview-zone mt-4" id="skin-preview-zone-sb" style="display:none;">
+                                <div class="preview-zone mt-4" id="skin-preview-zone" style="display:none;">
                                     <div class="instruction-section mb-3">
                                         <h3>Review your photo</h3>
                                         <p>Make sure your face is clearly visible and well-lit.</p>
                                     </div>
                                     <div class="img-container">
-                                        <img src="" id="skin-img-preview-sb" alt="Preview" style="width: 100%; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
-                                        <button class="icon-btn remove-img" id="remove-skin-preview-sb" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border-radius: 50%; width: 32px; height: 32px;"><i class="fa-solid fa-xmark"></i></button>
+                                        <img src="" id="skin-img-preview" alt="Preview" style="width: 100%; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
+                                        <button class="icon-btn remove-img" id="remove-skin-preview" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border-radius: 50%; width: 32px; height: 32px;"><i class="fa-solid fa-xmark"></i></button>
                                     </div>
-                                    <button class="primary-btn full-width mt-4" id="btn-analyze-skin-sb">Actually Analyze My Skin</button>
+                                    <button class="primary-btn full-width mt-4" id="btn-analyze-skin">Actually Analyze My Skin</button>
                                 </div>
                             </div>
 
                             <!-- Analysis Processing State -->
-                            <div class="processing-state text-center py-5" id="skin-processing-state-sb" style="display:none;">
+                            <div class="processing-state text-center py-5" id="skin-processing-state" style="display:none;">
                                 <div class="scan-container mb-4">
                                     <div class="scan-line"></div>
-                                    <img src="" id="skin-img-processing-sb" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
+                                    <img src="" id="skin-img-processing" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
                                 </div>
                                 <div class="circle-spinner"></div>
                                 <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;"></div>
@@ -357,29 +357,29 @@
                                 <p class="text-muted">Our AI is detecting concerns and patterns.</p>
                             </div>
 
-                            <div class="results-state" id="skin-results-state-sb" style="display:none;">
+                            <div class="results-state" id="skin-results-state" style="display:none;">
                                 <div class="sub-view-visual-header">
-                                    <img src="" id="skin-result-img-sb" class="large-scan-illustration" alt="Analyzed Face" style="border-radius: 30px; object-fit: cover; margin-bottom: 20px;">
+                                    <img src="" id="skin-result-img" class="large-scan-illustration" alt="Analyzed Face" style="border-radius: 30px; object-fit: cover; margin-bottom: 20px;">
                                 </div>
                                 <div class="result-header text-center">
-                                    <h2 class="condition-title" id="skin-result-title-sb">Analysis Complete</h2>
-                                    <div id="skin-result-badges-sb" class="mt-2" style="display: flex; gap: 8px; justify-content: center;">
+                                    <h2 class="condition-title" id="skin-result-title">Analysis Complete</h2>
+                                    <div id="skin-result-badges" class="mt-2" style="display: flex; gap: 8px; justify-content: center;">
                                         <!-- Badges like <span class="severity-badge badge-yellow">Moderate Acne</span> -->
                                     </div>
                                 </div>
 
                                 <div class="explanation-box card-glass mt-4">
-                                    <p id="skin-result-desc-sb">We've analyzed your photo. Here is what our trained models detected on your skin.</p>
+                                    <p id="skin-result-desc">We've analyzed your photo. Here is what our trained models detected on your skin.</p>
                                 </div>
 
-                                <div class="detected-concerns-list mt-4" id="skin-concerns-list-sb">
+                                <div class="detected-concerns-list mt-4" id="skin-concerns-list">
                                     <!-- List of detected items -->
                                 </div>
 
                                 <div id="product-rec-container"></div>
 
                                 <div class="action-buttons mt-5">
-                                    <button class="primary-btn full-width" id="btn-go-products-sb">Would you like to see recommended products?</button>
+                                    <button class="primary-btn full-width" id="btn-go-products">Would you like to see recommended products?</button>
                                     <button class="text-btn full-width mt-3" onclick="resetAnalyzer()">Scan Another Photo</button>
                                 </div>
                             </div>
@@ -395,39 +395,39 @@
                                 <img src="assets/scan-product.png" class="large-scan-illustration" alt="Product Scan Header">
                             </div>
 
-                            <div class="input-state" id="ing-input-state-sb">
+                            <div class="input-state" id="ing-input-state">
                                 <div class="instruction-section">
                                     <h3>Scan a Product</h3>
                                     <p>Upload a clear photo of the ingredient list for instant analysis.</p>
                                 </div>
 
                                 <div class="centered-action-group">
-                                    <button class="secondary-btn" id="btn-prod-camera-sb"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
-                                    <button class="secondary-btn" id="btn-prod-gallery-sb"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
+                                    <button class="secondary-btn" id="btn-prod-camera"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
+                                    <button class="secondary-btn" id="btn-prod-gallery"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
                                 </div>
-                                <input type="file" id="prod-file-input-sb" accept="image/*" hidden>
+                                <input type="file" id="prod-file-input" accept="image/*" hidden>
 
-                                <div class="preview-zone mt-4" id="prod-preview-zone-sb" style="display:none;">
+                                <div class="preview-zone mt-4" id="prod-preview-zone" style="display:none;">
                                     <div class="img-container">
-                                        <img src="" id="prod-img-preview-sb" alt="Product Preview" style="width: 100%; border-radius: 20px;">
-                                        <button class="icon-btn remove-img" id="remove-prod-preview-sb"><i class="fa-solid fa-xmark"></i></button>
+                                        <img src="" id="prod-img-preview" alt="Product Preview" style="width: 100%; border-radius: 20px;">
+                                        <button class="icon-btn remove-img" id="remove-prod-preview"><i class="fa-solid fa-xmark"></i></button>
                                     </div>
-                                    <button class="primary-btn full-width mt-4" id="btn-analyze-prod-sb">Analyze Ingredients</button>
+                                    <button class="primary-btn full-width mt-4" id="btn-analyze-prod">Analyze Ingredients</button>
                                 </div>
                             </div>
 
-                            <div class="processing-state text-center py-5" id="prod-processing-state-sb" style="display:none;">
+                            <div class="processing-state text-center py-5" id="prod-processing-state" style="display:none;">
                                 <div class="scan-container mb-4">
                                     <div class="scan-line"></div>
-                                    <img src="" id="prod-img-processing-sb" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
+                                    <img src="" id="prod-img-processing" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
                                 </div>
                                 <div class="circle-spinner"></div>
                                 <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;"></div>
-                                <h3 id="prod-processing-title-sb">Reading ingredients...</h3>
-                                <p id="prod-processing-subtitle-sb" class="text-muted">Using AI to scan your label.</p>
+                                <h3 id="prod-processing-title">Reading ingredients...</h3>
+                                <p id="prod-processing-subtitle" class="text-muted">Using AI to scan your label.</p>
                             </div>
 
-                            <div class="results-state" id="ing-results-state-sb" style="display:none;">
+                            <div class="results-state" id="ing-results-state" style="display:none;">
                                 <!-- Card 1: Verdict -->
                                 <div class="result-card verdict-card">
                                     <div class="verdict-icon-container">

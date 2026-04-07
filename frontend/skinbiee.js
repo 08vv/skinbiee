@@ -25,6 +25,25 @@ const state = {
     activeDates: new Set()
 };
 
+let plannerState = {
+    plannerOnboardingDone: false,
+    morningRoutine: [],
+    nightRoutine: [],
+    amDoneToday: false,
+    pmDoneToday: false,
+    streak: 0,
+    scans: [],
+    currentMonth: new Date().getMonth(),
+    currentYear: new Date().getFullYear(),
+    // Onboarding
+    obStep: 0,
+    obAnswers: {},
+    // Editor context
+    editingRoutineType: null, // 'morning' | 'night'
+    // Checklist context
+    checklistType: null // 'morning' | 'night'
+};
+
 function userStorageKey(base) {
     const uid = state.userId != null ? String(state.userId) : 'anon';
     return `${base}-u${uid}`;
@@ -187,220 +206,7 @@ function switchView(viewName) {
     }
 }
 
-/* ==========================================================================
-   AUTH FLOW
-   ========================================================================== */
-function setupAuthListeners() {
-    const authForm = document.getElementById('auth-form');
-    const submitBtn = document.getElementById('auth-submit-btn');
-    const switchTextEl = document.getElementById('auth-switch-text');
-    let isSignup = true;
 
-    if (switchTextEl) {
-        switchTextEl.onclick = (e) => {
-            if (e.target.id === 'auth-switch-link') {
-                e.preventDefault();
-                isSignup = !isSignup;
-                
-                const emailGroup = document.querySelector('.signup-only');
-                const forgotLink = document.querySelector('.login-only');
-                
-                if (isSignup) {
-                    if (emailGroup) emailGroup.style.display = 'block';
-                    if (forgotLink) forgotLink.style.display = 'none';
-                    if (submitBtn) submitBtn.textContent = 'Create Account';
-                    switchTextEl.innerHTML = `Already have an account? <a href="#" id="auth-switch-link">Log In</a>`;
-                } else {
-                    if (emailGroup) emailGroup.style.display = 'none';
-                    if (forgotLink) forgotLink.style.display = 'block';
-                    if (submitBtn) submitBtn.textContent = 'Log In';
-                    switchTextEl.innerHTML = `New here? <a href="#" id="auth-switch-link">Sign Up</a>`;
-                }
-            }
-        };
-    }
-
-    if (authForm) {
-        authForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const uname = document.getElementById('auth-username').value.trim();
-            const pass = document.getElementById('auth-password').value;
-            const email = isSignup ? document.getElementById('auth-email').value.trim() : null;
-
-            try {
-                showToast(isSignup ? "Creating your portal... 🪄" : "Opening the gates... 🏰");
-                const endpoint = isSignup ? '/api/signup' : '/api/login';
-                const body = { username: uname, password: pass };
-                if (isSignup) body.email = email;
-
-                const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    persistSession(data.user_id, data.username);
-                    if (isSignup) {
-                        switchView('onboarding');
-                    } else {
-                        applyUserProfile(loadUserProfile());
-                        switchView('home');
-                        triggerMascotAnim('happy');
-                        refreshUserDataFromServer();
-                    }
-                } else {
-                    showToast(data.error || "Authentication failed");
-                }
-            } catch (err) {
-                console.error(err);
-                showToast("Connection error. Is the server awake?");
-            }
-        };
-    }
-
-    const eyeToggle = document.querySelector('.eye-toggle');
-    if (eyeToggle) {
-        eyeToggle.onclick = function () {
-            const input = document.getElementById('auth-password');
-            const icon = this.querySelector('i');
-            if (input && icon) {
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    icon.classList.replace('fa-eye', 'fa-eye-slash');
-                } else {
-                    input.type = 'password';
-                    icon.classList.replace('fa-eye-slash', 'fa-eye');
-                }
-            }
-        };
-    }
-}
-
-/* ==========================================================================
-   ONBOARDING FLOW
-   ========================================================================== */
-function setupOnboardingListeners() {
-    const nextBtn = document.getElementById('ob-next-btn');
-    const backBtn = document.getElementById('ob-back');
-    const mascot = document.getElementById('ob-mascot');
-
-    // Pill Selects
-    document.querySelectorAll('.pill-group.single-select').forEach(group => {
-        group.addEventListener('click', (e) => {
-            const pill = e.target.closest('.pill');
-            if (pill) {
-                group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-                pill.classList.add('active');
-            }
-        });
-    });
-
-    if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            const currentStep = document.getElementById(`ob-step-${state.onboardingStep}`);
-            let isValid = true;
-
-            if (state.onboardingStep === 1) {
-                const age = document.getElementById('ob-age').value;
-                const gender = currentStep.querySelector('.pill.active');
-                if (!age || !gender) isValid = false;
-            } else if (state.onboardingStep === 2) {
-                const skinType = currentStep.querySelector('[data-target="ob-skintype"] .pill.active');
-                const concern = currentStep.querySelector('[data-target="ob-concern"] .pill.active');
-                const sensitive = currentStep.querySelector('[data-target="ob-sensitive"] .pill.active');
-                if (!skinType || !concern || !sensitive) isValid = false;
-            } else if (state.onboardingStep >= 3 && state.onboardingStep <= 4) {
-                const groups = currentStep.querySelectorAll('.pill-group.single-select');
-                groups.forEach(g => {
-                    if (!g.querySelector('.pill.active')) isValid = false;
-                });
-            }
-
-            if (!isValid) {
-                showToast('Please answer all questions to continue');
-                return;
-            }
-
-            if (state.onboardingStep < 4) {
-                document.getElementById(`ob-step-${state.onboardingStep}`).classList.remove('active');
-                state.onboardingStep++;
-                document.getElementById(`ob-step-${state.onboardingStep}`).classList.add('active');
-                document.getElementById('ob-step-num').textContent = state.onboardingStep;
-                if (backBtn) backBtn.style.visibility = 'visible';
-            } else if (state.onboardingStep === 4) {
-                const profileData = {
-                    username: state.username,
-                    age: document.getElementById('ob-age').value,
-                    gender: (document.querySelector('#ob-step-1 .pill.active') || {}).textContent || '',
-                    skinType: (document.querySelector('[data-target="ob-skintype"] .pill.active') || {}).textContent || '',
-                    concern: (document.querySelector('[data-target="ob-concern"] .pill.active') || {}).textContent || '',
-                    sensitive: (document.querySelector('[data-target="ob-sensitive"] .pill.active') || {}).textContent || '',
-                };
-                saveUserProfile(profileData);
-
-                document.getElementById(`ob-step-4`).classList.remove('active');
-                document.getElementById(`ob-step-done`).classList.add('active');
-
-                if (mascot) mascot.classList.replace('idle', 'happy');
-                const progress = document.querySelector('.ob-progress');
-                if (progress) progress.style.display = 'none';
-                if (backBtn) backBtn.style.visibility = 'hidden';
-
-                nextBtn.textContent = 'Go to Home';
-                state.onboardingStep = 5;
-            } else {
-                applyUserProfile(loadUserProfile());
-                switchView('home');
-            }
-        });
-    }
-
-    if (backBtn) {
-        backBtn.addEventListener('click', () => {
-            if (state.onboardingStep > 1) {
-                document.getElementById(`ob-step-${state.onboardingStep}`).classList.remove('active');
-                state.onboardingStep--;
-                document.getElementById(`ob-step-${state.onboardingStep}`).classList.add('active');
-                document.getElementById('ob-step-num').textContent = state.onboardingStep;
-                if (state.onboardingStep === 1) backBtn.style.visibility = 'hidden';
-            }
-        });
-    }
-}
-
-function resetOnboarding() {
-    state.onboardingStep = 1;
-    document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
-    const step1 = document.getElementById('ob-step-1');
-    if (step1) step1.classList.add('active');
-    const nextBtn = document.getElementById('ob-next-btn');
-    if (nextBtn) nextBtn.textContent = 'Continue';
-    const stepNum = document.getElementById('ob-step-num');
-    if (stepNum) stepNum.textContent = '1';
-    const backBtn = document.getElementById('ob-back');
-    if (backBtn) backBtn.style.visibility = 'hidden';
-    const progress = document.querySelector('.ob-progress');
-    if (progress) progress.style.display = 'block';
-    const mascot = document.getElementById('ob-mascot');
-    if (mascot) {
-        mascot.classList.remove('happy');
-        mascot.classList.add('idle');
-    }
-}
-
-/* ==========================================================================
-   NAVIGATION
-   ========================================================================== */
-function setupBottomNav() {
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const target = btn.dataset.target;
-            switchTab(target);
-        });
-    });
-}
 
 /* ==========================================================================
    THEME & MASCOT SETTINGS
@@ -746,12 +552,27 @@ function setupAnalyzer() {
     if (state.analyzerInitialized) return;
     state.analyzerInitialized = true;
 
+    // --- Face Scanner ---
     const btnSkinCamera = document.getElementById('btn-skin-camera');
     const btnSkinGallery = document.getElementById('btn-skin-gallery');
     const skinFileInput = document.getElementById('skin-file-input');
 
-    if (btnSkinCamera) btnSkinCamera.onclick = () => skinFileInput.click();
-    if (btnSkinGallery) btnSkinGallery.onclick = () => skinFileInput.click();
+    if (btnSkinCamera) {
+        btnSkinCamera.onclick = () => {
+            if (skinFileInput) {
+                skinFileInput.setAttribute('capture', 'user');
+                skinFileInput.click();
+            }
+        };
+    }
+    if (btnSkinGallery) {
+        btnSkinGallery.onclick = () => {
+            if (skinFileInput) {
+                skinFileInput.removeAttribute('capture');
+                skinFileInput.click();
+            }
+        };
+    }
 
     if (skinFileInput) {
         skinFileInput.onchange = (e) => {
@@ -768,72 +589,27 @@ function setupAnalyzer() {
         };
     }
 
-    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin');
-    if (btnAnalyzeSkin) {
-        btnAnalyzeSkin.onclick = async () => {
-            const file = skinFileInput.files[0];
-            if (!file) {
-                showToast("Please pick a photo first!");
-                return;
-            }
-            if (state.userId == null) {
-                showToast('Please sign in to save scans to your account.');
-                return;
-            }
-
-            console.log("DEBUG: Starting skin analysis...");
-            const preview = document.getElementById('skin-img-processing');
-            if (preview) preview.src = document.getElementById('skin-img-preview').src;
-            
-            showAnalyzerSubStateSB('skin', 'processing');
-            triggerMascotAnim('thinking');
-
-            const formData = new FormData();
-            formData.append('image', file);
-            formData.append('user_id', state.userId);
-
-            try {
-                showToast("Mascot is scanning your skin... 🧸");
-                const response = await fetch(`${API_BASE_URL}/api/analyze-skin`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-
-                if (data.status === 'success') {
-                    showToast("Results are in! ✨");
-                    const previewUrl = data.image_url || URL.createObjectURL(file);
-                    const scanRecord = {
-                        id: Date.now(),
-                        date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
-                        img: data.image_url || previewUrl,
-                        results: data.results,
-                        type: 'face'
-                    };
-                    plannerState.scans.unshift(scanRecord);
-                    safeStorage.set(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
-
-                    renderSkinResultsSB(data.results, previewUrl);
-                    showAnalyzerSubStateSB('skin', 'results');
-                    triggerMascotAnim('happy');
-                } else {
-                    showToast("Analysis failed: " + (data.error || 'Unknown error'));
-                    showAnalyzerSubStateSB('skin', 'input');
-                }
-            } catch (err) {
-                console.error("DEBUG: FETCH ERROR:", err);
-                showToast("Connection error. Try again?");
-                showAnalyzerSubStateSB('skin', 'input');
-            }
-        };
-    }
-
+    // --- Product Scanner ---
     const btnProdCamera = document.getElementById('btn-prod-camera');
     const btnProdGallery = document.getElementById('btn-prod-gallery');
     const prodFileInput = document.getElementById('prod-file-input');
 
-    if (btnProdCamera) btnProdCamera.onclick = () => prodFileInput.click();
-    if (btnProdGallery) btnProdGallery.onclick = () => prodFileInput.click();
+    if (btnProdCamera) {
+        btnProdCamera.onclick = () => {
+            if (prodFileInput) {
+                prodFileInput.setAttribute('capture', 'environment');
+                prodFileInput.click();
+            }
+        };
+    }
+    if (btnProdGallery) {
+        btnProdGallery.onclick = () => {
+            if (prodFileInput) {
+                prodFileInput.removeAttribute('capture');
+                prodFileInput.click();
+            }
+        };
+    }
 
     if (prodFileInput) {
         prodFileInput.onchange = (e) => {
@@ -843,85 +619,156 @@ function setupAnalyzer() {
                     const preview = document.getElementById('prod-img-preview');
                     if (preview) preview.src = event.target.result;
                     showAnalyzerSubStateSB('prod', 'preview');
+                    triggerMascotAnim('surprised');
                 };
                 reader.readAsDataURL(e.target.files[0]);
             }
         };
     }
 
+    // Action buttons in previews
+    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin');
+    if (btnAnalyzeSkin) btnAnalyzeSkin.onclick = () => startSkinAnalysis();
+
     const btnAnalyzeProd = document.getElementById('btn-analyze-prod');
-    if (btnAnalyzeProd) {
-        btnAnalyzeProd.onclick = async () => {
-            const file = prodFileInput.files[0];
-            if (!file) return;
-            if (state.userId == null) {
-                showToast('Please sign in to save scans to your account.');
-                return;
-            }
+    if (btnAnalyzeProd) btnAnalyzeProd.onclick = () => startProductAnalysis();
 
-            console.log("DEBUG: Starting product scan...");
-            const preview = document.getElementById('prod-img-processing');
-            if (preview) preview.src = document.getElementById('prod-img-preview').src;
-
-            showAnalyzerSubStateSB('prod', 'processing');
-            triggerMascotAnim('thinking');
-
-            const formData = new FormData();
-            formData.append('image', file);
-            formData.append('user_id', state.userId);
-
-            try {
-                const processingTitle = document.getElementById('prod-processing-title');
-                const processingSub = document.getElementById('prod-processing-subtitle');
-                if (processingTitle) processingTitle.innerText = "Reading ingredients...";
-                if (processingSub) processingSub.innerText = "AI is scanning your image label.";
-
-                // Change message after 8s if it's still running
-                const msgTimeout = setTimeout(() => {
-                    if (processingTitle) processingTitle.innerText = "Analyzing benefits...";
-                    if (processingSub) processingSub.innerText = "Checking ingredients for your skin type.";
-                }, 8000);
-
-                const response = await fetch(`${API_BASE_URL}/api/analyze-product`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                clearTimeout(msgTimeout);
-
-                if (data.status === 'success') {
-                    showToast("Ingredient analysis ready!");
-                    const previewUrl = data.image_url || URL.createObjectURL(file);
-                    const scanRecord = {
-                        id: Date.now(),
-                        date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
-                        img: data.image_url || previewUrl,
-                        results: data.analysis,
-                        type: 'product'
-                    };
-                    plannerState.scans.unshift(scanRecord);
-                    safeStorage.set(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
-
-                    renderProdResultsSB(data);
-                    showAnalyzerSubStateSB('prod', 'results');
-                    triggerMascotAnim('happy');
-                } else {
-                    showToast("Scan failed: " + (data.error || 'Unknown error'));
-                    showAnalyzerSubStateSB('prod', 'input');
-                }
-            } catch (err) {
-                console.error("DEBUG: FETCH ERROR:", err);
-                showToast("Connection Error: Check AI Server console.");
-                showAnalyzerSubStateSB('prod', 'input');
-            }
+    const removeSkinPreview = document.getElementById('remove-skin-preview');
+    if (removeSkinPreview) {
+        removeSkinPreview.onclick = () => {
+            if (skinFileInput) skinFileInput.value = '';
+            showAnalyzerSubStateSB('skin', 'input');
         };
     }
 
-    const removeSkin = document.getElementById('remove-skin-preview');
-    if (removeSkin) removeSkin.onclick = () => showAnalyzerSubStateSB('skin', 'input');
+    const removeProdPreview = document.getElementById('remove-prod-preview');
+    if (removeProdPreview) {
+        removeProdPreview.onclick = () => {
+            if (prodFileInput) prodFileInput.value = '';
+            showAnalyzerSubStateSB('prod', 'input');
+        };
+    }
+}
+
+async function startSkinAnalysis() {
+    const skinFileInput = document.getElementById('skin-file-input');
+    const file = skinFileInput ? skinFileInput.files[0] : null;
+    if (!file) {
+        showToast("Please pick a photo first!");
+        return;
+    }
+    if (state.userId == null) {
+        showToast('Please sign in to save scans to your account.');
+        return;
+    }
+
+    console.log("DEBUG: Starting skin analysis...");
+    const previewImg = document.getElementById('skin-img-preview');
+    const processingImg = document.getElementById('skin-img-processing');
+    if (processingImg && previewImg) processingImg.src = previewImg.src;
     
-    const removeProd = document.getElementById('remove-prod-preview');
-    if (removeProd) removeProd.onclick = () => showAnalyzerSubStateSB('prod', 'input');
+    showAnalyzerSubStateSB('skin', 'processing');
+    triggerMascotAnim('thinking');
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('user_id', state.userId);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/analyze-skin`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            showToast("Results are in! ✨");
+            const previewUrl = data.image_url || URL.createObjectURL(file);
+            const scanRecord = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+                img: data.image_url || previewUrl,
+                results: data.results,
+                type: 'face'
+            };
+            plannerState.scans.unshift(scanRecord);
+            safeStorage.set(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
+
+            renderSkinResultsSB(data.results, previewUrl);
+            showAnalyzerSubStateSB('skin', 'results');
+            triggerMascotAnim('happy');
+        } else {
+            showToast("Analysis failed: " + (data.error || 'Unknown error'));
+            showAnalyzerSubStateSB('skin', 'input');
+        }
+    } catch (err) {
+        console.error("DEBUG: SKIN ANALYSIS ERROR:", err);
+        showToast("Connection error. Try again?");
+        showAnalyzerSubStateSB('skin', 'input');
+    }
+}
+
+async function startProductAnalysis() {
+    const prodFileInput = document.getElementById('prod-file-input');
+    const file = prodFileInput ? prodFileInput.files[0] : null;
+    if (!file) {
+        showToast("Please pick a label photo!");
+        return;
+    }
+    if (state.userId == null) {
+        showToast('Please sign in to save scans to your account.');
+        return;
+    }
+
+    console.log("DEBUG: Starting product scan...");
+    const previewImg = document.getElementById('prod-img-preview');
+    const processingImg = document.getElementById('prod-img-processing');
+    if (processingImg && previewImg) processingImg.src = previewImg.src;
+
+    showAnalyzerSubStateSB('prod', 'processing');
+    triggerMascotAnim('thinking');
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('user_id', state.userId);
+
+    try {
+        const processingTitle = document.getElementById('prod-processing-title');
+        const processingSub = document.getElementById('prod-processing-subtitle');
+        if (processingTitle) processingTitle.innerText = "Reading ingredients...";
+        if (processingSub) processingSub.innerText = "AI is scanning your image label.";
+
+        const response = await fetch(`${API_BASE_URL}/api/analyze-product`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            showToast("Ingredient analysis ready!");
+            const previewUrl = data.image_url || URL.createObjectURL(file);
+            const scanRecord = {
+                id: Date.now(),
+                date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+                img: data.image_url || previewUrl,
+                results: data.analysis,
+                type: 'product'
+            };
+            plannerState.scans.unshift(scanRecord);
+            safeStorage.set(userStorageKey('planner-scans'), JSON.stringify(plannerState.scans));
+
+            renderProdResultsSB(data);
+            showAnalyzerSubStateSB('prod', 'results');
+            triggerMascotAnim('happy');
+        } else {
+            showToast("Scan failed: " + (data.error || 'Unknown error'));
+            showAnalyzerSubStateSB('prod', 'input');
+        }
+    } catch (err) {
+        console.error("DEBUG: PROD ANALYSIS ERROR:", err);
+        showToast("Connection error. Try again?");
+        showAnalyzerSubStateSB('prod', 'input');
+    }
 }
 
 function showAnalyzerSubStateSB(mode, state) {
@@ -1457,25 +1304,6 @@ function closeAnalyzerDetail() {
 /* ==========================================================================
    TAB: PLANNER (FULL REBUILD – Skinbiee Spec)
    ========================================================================== */
-let plannerState = {
-    plannerOnboardingDone: false,
-    morningRoutine: [],
-    nightRoutine: [],
-    amDoneToday: false,
-    pmDoneToday: false,
-    streak: 0,
-    scans: [],
-    currentMonth: new Date().getMonth(),
-    currentYear: new Date().getFullYear(),
-    // Onboarding
-    obStep: 0,
-    obAnswers: {},
-    // Editor context
-    editingRoutineType: null, // 'morning' | 'night'
-    // Checklist context
-    checklistType: null // 'morning' | 'night'
-};
-
 /* ── 10 Fixed Planner Questions ───────────────────────────────────────── */
 const plannerQuestions = [
     { id: 'skinType',      q: 'What is your skin type?',                              options: ['Oily','Dry','Combination','Sensitive','Not sure'] },
