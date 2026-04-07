@@ -36,9 +36,17 @@ def init_db():
     CREATE TABLE IF NOT EXISTS users (
         id {id_type},
         username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL
+        password_hash TEXT NOT NULL,
+        created_at TEXT
     )
     ''')
+    
+    # Migration for existing users table
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN created_at TEXT")
+    except Exception:
+        # Column likely already exists or other error (e.g. SQLite doesn't support IF NOT EXISTS in ALTER)
+        pass
     
     cursor.execute(f'''
     CREATE TABLE IF NOT EXISTS scans (
@@ -84,12 +92,18 @@ def init_db():
     conn.commit()
     conn.close()
 
+from datetime import datetime
+
 # User Management
 def create_db_user(username, password_hash):
     conn = get_connection()
     c = conn.cursor()
+    created_at = datetime.now().isoformat()
     try:
-        c.execute('INSERT INTO users (username, password_hash) VALUES (%s, %s)' if hasattr(conn, 'get_dsn_parameters') else 'INSERT INTO users (username, password_hash) VALUES (?, ?)', (username, password_hash))
+        if hasattr(conn, 'get_dsn_parameters'):
+            c.execute('INSERT INTO users (username, password_hash, created_at) VALUES (%s, %s, %s)', (username, password_hash, created_at))
+        else:
+            c.execute('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)', (username, password_hash, created_at))
         conn.commit()
     except Exception as e:
         print(f"Error creating user: {e}")
@@ -102,11 +116,16 @@ def get_user_by_username(username):
     conn = get_connection()
     c = conn.cursor()
     placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
-    c.execute(f'SELECT id, username, password_hash FROM users WHERE username = {placeholder}', (username,))
+    c.execute(f'SELECT id, username, password_hash, created_at FROM users WHERE username = {placeholder}', (username,))
     row = c.fetchone()
     conn.close()
     if row:
-        return {"id": row[0], "username": row[1], "password_hash": row[2]}
+        return {
+            "id": row[0], 
+            "username": row[1], 
+            "password_hash": row[2],
+            "created_at": row[3]
+        }
     return None
 
 def update_user_password_hash(user_id: int, new_hash: str):

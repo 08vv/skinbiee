@@ -11,7 +11,7 @@ Responsibilities:
 This server contains ZERO TensorFlow / EasyOCR code.
 """
 
-from flask import Flask, request, jsonify, send_from_directory, Response
+from flask import Flask, request, jsonify, send_from_directory, Response, make_response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -81,11 +81,17 @@ def handle_exception(e):
 # ── JWT auth helper ───────────────────────────────────────────────────────────
 
 def get_current_user():
-    """Read the Authorization: Bearer <token> header and return decoded payload or None."""
+    """Read the token from Authorization header or HTTP-only cookie."""
+    token = None
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    else:
+        # Fallback to secure cookie for persistent login
+        token = request.cookies.get("access_token")
+    
+    if not token:
         return None
-    token = auth_header[7:]
     return verify_token(token)
 
 cloudinary.config(
@@ -476,7 +482,13 @@ def ping():
 def add_header(response):
     if 'X-Frame-Options' in response.headers:
         del response.headers['X-Frame-Options']
-    response.headers['Access-Control-Allow-Origin'] = '*'
+    
+    # Secure CORS: Origins cannot be '*' when supports_credentials=True
+    origin = request.headers.get("Origin")
+    if origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
     response.headers['Content-Security-Policy'] = (
@@ -506,8 +518,19 @@ def api_register():
         user = get_user_by_username(username)
         if not user:
             return jsonify({"error": "Registration failed"}), 500
+        
         token = create_token(user['id'], user['username'])
-        return jsonify({"status": "success", "token": token, "user_id": user['id'], "username": user['username']})
+        # Return success; token is also set in a secure cookie for persistence
+        resp = make_response(jsonify({
+            "status": "success", 
+            "token": token, 
+            "username": user['username']
+        }))
+        resp.set_cookie(
+            "access_token", token,
+            httponly=True, secure=True, samesite='Lax', max_age=7*24*60*60
+        )
+        return resp
     return jsonify({"error": "Username already taken"}), 409
 
 
@@ -520,8 +543,25 @@ def api_login():
     user = login_user(username, password)
     if user:
         token = create_token(user['id'], user['username'])
-        return jsonify({"status": "success", "token": token, "user_id": user['id'], "username": user['username']})
+        # Set token in secure HTTP-only cookie
+        resp = make_response(jsonify({
+            "status": "success", 
+            "token": token, 
+            "username": user['username']
+        }))
+        resp.set_cookie(
+            "access_token", token,
+            httponly=True, secure=True, samesite='Lax', max_age=7*24*60*60
+        )
+        return resp
     return jsonify({"error": "Invalid username or password"}), 401
+
+@app.route('/api/auth/logout', methods=['POST'])
+def api_logout():
+    resp = make_response(jsonify({"status": "success", "message": "Logged out"}))
+    # Clear the persistent cookie
+    resp.set_cookie("access_token", "", expires=0)
+    return resp
 
 
 # ── Skin scan route (forwards to HF ML service) ──────────────────────────────
@@ -681,22 +721,35 @@ def save_log():
 
 @app.route('/api/user/data', methods=['GET'])
 def get_data():
-    user = get_current_user()
-    if not user:
+    user_payload = get_current_user()
+    if not user_payload:
         return jsonify({"error": "Authentication required"}), 401
-    u = user["user_id"]
+    
+    u_id = user_payload["user_id"]
     try:
-        scans_df = get_all_scans(u)
-        logs_df = get_daily_logs(u)
+        # Fetch user profile to get join date (created_at)
+        user_record = get_user_by_username(user_payload["username"])
+        join_date_raw = user_record.get("created_at") if user_record else None
+        join_date = join_date_raw[:10] if join_date_raw else None # YYYY-MM-DD
+
+        scans_df = get_all_scans(u_id)
+        logs_df = get_daily_logs(u_id)
         s = df_records_for_json(scans_df)
         l = df_records_for_json(logs_df)
+        
         active_dates, streak = compute_streak_and_active_dates(l)
+        
+        # Filter active dates to ensure they are on or after join date (sanity check)
+        if join_date:
+            active_dates = {d for d in active_dates if d >= join_date}
+
         return jsonify({
             "status": "success",
             "scans": s,
             "logs": l,
             "streak": streak,
             "active_dates": sorted(active_dates),
+            "join_date": join_date
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
