@@ -133,11 +133,14 @@ a {
     display: flex;
     flex-direction: column;
     padding: 0 24px;
-    padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Bottom nav height + safe area */
-    padding-top: 70px; /* Top bar height + safe area */
-    overflow: hidden; /* Prevent scrolling between views */
+    /* Bottom nav height + safe area */
+    padding-bottom: calc(85px + env(safe-area-inset-bottom)); 
+    /* Top bar height + safe area */
+    padding-top: 75px; 
+    overflow: hidden;
     position: relative;
     min-height: 0;
+    z-index: 10;
 }
 
 .view {
@@ -151,7 +154,8 @@ a {
 }
 
 .view.active {
-    display: block; /* Standard block display when visible */
+    display: flex;
+    flex-direction: column;
 }
 
 
@@ -197,10 +201,25 @@ a {
     font-size: 24px;
 }
 
+.app-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 10px rgba(116, 192, 252, 0.4);
+    border: 2px solid white;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.logo-area:hover .app-logo {
+    transform: scale(1.1) rotate(5deg);
+}
+
 .app-name {
     font-family: var(--font-heading);
     font-weight: 800;
-    font-size: 1.2rem;
+    font-size: 1.25rem;
+    letter-spacing: -0.5px;
 }
 
 .bottom-nav {
@@ -1709,6 +1728,8 @@ input:checked+.slider:before {
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
+    min-height: 280px; /* Prevent collapse */
+    width: 100%;
 }
 
 .cal-day {
@@ -1724,6 +1745,8 @@ input:checked+.slider:before {
     cursor: pointer;
     border-radius: 50%;
     transition: all 0.2s;
+    background: transparent;
+    z-index: 5;
 }
 
 .cal-day.today {

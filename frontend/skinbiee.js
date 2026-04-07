@@ -192,26 +192,27 @@ function switchView(viewName) {
     }
 
 
-    // Toggle Shell elements
-    if (viewName === 'auth' || viewName === 'onboarding') {
-        topBar.style.display = 'none';
-        bottomNav.style.display = 'none';
-        floatMascotBtn.style.display = 'none';
-
-        if (viewName === 'onboarding') {
-            resetOnboarding();
-        }
-    } else {
-        topBar.style.display = 'flex';
-        bottomNav.style.display = 'flex';
-        floatMascotBtn.style.display = 'block';
-
-        // Update Bottom Nav active state
-        document.querySelectorAll('.nav-item').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.target === viewName);
-        });
+    // Toggle Shell elements Visibility
+    const isAuthOrOnboarding = (viewName === 'auth' || viewName === 'onboarding');
+    
+    if (topBar) {
+        topBar.style.display = isAuthOrOnboarding ? 'none' : 'flex';
+    }
+    if (bottomNav) {
+        bottomNav.style.display = isAuthOrOnboarding ? 'none' : 'flex';
+    }
+    if (floatMascotBtn) {
+        floatMascotBtn.style.display = isAuthOrOnboarding ? 'none' : 'block';
     }
 
+    if (viewName === 'onboarding') {
+        resetOnboarding();
+    }
+
+    // Update Bottom Nav active state
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.target === viewName);
+    });
     // Scroll top
     if (document.getElementById('main-content')) {
         document.getElementById('main-content').scrollTop = 0;
@@ -1435,50 +1436,71 @@ function renderMainChecklist() {
 
 // CALENDAR
 function renderPlannerCalendar() {
+    console.log("[DEBUG] renderPlannerCalendar start");
     const grid = document.getElementById('planner-calendar-grid');
     const monthLabel = document.getElementById('calendar-month-year');
     
-    const d = new Date(plannerState.currentYear, plannerState.currentMonth, 1);
-    if (monthLabel) monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
-    
-    const firstDay = d.getDay();
-    const daysInMonth = new Date(plannerState.currentYear, plannerState.currentMonth + 1, 0).getDate();
-    const today = new Date();
-    const lastDoneDate = getPlannerLastDoneDate();
-    const streakDates = new Map();
+    // Safety Fallbacks
+    if (plannerState.currentMonth === undefined || plannerState.currentMonth === null) plannerState.currentMonth = new Date().getMonth();
+    if (plannerState.currentYear === undefined || plannerState.currentYear === null) plannerState.currentYear = new Date().getFullYear();
 
-    let html = '';
-    if (lastDoneDate && plannerState.streak > 0) {
-        for (let offset = 0; offset < plannerState.streak; offset++) {
-            const streakDate = new Date(lastDoneDate);
-            streakDate.setDate(lastDoneDate.getDate() - offset);
-            streakDates.set(getLocalDateKey(streakDate), offset === 0 ? 'current' : 'past');
+    try {
+        const d = new Date(plannerState.currentYear, plannerState.currentMonth, 1);
+        if (monthLabel) monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+        
+        const firstDay = d.getDay();
+        const daysInMonth = new Date(plannerState.currentYear, plannerState.currentMonth + 1, 0).getDate();
+        const today = new Date();
+        const lastDoneDate = getPlannerLastDoneDate();
+        const streakDates = new Map();
+
+        let html = '';
+        if (lastDoneDate && plannerState.streak > 0) {
+            for (let offset = 0; offset < plannerState.streak; offset++) {
+                const streakDate = new Date(lastDoneDate);
+                streakDate.setDate(lastDoneDate.getDate() - offset);
+                streakDates.set(getLocalDateKey(streakDate), offset === 0 ? 'current' : 'past');
+            }
         }
-    }
 
-    for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
-    
-    for (let i = 1; i <= daysInMonth; i++) {
-        let cls = 'cal-day';
-        if (i === today.getDate() && plannerState.currentMonth === today.getMonth() && plannerState.currentYear === today.getFullYear()) {
-            cls += ' today';
+        // Pad empty days
+        for (let i = 0; i < firstDay; i++) {
+            html += '<div class="cal-day empty"></div>';
         }
-        const dateKey = getLocalDateKey(new Date(plannerState.currentYear, plannerState.currentMonth, i));
-        const streakState = streakDates.get(dateKey);
-        if (streakState) cls += ' has-streak';
+        
+        // Render month days
+        for (let i = 1; i <= daysInMonth; i++) {
+            let cls = 'cal-day';
+            const curDate = new Date(plannerState.currentYear, plannerState.currentMonth, i);
+            const dateKey = getLocalDateKey(curDate);
+            
+            if (i === today.getDate() && plannerState.currentMonth === today.getMonth() && plannerState.currentYear === today.getFullYear()) {
+                cls += ' today';
+            }
+            
+            const streakState = streakDates.get(dateKey);
+            if (streakState) cls += ' has-streak';
 
-        const flame = streakState
-            ? `<img src="assets/blue-flame.png" alt="" class="calendar-flame ${streakState === 'current' ? 'current' : 'past'}">`
-            : '';
+            const flame = streakState
+                ? `<img src="assets/blue-flame.png" alt="" class="calendar-flame ${streakState === 'current' ? 'current' : 'past'}" onerror="this.style.display='none'">`
+                : '';
 
-        html += `
-            <div class="${cls}">
-                <span class="cal-day-num">${i}</span>
-                ${flame}
-            </div>
-        `;
+            html += `
+                <div class="${cls}">
+                    <span class="cal-day-num">${i}</span>
+                    ${flame}
+                </div>
+            `;
+        }
+        
+        if (grid) {
+            grid.innerHTML = html || '<div class="text-muted p-3">No days found</div>';
+            console.log("[DEBUG] Calendar grid updated successfully");
+        }
+    } catch (err) {
+        console.error("[CRITICAL] renderPlannerCalendar failed:", err);
+        if (grid) grid.innerHTML = `<div class="error-text p-3">Failed to load calendar: ${err.message}</div>`;
     }
-    if (grid) grid.innerHTML = html;
 }
 
 function navMonth(dir) {
