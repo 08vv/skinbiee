@@ -327,8 +327,24 @@ function setupAuthListeners() {
             e.preventDefault();
             const unameInput = document.getElementById('auth-username');
             const passInput = document.getElementById('auth-password');
+            const emailInput = document.getElementById('auth-email');
+            
             const uname = unameInput ? unameInput.value.trim() : '';
             const password = passInput ? passInput.value : '';
+            
+            if (isSignup) {
+                const email = emailInput ? emailInput.value.trim() : '';
+                if (!email) {
+                    showToast('Please enter an email address.');
+                    return;
+                }
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    showToast('Please use a valid email address.');
+                    return;
+                }
+            }
+
             if (!uname || !password) {
                 showToast('Please enter username and password.');
                 return;
