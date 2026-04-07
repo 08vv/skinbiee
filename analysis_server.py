@@ -11,7 +11,7 @@ Responsibilities:
 This server contains ZERO TensorFlow / EasyOCR code.
 """
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -21,6 +21,7 @@ from datetime import datetime, date, timedelta
 from PIL import Image
 import cloudinary, cloudinary.uploader
 from dotenv import load_dotenv
+from werkzeug.exceptions import HTTPException
 
 load_dotenv()
 from modules.product_scanner import analyze_custom_ingredients
@@ -61,7 +62,14 @@ limiter = Limiter(
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Ensure all exceptions return a JSON response."""
+    """Ensure all exceptions return a JSON response instead of HTML."""
+    if isinstance(e, HTTPException):
+        return jsonify({
+            "error": e.name,
+            "message": e.description,
+            "status": "error"
+        }), e.code
+
     tb = traceback.format_exc()
     print(f"!!! CRITICAL SERVER ERROR: {str(e)}\n{tb}")
     return jsonify({

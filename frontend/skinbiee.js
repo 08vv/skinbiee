@@ -86,6 +86,24 @@ async function refreshUserDataFromServer() {
     }
 }
 
+async function readApiResponse(response) {
+    const raw = await response.text();
+    if (!raw.trim()) {
+        return { ok: false, error: `Empty server response (${response.status})`, raw };
+    }
+
+    try {
+        return { ok: true, data: JSON.parse(raw), raw };
+    } catch (e) {
+        console.error('[NET] Failed to parse JSON response:', raw);
+        return {
+            ok: false,
+            error: `Server returned a non-JSON response (${response.status})`,
+            raw
+        };
+    }
+}
+
 
 /* ==========================================================================
    STATE & DOM ELEMENTS
@@ -526,21 +544,18 @@ function setupAnalyzer() {
                     headers: authHeadersRaw(),
                     body: formData
                 });
-                
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error("[NET] Non-JSON response:", text);
-                    showToast("Server error: The AI backend returned an invalid response.");
+
+                const parsed = await readApiResponse(response);
+                if (!parsed.ok) {
+                    showToast(parsed.error);
                     showAnalyzerSubState('skin', 'input');
                     return;
                 }
-
-                const data = await response.json();
+                const data = parsed.data;
 
                 if (data.status === 'success') {
                     showToast("Analysis complete! Rendering results.");
-                    renderSkinResults(data.results, URL.createObjectURL(file));
+                    renderSkinResults(Array.isArray(data.results) ? data.results : [], data.image_url || URL.createObjectURL(file));
                     showAnalyzerSubState('skin', 'results');
                     triggerMascotAnim('happy');
                 } else {
@@ -598,17 +613,14 @@ function setupAnalyzer() {
                     headers: authHeadersRaw(),
                     body: formData
                 });
-                
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error("[NET] Non-JSON response:", text);
-                    showToast("Server error: The product scanner returned an invalid response.");
+
+                const parsed = await readApiResponse(response);
+                if (!parsed.ok) {
+                    showToast(parsed.error);
                     showAnalyzerSubState('prod', 'input');
                     return;
                 }
-
-                const data = await response.json();
+                const data = parsed.data;
 
                 if (data.status === 'success') {
                     showToast("Scanner success! Results ready.");
@@ -1002,9 +1014,11 @@ function setupPlanner() {
     const overlayContainer = byId('planner-onboarding-overlay', 'planner-overlay-container');
     const mainDashboard = document.getElementById('planner-main-dashboard');
     const editorOverlay = document.getElementById('routine-editor-overlay');
+    const plannerView = document.getElementById('view-planner');
     
     if (overlayContainer) overlayContainer.style.display = 'none';
     if (editorOverlay) editorOverlay.style.display = 'none';
+    if (plannerView) plannerView.style.display = 'block';
     
     document.querySelectorAll('.overlay-screen').forEach(s => s.style.display = 'none');
     
@@ -1025,6 +1039,13 @@ function setupPlanner() {
         if (overlayContainer) overlayContainer.style.display = 'none';
         if (mainDashboard) mainDashboard.style.display = 'block';
         renderPlannerDashboard();
+    }
+
+    if (overlayContainer) {
+        overlayContainer.style.visibility = overlayContainer.style.display === 'none' ? 'hidden' : 'visible';
+    }
+    if (mainDashboard) {
+        mainDashboard.style.visibility = mainDashboard.style.display === 'none' ? 'hidden' : 'visible';
     }
 }
 
