@@ -8,8 +8,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="skinbiee.css">
+    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="skinbiee.css?v=2">
 
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -815,19 +815,52 @@
             </section>
 
             <!-- SETTINGS OVERLAYS -->
-            <div id="settings-account-details" class="sub-page-overlay">
-                <div class="sub-page-header">
-                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('account-details')"><i class="fa-solid fa-chevron-left"></i></button>
-                    <h2 class="sub-page-title">Profile</h2>
-                </div>
-                <div class="sub-page-card">
-                    <div style="margin-bottom: 24px;">
-                        <label class="bold mb-1 block">Username</label>
-                        <input type="text" id="settings-profile-username" class="kawaii-input" placeholder="Your Name">
+                <div id="settings-account-details" class="sub-page-overlay">
+                    <div class="sub-page-header">
+                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('account-details')"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 class="sub-page-title">Account Details</h2>
                     </div>
-                    <button class="primary-btn full-width" onclick="saveAccountDetails()">Save Changes</button>
+                    <div class="sub-page-card">
+                        <div class="profile-header-settings" style="text-align: center; margin-bottom: 20px;">
+                            <div class="profile-avatar-large" id="settings-avatar-preview" style="width: 80px; height: 80px; margin: 0 auto 10px; position: relative;">
+                                <img src="assets/default-avatar.png" alt="Avatar" id="settings-avatar-img" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                                <div class="avatar-edit-badge" onclick="document.getElementById('profile-photo-input').click()" style="position: absolute; bottom: 0; right: 0; background: var(--primary); color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; border: 2px solid white;">
+                                    <i class="fa-solid fa-camera"></i>
+                                </div>
+                            </div>
+                            <input type="file" id="profile-photo-input" style="display:none;" accept="image/*" onchange="handlePhotoUpload(this)">
+                            <button class="secondary-btn btn-sm" onclick="document.getElementById('profile-photo-input').click()">Change Photo</button>
+                        </div>
+                        <div>
+                            <label class="micro-text bold mb-2" style="display:block;">Display Name</label>
+                            <input type="text" id="profile-edit-username" class="sub-page-input" placeholder="Your Name">
+                        </div>
+                        <div class="mt-3">
+                            <label class="micro-text bold mb-2" style="display:block;">Email Address</label>
+                            <input type="email" class="sub-page-input" placeholder="you@example.com">
+                        </div>
+                        
+                        <button class="text-btn mt-3" id="btn-change-password-toggle" style="color: var(--primary); align-self: flex-start; padding: 0;" onclick="togglePasswordChange()">Change Password</button>
+
+                        <div id="password-change-section" style="display: none; flex-direction: column; gap: 12px; margin-top: 10px; width: 100%;">
+                            <div class="form-group">
+                                <label>Old Password</label>
+                                <input type="password" id="old-password" class="kawaii-input" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" id="new-password" class="kawaii-input" placeholder="••••••••">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" id="confirm-password" class="kawaii-input" placeholder="••••••••">
+                            </div>
+                            <button class="primary-btn btn-sm" onclick="performPasswordChange()">Update Password</button>
+                        </div>
+                    </div>
+                    <button class="primary-btn mt-4 full-width" onclick="saveAccountDetails()">Save Changes</button>
                 </div>
-            </div>
+
 
             <div id="settings-skin-profile" class="sub-page-overlay">
                 <div class="sub-page-header">
@@ -1063,7 +1096,7 @@
 
     </div>
 
-    <script src="skinbiee.js"></script>
+    <script src="skinbiee.js?v=2"></script>
 </body>
 
 </html>
