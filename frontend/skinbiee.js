@@ -1,7 +1,7 @@
-// Auto-detect API backend if run on different ports (e.g. Frontend 8001 -> Backend 5000)
-const API_BASE_URL = (window.location.port === "8001" || window.location.hostname === "localhost") 
+// Auto-detect API backend (Frontend 8001 -> Backend 5000 locally, otherwise current origin)
+const API_BASE_URL = (window.location.port === "8001" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
     ? "http://localhost:5000" 
-    : ""; 
+    : window.location.origin;
 
 
 
@@ -104,32 +104,40 @@ const themeToggleBtn = document.getElementById('theme-toggle');
    INITIALIZATION
    ========================================================================== */
 function init() {
-    // Setup Theme
-    const savedTheme = localStorage.getItem('sc-theme');
-    if (savedTheme === 'dark') {
-        toggleTheme();
-    }
+    console.log("[DEBUG] init started");
+    try {
+        // Setup Theme
+        const savedTheme = localStorage.getItem('sc-theme');
+        if (savedTheme === 'dark') {
+            toggleTheme();
+        }
 
-    const hadSession = restoreSession();
-    // Auth Flow Listeners
-    setupAuthListeners();
+        const hadSession = restoreSession();
+        // Auth Flow Listeners
+        setupAuthListeners();
 
-    // Onboarding Listeners
-    setupOnboardingListeners();
+        // Onboarding Listeners
+        setupOnboardingListeners();
 
-    // App Navigation
-    setupBottomNav();
+        // App Navigation
+        setupBottomNav();
 
-    // Mascot Listeners
-    setupMascotChat();
+        // Mascot Listeners
+        setupMascotChat();
 
-    // Feature specific listeners
-    setupAnalyzer();
-    setupPlanner();
-    setupSettings();
-    if (hadSession) {
-        switchView("home");
-        refreshUserDataFromServer();
+        // Feature specific listeners
+        setupAnalyzer();
+        setupPlanner();
+        setupSettings();
+        
+        if (hadSession) {
+            switchView("home");
+            refreshUserDataFromServer();
+        }
+        console.log("[DEBUG] init completed successfully");
+    } catch (err) {
+        console.error("[CRITICAL] init failed:", err);
+        showToast("Application Initialization Error. Please refresh.");
     }
 }
 
@@ -176,10 +184,23 @@ function switchView(viewName) {
 }
 
 function switchTab(viewName) {
+    console.log("[DEBUG] switchTab:", viewName);
     if (viewName === 'analyzer') {
         closeAnalyzerDetail();
     }
     switchView(viewName);
+}
+
+function setupBottomNav() {
+    console.log("[DEBUG] setupBottomNav binding listeners");
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.target;
+            if (target) {
+                switchTab(target);
+            }
+        });
+    });
 }
 
 /* ==========================================================================
@@ -499,8 +520,8 @@ function setupAnalyzer() {
                     showAnalyzerSubState('skin', 'input');
                 }
             } catch (err) {
-                console.error(err);
-                showToast("Connection Error: Make sure AI Backend is running on port 5000.");
+                console.error("[NET] Skin analysis failed:", err);
+                showToast("Connection Error: " + (err.message || "Failed to reach AI Backend"));
                 showAnalyzerSubState('skin', 'input');
             }
         };
@@ -561,8 +582,8 @@ function setupAnalyzer() {
                     showAnalyzerSubState('prod', 'input');
                 }
             } catch (err) {
-                console.error(err);
-                showToast("Connection Error: Check AI Backend status.");
+                console.error("[NET] Product analysis failed:", err);
+                showToast("Connection Error: " + (err.message || "Failed to reach AI Backend"));
                 showAnalyzerSubState('prod', 'input');
             }
         };
@@ -931,11 +952,13 @@ function checkStreakMaintenance() {
 }
 
 function setupPlanner() {
+    console.log("[DEBUG] setupPlanner triggered");
     // RE-SYNC STATE WITH STORAGE TO PREVENT LOOPS
     plannerState.hasSetup = localStorage.getItem('planner-has-setup') === 'true';
     checkStreakMaintenance();
     plannerState.streak = parseInt(localStorage.getItem('planner-streak') || '0', 10) || 0;
     plannerState.dailyDone = getPlannerLastDoneKey() === getLocalDateKey();
+    console.log("[DEBUG] Planner State:", { hasSetup: plannerState.hasSetup, dailyDone: plannerState.dailyDone });
     state.streak = plannerState.streak;
 
     const overlayContainer = byId('planner-onboarding-overlay', 'planner-overlay-container');
