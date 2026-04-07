@@ -745,9 +745,9 @@ function setupAnalyzer() {
     if (state.analyzerInitialized) return;
     state.analyzerInitialized = true;
 
-    const btnSkinCamera = document.getElementById('btn-skin-camera-sb');
-    const btnSkinGallery = document.getElementById('btn-skin-gallery-sb');
-    const skinFileInput = document.getElementById('skin-file-input-sb');
+    const btnSkinCamera = document.getElementById('btn-skin-camera');
+    const btnSkinGallery = document.getElementById('btn-skin-gallery');
+    const skinFileInput = document.getElementById('skin-file-input');
 
     if (btnSkinCamera) btnSkinCamera.onclick = () => skinFileInput.click();
     if (btnSkinGallery) btnSkinGallery.onclick = () => skinFileInput.click();
@@ -757,7 +757,7 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = document.getElementById('skin-img-preview-sb');
+                    const preview = document.getElementById('skin-img-preview');
                     if (preview) preview.src = event.target.result;
                     showAnalyzerSubStateSB('skin', 'preview');
                     triggerMascotAnim('surprised');
@@ -767,7 +767,7 @@ function setupAnalyzer() {
         };
     }
 
-    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin-sb');
+    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin');
     if (btnAnalyzeSkin) {
         btnAnalyzeSkin.onclick = async () => {
             const file = skinFileInput.files[0];
@@ -781,8 +781,8 @@ function setupAnalyzer() {
             }
 
             console.log("DEBUG: Starting skin analysis...");
-            const preview = document.getElementById('skin-img-processing-sb');
-            if (preview) preview.src = document.getElementById('skin-img-preview-sb').src;
+            const preview = document.getElementById('skin-img-processing');
+            if (preview) preview.src = document.getElementById('skin-img-preview').src;
             
             showAnalyzerSubStateSB('skin', 'processing');
             triggerMascotAnim('thinking');
@@ -827,9 +827,9 @@ function setupAnalyzer() {
         };
     }
 
-    const btnProdCamera = document.getElementById('btn-prod-camera-sb');
-    const btnProdGallery = document.getElementById('btn-prod-gallery-sb');
-    const prodFileInput = document.getElementById('prod-file-input-sb');
+    const btnProdCamera = document.getElementById('btn-prod-camera');
+    const btnProdGallery = document.getElementById('btn-prod-gallery');
+    const prodFileInput = document.getElementById('prod-file-input');
 
     if (btnProdCamera) btnProdCamera.onclick = () => prodFileInput.click();
     if (btnProdGallery) btnProdGallery.onclick = () => prodFileInput.click();
@@ -839,7 +839,7 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = document.getElementById('prod-img-preview-sb');
+                    const preview = document.getElementById('prod-img-preview');
                     if (preview) preview.src = event.target.result;
                     showAnalyzerSubStateSB('prod', 'preview');
                 };
@@ -848,7 +848,7 @@ function setupAnalyzer() {
         };
     }
 
-    const btnAnalyzeProd = document.getElementById('btn-analyze-prod-sb');
+    const btnAnalyzeProd = document.getElementById('btn-analyze-prod');
     if (btnAnalyzeProd) {
         btnAnalyzeProd.onclick = async () => {
             const file = prodFileInput.files[0];
@@ -859,8 +859,8 @@ function setupAnalyzer() {
             }
 
             console.log("DEBUG: Starting product scan...");
-            const preview = document.getElementById('prod-img-processing-sb');
-            if (preview) preview.src = document.getElementById('prod-img-preview-sb').src;
+            const preview = document.getElementById('prod-img-processing');
+            if (preview) preview.src = document.getElementById('prod-img-preview').src;
 
             showAnalyzerSubStateSB('prod', 'processing');
             triggerMascotAnim('thinking');
@@ -870,8 +870,8 @@ function setupAnalyzer() {
             formData.append('user_id', state.userId);
 
             try {
-                const processingTitle = document.getElementById('prod-processing-title-sb');
-                const processingSub = document.getElementById('prod-processing-subtitle-sb');
+                const processingTitle = document.getElementById('prod-processing-title');
+                const processingSub = document.getElementById('prod-processing-subtitle');
                 if (processingTitle) processingTitle.innerText = "Reading ingredients...";
                 if (processingSub) processingSub.innerText = "AI is scanning your image label.";
 
@@ -916,10 +916,10 @@ function setupAnalyzer() {
         };
     }
 
-    const removeSkin = document.getElementById('remove-skin-preview-sb');
+    const removeSkin = document.getElementById('remove-skin-preview');
     if (removeSkin) removeSkin.onclick = () => showAnalyzerSubStateSB('skin', 'input');
     
-    const removeProd = document.getElementById('remove-prod-preview-sb');
+    const removeProd = document.getElementById('remove-prod-preview');
     if (removeProd) removeProd.onclick = () => showAnalyzerSubStateSB('prod', 'input');
 }
 
@@ -927,9 +927,9 @@ function showAnalyzerSubStateSB(mode, state) {
     if (mode === 'skin') {
         const states = {
             input: document.querySelector('#sub-skin-analysis .input-state'),
-            preview: document.getElementById('skin-preview-zone-sb'),
-            processing: document.getElementById('skin-processing-state-sb'),
-            results: document.getElementById('skin-results-state-sb')
+            preview: document.getElementById('skin-preview-zone'),
+            processing: document.getElementById('skin-processing-state'),
+            results: document.getElementById('skin-results-state')
         };
         Object.values(states).forEach(el => { if (el) el.style.display = 'none'; });
         
@@ -941,7 +941,7 @@ function showAnalyzerSubStateSB(mode, state) {
                 if (inst) inst.style.display = 'block';
                 if (acts) acts.style.display = 'flex';
             }
-            const fileInput = document.getElementById('skin-file-input-sb');
+            const fileInput = document.getElementById('skin-file-input');
             if (fileInput) fileInput.value = '';
         } else if (state === 'preview') {
             if (states.input) {
@@ -962,10 +962,10 @@ function showAnalyzerSubStateSB(mode, state) {
         }
     } else {
         const states = {
-            input: document.getElementById('ing-input-state-sb'),
-            preview: document.getElementById('prod-preview-zone-sb'),
-            processing: document.getElementById('prod-processing-state-sb'),
-            results: document.getElementById('ing-results-state-sb')
+            input: document.getElementById('ing-input-state'),
+            preview: document.getElementById('prod-preview-zone'),
+            processing: document.getElementById('prod-processing-state'),
+            results: document.getElementById('ing-results-state')
         };
         Object.values(states).forEach(el => { if (el) el.style.display = 'none'; });
 
@@ -977,7 +977,7 @@ function showAnalyzerSubStateSB(mode, state) {
                 if (inst) inst.style.display = 'block';
                 if (acts) acts.style.display = 'flex';
             }
-            const fileInput = document.getElementById('prod-file-input-sb');
+            const fileInput = document.getElementById('prod-file-input');
             if (fileInput) fileInput.value = '';
         } else if (state === 'preview') {
             if (states.input) {
@@ -1003,13 +1003,13 @@ function showAnalyzerSubStateSB(mode, state) {
 }
 
 function renderSkinResultsSB(results, imgUrl) {
-    const img = document.getElementById('skin-result-img-sb');
+    const img = document.getElementById('skin-result-img');
     if (img) img.src = imgUrl;
 
-    const badgeContainer = document.getElementById('skin-result-badges-sb');
-    const list = document.getElementById('skin-concerns-list-sb');
-    const overallDesc = document.getElementById('skin-result-desc-sb');
-    const titleEl = document.getElementById('skin-result-title-sb');
+    const badgeContainer = document.getElementById('skin-result-badges');
+    const list = document.getElementById('skin-concerns-list');
+    const overallDesc = document.getElementById('skin-result-desc');
+    const titleEl = document.getElementById('skin-result-title');
 
     if (badgeContainer) badgeContainer.innerHTML = '';
     if (list) {
@@ -1071,10 +1071,10 @@ function renderSkinResultsSB(results, imgUrl) {
         if (list) list.appendChild(card);
     });
 
-    const existingBtn = document.getElementById('btn-go-products-sb');
+    const existingBtn = document.getElementById('btn-go-products');
     if (!existingBtn) {
         const btn = document.createElement('button');
-        btn.id = 'btn-go-products-sb';
+        btn.id = 'btn-go-products';
         btn.className = 'primary-btn full-width mt-4';
         btn.textContent = 'See Recommended Products 🛍️';
         btn.onclick = () => showProductRecommendations(results);
@@ -1097,12 +1097,12 @@ function showProductRecommendations(results) {
 
     if (container.innerHTML.trim() !== '') {
         container.innerHTML = '';
-        const btn = document.getElementById('btn-go-products-sb');
+        const btn = document.getElementById('btn-go-products');
         if (btn) btn.textContent = 'See Recommended Products 🛍️';
         return;
     }
 
-    const btn = document.getElementById('btn-go-products-sb');
+    const btn = document.getElementById('btn-go-products');
     if (btn) btn.textContent = 'Hide Recommendations ✕';
 
     container.innerHTML = `
@@ -1416,9 +1416,9 @@ function resetAnalyzer() {
     showAnalyzerSubStateSB('prod', 'input');
 
     // Reset animation classes so they can re-trigger on next scan
-    const skinList = document.getElementById('skin-concerns-list-sb');
+    const skinList = document.getElementById('skin-concerns-list');
     if (skinList) skinList.classList.remove('result-card-entry');
-    const prodDesc = document.getElementById('prod-result-desc-sb');
+    const prodDesc = document.getElementById('prod-result-desc');
     if (prodDesc) prodDesc.classList.remove('result-card-entry');
 }
 
@@ -1437,8 +1437,8 @@ function openAnalyzerDetail(subViewId) {
         if (subViewId === 'sub-timeline') renderScanHistory();
         if (subViewId === 'sub-skin-analysis') resetAnalyzer();
         if (subViewId === 'sub-ingredient-scanner') {
-            const ingResults = document.getElementById('ing-results-state-sb');
-            const ingInput = document.getElementById('ing-input-state-sb');
+            const ingResults = document.getElementById('ing-results-state');
+            const ingInput = document.getElementById('ing-input-state');
             if (ingResults) ingResults.style.display = 'none';
             if (ingInput) ingInput.style.display = 'block';
         }
