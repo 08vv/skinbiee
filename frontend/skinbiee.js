@@ -1436,14 +1436,10 @@ function renderMainChecklist() {
 
 // CALENDAR
 function renderPlannerCalendar() {
-    console.log("[DEBUG] renderPlannerCalendar start");
+    console.log("[CALENDAR] Rendering grid...");
     const grid = document.getElementById('planner-calendar-grid');
     const monthLabel = document.getElementById('calendar-month-year');
     
-    // Safety Fallbacks
-    if (plannerState.currentMonth === undefined || plannerState.currentMonth === null) plannerState.currentMonth = new Date().getMonth();
-    if (plannerState.currentYear === undefined || plannerState.currentYear === null) plannerState.currentYear = new Date().getFullYear();
-
     try {
         const d = new Date(plannerState.currentYear, plannerState.currentMonth, 1);
         if (monthLabel) monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -1463,43 +1459,43 @@ function renderPlannerCalendar() {
             }
         }
 
-        // Pad empty days
+        // 1. Dummies for previous month days
         for (let i = 0; i < firstDay; i++) {
             html += '<div class="cal-day empty"></div>';
         }
         
-        // Render month days
+        // 2. Real days for current month
         for (let i = 1; i <= daysInMonth; i++) {
-            let cls = 'cal-day';
             const curDate = new Date(plannerState.currentYear, plannerState.currentMonth, i);
             const dateKey = getLocalDateKey(curDate);
+            let cls = 'cal-day';
             
+            // Check if today
             if (i === today.getDate() && plannerState.currentMonth === today.getMonth() && plannerState.currentYear === today.getFullYear()) {
                 cls += ' today';
             }
             
-            const streakState = streakDates.get(dateKey);
-            if (streakState) cls += ' has-streak';
-
-            const flame = streakState
-                ? `<img src="assets/blue-flame.png" alt="" class="calendar-flame ${streakState === 'current' ? 'current' : 'past'}" onerror="this.style.display='none'">`
-                : '';
+            const streakType = streakDates.get(dateKey);
+            let flameHtml = '';
+            if (streakType) {
+                cls += ' has-streak';
+                flameHtml = `<img src="assets/blue-flame.png" alt="" class="calendar-flame ${streakType}" onerror="this.style.display='none'">`;
+            }
 
             html += `
                 <div class="${cls}">
                     <span class="cal-day-num">${i}</span>
-                    ${flame}
-                </div>
-            `;
+                    ${flameHtml}
+                </div>`;
         }
         
         if (grid) {
-            grid.innerHTML = html || '<div class="text-muted p-3">No days found</div>';
-            console.log("[DEBUG] Calendar grid updated successfully");
+            grid.innerHTML = html;
+            console.log("[CALENDAR] Successfully injected " + daysInMonth + " days.");
         }
-    } catch (err) {
-        console.error("[CRITICAL] renderPlannerCalendar failed:", err);
-        if (grid) grid.innerHTML = `<div class="error-text p-3">Failed to load calendar: ${err.message}</div>`;
+    } catch (e) {
+        console.error("[CALENDAR] Render error:", e);
+        if (grid) grid.innerHTML = '<div class="p-3 text-danger">Rendering Error</div>';
     }
 }
 

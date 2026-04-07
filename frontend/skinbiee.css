@@ -154,21 +154,12 @@ a {
 }
 
 .view.active {
-    display: flex;
-    flex-direction: column;
+    display: block;
+    height: 100%;
 }
-
-
-@keyframes fadeInFadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+#view-planner.active {
+    background: var(--bg-app);
+    padding-top: 10px;
 }
 
 /* ==========================================================================
@@ -1711,27 +1702,28 @@ input:checked+.slider:before {
 }
 
 .calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    min-height: 280px; /* Prevent collapse */
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
+    min-height: 250px;
     width: 100%;
+    gap: 0;
 }
 
 .cal-day {
     aspect-ratio: 1;
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 2px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1a1a1a !important;
     cursor: pointer;
     border-radius: 50%;
     transition: all 0.2s;
     background: transparent;
-    z-index: 5;
+    position: relative;
+    user-select: none;
 }
 
 .cal-day.today {
