@@ -68,6 +68,14 @@ async function refreshUserDataFromServer() {
     try {
         const res = await fetch(`${API_BASE_URL}/api/user/data`, { headers: authHeadersRaw() });
         if (res.status === 401) { clearSession(); switchView('auth'); return; }
+        
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await res.text();
+            console.error('[SERVER] Expected JSON but got:', text.substring(0, 100));
+            return;
+        }
+
         const data = await res.json();
         if (data.status === 'success' || data.success) {
             state.activeDates = new Set(data.active_dates || []);
@@ -299,6 +307,16 @@ function setupAuthListeners() {
                     headers: { ...authHeadersRaw(),  'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: uname, password })
                 });
+                
+                const contentType = res.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                   const text = await res.text();
+                   console.error("[AUTH] Invalid response:", text);
+                   hideLoading();
+                   showToast("Server error: Invalid response format");
+                   return;
+                }
+
                 const data = await res.json();
                 hideLoading();
                 if (!res.ok) { showToast(data.error || 'Auth Error'); return; }
@@ -508,6 +526,16 @@ function setupAnalyzer() {
                     headers: authHeadersRaw(),
                     body: formData
                 });
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error("[NET] Non-JSON response:", text);
+                    showToast("Server error: The AI backend returned an invalid response.");
+                    showAnalyzerSubState('skin', 'input');
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'success') {
@@ -516,7 +544,7 @@ function setupAnalyzer() {
                     showAnalyzerSubState('skin', 'results');
                     triggerMascotAnim('happy');
                 } else {
-                    showToast("Analysis failed: " + data.error);
+                    showToast("Analysis failed: " + (data.error || "Unknown error"));
                     showAnalyzerSubState('skin', 'input');
                 }
             } catch (err) {
@@ -570,6 +598,16 @@ function setupAnalyzer() {
                     headers: authHeadersRaw(),
                     body: formData
                 });
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error("[NET] Non-JSON response:", text);
+                    showToast("Server error: The product scanner returned an invalid response.");
+                    showAnalyzerSubState('prod', 'input');
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'success') {
@@ -578,7 +616,7 @@ function setupAnalyzer() {
                     showAnalyzerSubState('prod', 'results');
                     triggerMascotAnim('happy');
                 } else {
-                    showToast("Scan failed: " + data.error);
+                    showToast("Scan failed: " + (data.error || "Unknown error"));
                     showAnalyzerSubState('prod', 'input');
                 }
             } catch (err) {

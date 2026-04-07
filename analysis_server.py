@@ -16,7 +16,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import numpy as np
-import os, io, math, requests as http_requests
+import os, io, math, requests as http_requests, traceback
 from datetime import datetime, date, timedelta
 from PIL import Image
 import cloudinary, cloudinary.uploader
@@ -57,6 +57,18 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
+# ── Error Handlers ────────────────────────────────────────────────────────────
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Ensure all exceptions return a JSON response."""
+    tb = traceback.format_exc()
+    print(f"!!! CRITICAL SERVER ERROR: {str(e)}\n{tb}")
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": str(e),
+        "status": "error"
+    }), 500
 
 # ── JWT auth helper ───────────────────────────────────────────────────────────
 
@@ -204,9 +216,15 @@ def _call_ml_service(image_bytes: bytes, predict_type: str) -> dict | None:
             files={"image": ("image.jpg", io.BytesIO(image_bytes), "image/jpeg")},
             timeout=120,
         )
+        print(f"[ML Bridge] Response: {resp.status_code}")
         if resp.status_code == 503:
             print(f"[ML Bridge] Service not ready: {resp.text}")
             return None
+        
+        if not resp.text.strip():
+            print("[ML Bridge] EMPTY RESPONSE from ML service")
+            return None
+
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -370,13 +388,18 @@ def _build_ingredient_breakdown(
     analysis: dict,
     skin_condition: str,
 ) -> list[dict]:
+    if not analysis or not isinstance(analysis, dict):
+        analysis = {}
+
     llm_good = {
         (g if isinstance(g, str) else g.get('name', '')).lower()
         for g in analysis.get('good_ingredients', [])
+        if g is not None
     }
     llm_bad = {
         (b if isinstance(b, str) else b.get('name', '')).lower()
         for b in analysis.get('bad_ingredients', [])
+        if b is not None
     }
 
     cond_good = {g.lower() for g in _GOOD_FOR.get(skin_condition, [])}
@@ -516,10 +539,13 @@ def analyze_skin():
         err_msg = ml_resp.get("error", "ML service unreachable") if ml_resp else "ML service unreachable"
         return jsonify({"error": f"Skin analysis failed: {err_msg}"}), 503
 
-    res = ml_resp.get("results", [{"concern": "Normal", "severity": "Mild", "confidence": 0.9}])
+    res = ml_resp.get("results", [])
+    if not res:
+        res = [{"concern": "Normal", "severity": "Mild", "confidence": 0.9}]
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
+        # res[0] is safe because we ensured it above
         add_scan(uid, ts, res[0]['concern'], res[0]['confidence'], res[0]['severity'], image_path=url)
     except Exception as e:
         return jsonify({"error": f"Failed to save scan: {e}"}), 500
@@ -584,6 +610,13 @@ def analyze_prod():
     # 6. Analyse (LLM → rule-based fallback)
     llm_an = analyze_ingredients_llm(ingredients_text, skin_condition)
     an = llm_an if llm_an else analyze_custom_ingredients(ingredients_text, skin_condition)
+
+    if not an:
+        an = {
+            "score": 5.0,
+            "recommendation": "Analysis inconclusive",
+            "safe": True
+        }
 
     # 7. Per-ingredient breakdown
     ingredient_breakdown = _build_ingredient_breakdown(ingredients_list, an, skin_condition)
