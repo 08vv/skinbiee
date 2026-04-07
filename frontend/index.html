@@ -770,9 +770,14 @@
                             <i class="fa-regular fa-bell icon"></i>
                             <span>Routine Reminders</span>
                             <label class="switch">
-                                <input type="checkbox" checked>
+                                <input type="checkbox" id="settings-reminder-toggle" onchange="toggleReminderScheduleItem()">
                                 <span class="slider round"></span>
                             </label>
+                        </div>
+                        <div class="set-item" id="reminder-schedule-item" style="display: none;" onclick="openSettingsSubPage('settings-routine-reminders')">
+                            <i class="fa-solid fa-clock icon"></i>
+                            <span>Schedule Reminders</span>
+                            <i class="fa-solid fa-chevron-right arrow"></i>
                         </div>
                     </div>
 
@@ -902,6 +907,41 @@
                         </ul>
                     </div>
                     <button class="primary-btn mt-4 full-width" onclick="executeExportData()">Export as Spreadsheet</button>
+                </div>
+
+                <!-- Routine Reminders Schedule -->
+                <div id="settings-routine-reminders" class="sub-page-overlay">
+                    <div class="sub-page-header">
+                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('settings-routine-reminders')"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h2 class="sub-page-title">Reminders</h2>
+                    </div>
+                    <div class="sub-page-card">
+                        <p class="micro-text text-muted mb-4" style="text-align: center;">Pick your glow-up times! We'll send a cute nudge to keep your streak alive. ✨</p>
+                        
+                        <div class="reminder-time-row mb-4">
+                            <div class="flex-between align-center mb-2">
+                                <span class="bold"><i class="fa-solid fa-sun" style="color: #f6a623; margin-right: 8px;"></i>Morning Sunshine</span>
+                                <label class="switch switch-sm">
+                                    <input type="checkbox" id="am-reminder-active" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <input type="time" id="am-reminder-time" class="sub-page-input" value="08:00">
+                        </div>
+
+                        <div class="reminder-time-row">
+                            <div class="flex-between align-center mb-2">
+                                <span class="bold"><i class="fa-solid fa-moon" style="color: #7c8cf8; margin-right: 8px;"></i>Night Glow</span>
+                                <label class="switch switch-sm">
+                                    <input type="checkbox" id="pm-reminder-active" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <input type="time" id="pm-reminder-time" class="sub-page-input" value="21:30">
+                        </div>
+                    </div>
+                    <p class="micro-text text-center mt-3 px-4" style="color: var(--text-secondary);">Notifications will appear on this device even if the app is closed. Enable browser notifications when prompted!</p>
+                    <button class="primary-btn mt-4 full-width" onclick="saveReminders()">Save Reminders 🔔</button>
                 </div>
 
             </section>

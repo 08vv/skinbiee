@@ -3034,3 +3034,27 @@ input:checked+.slider:before {
     border-bottom: none;
 }
 
+.reminder-time-row {
+    background: var(--bg-app);
+    padding: 18px 20px;
+    border-radius: 16px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0,0,0,0.02);
+}
+
+.reminder-time-row:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.switch-sm {
+    transform: scale(0.8);
+}
+
+.sub-page-input[type="time"] {
+    margin-top: 8px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 1px;
+}
+

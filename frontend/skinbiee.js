@@ -119,6 +119,7 @@ function init() {
     setupAnalyzer();
     setupPlanner();
     setupSettings();
+    initReminders();
 
     if (hadSession) {
         applyUserProfile(loadUserProfile());
@@ -2104,6 +2105,107 @@ function saveAccountDetails() {
         showToast('Profile updated!');
     }
     closeSettingsSubPage('account-details');
+}
+
+/* ==========================================================================
+   ROUTINE REMINDERS LOGIC
+   ========================================================================== */
+function toggleReminderScheduleItem() {
+    const toggle = document.getElementById('settings-reminder-toggle');
+    const scheduleItem = document.getElementById('reminder-schedule-item');
+    if (toggle && scheduleItem) {
+        scheduleItem.style.display = toggle.checked ? 'flex' : 'none';
+        
+        // If turning ON, request notification permission
+        if (toggle.checked && Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    showToast('Yay! Notifications enabled! 🔔');
+                } else {
+                    showToast('Notifications are blocked by browser. 🥺');
+                }
+            });
+        }
+    }
+}
+
+function initReminders() {
+    const reminders = JSON.parse(safeStorage.get('sc-reminders') || '{}');
+    const toggle = document.getElementById('settings-reminder-toggle');
+    
+    if (reminders.active !== undefined) {
+        if (toggle) {
+            toggle.checked = reminders.active;
+            toggleReminderScheduleItem();
+        }
+    }
+
+    // Sync sub-page values
+    if (document.getElementById('am-reminder-active')) document.getElementById('am-reminder-active').checked = reminders.am_active !== false;
+    if (document.getElementById('am-reminder-time')) document.getElementById('am-reminder-time').value = reminders.am_time || '08:00';
+    if (document.getElementById('pm-reminder-active')) document.getElementById('pm-reminder-active').checked = reminders.pm_active !== false;
+    if (document.getElementById('pm-reminder-time')) document.getElementById('pm-reminder-time').value = reminders.pm_time || '21:30';
+
+    // Start verification loop every 60 seconds
+    setInterval(checkRoutineReminders, 60000);
+}
+
+function saveReminders() {
+    const reminders = {
+        active: document.getElementById('settings-reminder-toggle').checked,
+        am_active: document.getElementById('am-reminder-active').checked,
+        am_time: document.getElementById('am-reminder-time').value,
+        pm_active: document.getElementById('pm-reminder-active').checked,
+        pm_time: document.getElementById('pm-reminder-time').value,
+        lastTriggerDate: JSON.parse(safeStorage.get('sc-reminders') || '{}').lastTriggerDate || {}
+    };
+    
+    safeStorage.set('sc-reminders', JSON.stringify(reminders));
+    showToast('Reminder schedule saved! ✨');
+    closeSettingsSubPage('routine-reminders');
+}
+
+function checkRoutineReminders() {
+    const reminders = JSON.parse(safeStorage.get('sc-reminders') || '{}');
+    if (!reminders.active) return;
+
+    const now = new Date();
+    const currentTimeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // "HH:MM"
+    const today = now.toISOString().split('T')[0];
+
+    // Initialize lastTriggerDate tracker if missing
+    if (!reminders.lastTriggerDate) reminders.lastTriggerDate = { am: '', pm: '' };
+
+    // Check Morning
+    if (reminders.am_active && reminders.am_time === currentTimeStr && reminders.lastTriggerDate.am !== today) {
+        triggerRoutineNotification("Morning Sunshine! ☀️", "Time for your glow-up routine. Let's start the day right!");
+        reminders.lastTriggerDate.am = today;
+    }
+
+    // Check Night
+    if (reminders.pm_active && reminders.pm_time === currentTimeStr && reminders.lastTriggerDate.pm !== today) {
+        triggerRoutineNotification("Night Glow! 🌙", "It's time to treat your skin. Your night routine is waiting!");
+        reminders.lastTriggerDate.pm = today;
+    }
+
+    safeStorage.set('sc-reminders', JSON.stringify(reminders));
+}
+
+function triggerRoutineNotification(title, body) {
+    if (Notification.permission === 'granted') {
+        const n = new Notification(title, {
+            body: body,
+            icon: '/assets/icon-192x192.png',
+            tag: 'skinbiee-reminder'
+        });
+        n.onclick = () => {
+            window.focus();
+            switchTab('planner');
+        };
+    } else {
+        // Fallback for when in-app
+        showToast(`🔔 ${title}\n${body}`);
+    }
 }
 
 function executeExportData() {
