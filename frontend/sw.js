@@ -1,55 +1,42 @@
-const CACHE_NAME = 'skinbiee-cache-v3';
+const CACHE_NAME = 'skinbiee-cache-v4';
 const ASSETS_TO_CACHE = [
     '/',
     'skinbiee.html',
+    'index.html',
     'style.css',
     'skinbiee.css',
     'skinbiee.js',
-    'manifest.json',
-    'assets/apple-touch-icon.png',
-    'assets/blue-flame.png',
-    'assets/girl_normal.png',
-    'assets/girl_thumbs.png',
-    'assets/icon-192x192.png',
-    'assets/icon-512x512.png',
-    'assets/mascot-done.png',
-    'assets/mascot-thumbs-up.png',
-    'assets/planner-calendar.png',
-    'assets/scan-face-trans.png',
-    'assets/scan-face.jpg',
-    'assets/scan-face.png',
-    'assets/scan-product-trans.png',
-    'assets/scan-product.png',
-    'assets/timeline-icon.png',
-    'assets/timeline.png'
+    'manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
     );
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => 
-            Promise.all(
-                cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
-            )
-        )
+        caches.keys().then((keys) => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
     );
     self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-    if (event.request.method === 'GET' && event.request.url.startsWith(self.location.origin)) {
+    // Network-first for skinbiee.js to allow quick fixes
+    if (event.request.url.includes('skinbiee.js') || event.request.url.includes('index.html')) {
         event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                return cachedResponse || fetch(event.request);
-            })
+            fetch(event.request).then(response => {
+                const copy = response.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+                return response;
+            }).catch(() => caches.match(event.request))
         );
+        return;
     }
+
+    event.respondWith(
+        caches.match(event.request).then(cached => cached || fetch(event.request))
+    );
 });
