@@ -469,6 +469,8 @@ def api_register():
     password = data.get('password') or ''
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters long"}), 400
     if register_user(username, password):
         user = get_user_by_username(username)
         if not user:

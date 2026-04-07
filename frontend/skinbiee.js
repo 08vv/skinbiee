@@ -334,6 +334,11 @@ function setupAuthListeners() {
                 return;
             }
 
+            if (isSignup && password.length < 6) {
+                showToast('Password must be at least 6 characters long.');
+                return;
+            }
+
             showLoading('Waking up server (may take 30-60s on first load)...');
 
             if (isSignup) {
