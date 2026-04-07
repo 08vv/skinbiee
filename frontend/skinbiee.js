@@ -171,15 +171,26 @@ function init() {
    ROUTING / VIEW MANAGEMENT
    ========================================================================== */
 function switchView(viewName) {
-    // Hide all views
-    views.forEach(v => v.classList.remove('active'));
+    console.log("[DEBUG] switchView changing to:", viewName);
+    
+    // Hide all views robustly
+    const allViews = document.querySelectorAll('.view');
+    allViews.forEach(v => {
+        v.classList.remove('active');
+        v.style.display = 'none'; // Force hide to prevent overlaps
+    });
 
     // Show target view
     const targetView = document.getElementById(`view-${viewName}`);
     if (targetView) {
         targetView.classList.add('active');
+        targetView.style.display = 'block'; // Force show
         state.view = viewName;
+        
+        // Reset scroll position to top when switching views
+        targetView.scrollTop = 0;
     }
+
 
     // Toggle Shell elements
     if (viewName === 'auth' || viewName === 'onboarding') {

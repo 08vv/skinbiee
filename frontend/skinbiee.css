@@ -130,25 +130,30 @@ a {
 
 .content-area {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     padding: 0 24px;
-    padding-bottom: 90px;
-    /* Space for bottom nav */
-    padding-top: 70px;
-    /* Space for top bar */
-    overflow-y: auto;
-    overflow-x: hidden;
-    scroll-behavior: smooth;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Bottom nav height + safe area */
+    padding-top: 70px; /* Top bar height + safe area */
+    overflow: hidden; /* Prevent scrolling between views */
     position: relative;
+    min-height: 0;
 }
 
 .view {
     display: none;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
     animation: fadeInFadeUp 0.4s ease forwards;
+    height: 100%;
 }
 
 .view.active {
-    display: block;
+    display: block; /* Standard block display when visible */
 }
+
 
 @keyframes fadeInFadeUp {
     from {
