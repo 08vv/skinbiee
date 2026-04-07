@@ -9,6 +9,27 @@ const safeStorage = {
   clear: () => { try { localStorage.clear(); } catch(e) {} }
 };
 
+function byId(...ids) {
+    for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el) return el;
+    }
+    return null;
+}
+
+function authHeadersRaw() {
+    const token = safeStorage.get('sc-token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function clearSession() {
+    state.userId = null;
+    state.username = 'Melani';
+    safeStorage.remove('sc-user-id');
+    safeStorage.remove('sc-username');
+    safeStorage.remove('sc-token');
+}
+
 
 function persistSession(userId, username, token) {
     console.log("[SESSION] Saving session for:", username);
@@ -24,18 +45,17 @@ function persistSession(userId, username, token) {
 
 function restoreSession() {
     const raw = safeStorage.get('sc-user-id');
+    const token = safeStorage.get('sc-token');
     const uid = raw != null ? parseInt(raw, 10) : NaN;
-    if (!Number.isFinite(uid) || uid < 1) return false;
+    if (!Number.isFinite(uid) || uid < 1 || !token) {
+        clearSession();
+        return false;
+    }
     state.userId = uid;
     state.username = safeStorage.get('sc-username') || '';
     const userDisp = document.getElementById('user-display-name');
     if (userDisp) userDisp.textContent = state.username;
     return true;
-}
-
-
-function authHeadersRaw() {
-    return { "Authorization": `Bearer ${safeStorage.get('sc-token')}` };
 }
 
 
@@ -419,9 +439,9 @@ function setupBottomNav() {
    ========================================================================== */
 function setupAnalyzer() {
     // Buttons for Skin Analysis
-    const btnSkinCamera = document.getElementById('btn-skin-camera');
-    const btnSkinGallery = document.getElementById('btn-skin-gallery');
-    const skinFileInput = document.getElementById('skin-file-input');
+    const btnSkinCamera = byId('btn-skin-camera', 'btn-skin-camera-sb');
+    const btnSkinGallery = byId('btn-skin-gallery', 'btn-skin-gallery-sb');
+    const skinFileInput = byId('skin-file-input', 'skin-file-input-sb');
 
     if (btnSkinCamera) btnSkinCamera.onclick = () => skinFileInput.click();
     if (btnSkinGallery) btnSkinGallery.onclick = () => skinFileInput.click();
@@ -431,8 +451,10 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = document.getElementById('skin-img-preview');
+                    const preview = byId('skin-img-preview', 'skin-img-preview-sb');
                     if (preview) preview.src = event.target.result;
+                    const processingPreview = byId('skin-img-processing', 'skin-img-processing-sb');
+                    if (processingPreview) processingPreview.src = event.target.result;
                     showAnalyzerSubState('skin', 'preview');
                     triggerMascotAnim('surprised');
                 };
@@ -441,7 +463,7 @@ function setupAnalyzer() {
         });
     }
 
-    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin');
+    const btnAnalyzeSkin = byId('btn-analyze-skin', 'btn-analyze-skin-sb');
     if (btnAnalyzeSkin) {
         btnAnalyzeSkin.onclick = async () => {
             const file = skinFileInput.files[0];
@@ -455,8 +477,9 @@ function setupAnalyzer() {
 
             try {
                 showToast("Sending scan to AI model...");
-                const response = await fetch('http://127.0.0.1:5000/api/analyze-skin', {
+                const response = await fetch(`${API_BASE_URL}/api/analyze-skin`, {
                     method: 'POST',
+                    headers: authHeadersRaw(),
                     body: formData
                 });
                 const data = await response.json();
@@ -479,9 +502,9 @@ function setupAnalyzer() {
     }
 
     // Buttons for Product Analysis
-    const btnProdCamera = document.getElementById('btn-prod-camera');
-    const btnProdGallery = document.getElementById('btn-prod-gallery');
-    const prodFileInput = document.getElementById('prod-file-input');
+    const btnProdCamera = byId('btn-prod-camera', 'btn-prod-camera-sb');
+    const btnProdGallery = byId('btn-prod-gallery', 'btn-prod-gallery-sb');
+    const prodFileInput = byId('prod-file-input', 'prod-file-input-sb');
 
     if (btnProdCamera) btnProdCamera.onclick = () => prodFileInput.click();
     if (btnProdGallery) btnProdGallery.onclick = () => prodFileInput.click();
@@ -491,8 +514,10 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = document.getElementById('prod-img-preview');
+                    const preview = byId('prod-img-preview', 'prod-img-preview-sb');
                     if (preview) preview.src = event.target.result;
+                    const processingPreview = byId('prod-img-processing', 'prod-img-processing-sb');
+                    if (processingPreview) processingPreview.src = event.target.result;
                     showAnalyzerSubState('prod', 'preview');
                 };
                 reader.readAsDataURL(e.target.files[0]);
@@ -500,7 +525,7 @@ function setupAnalyzer() {
         });
     }
 
-    const btnAnalyzeProd = document.getElementById('btn-analyze-prod');
+    const btnAnalyzeProd = byId('btn-analyze-prod', 'btn-analyze-prod-sb');
     if (btnAnalyzeProd) {
         btnAnalyzeProd.onclick = async () => {
             const file = prodFileInput.files[0];
@@ -514,8 +539,9 @@ function setupAnalyzer() {
 
             try {
                 showToast("Processing product ingredients...");
-                const response = await fetch('http://127.0.0.1:5000/api/analyze-product', {
+                const response = await fetch(`${API_BASE_URL}/api/analyze-product`, {
                     method: 'POST',
+                    headers: authHeadersRaw(),
                     body: formData
                 });
                 const data = await response.json();
@@ -538,11 +564,14 @@ function setupAnalyzer() {
     }
 
     // Remove buttons
-    const removeSkin = document.getElementById('remove-skin-preview');
+    const removeSkin = byId('remove-skin-preview', 'remove-skin-preview-sb');
     if (removeSkin) removeSkin.onclick = () => showAnalyzerSubState('skin', 'input');
     
-    const removeProd = document.getElementById('remove-prod-preview');
+    const removeProd = byId('remove-prod-preview', 'remove-prod-preview-sb');
     if (removeProd) removeProd.onclick = () => showAnalyzerSubState('prod', 'input');
+
+    const goProductsBtn = byId('btn-go-products', 'btn-go-products-sb');
+    if (goProductsBtn) goProductsBtn.onclick = () => openAnalyzerDetail('sub-ingredient-scanner');
 }
 
 /**
@@ -551,27 +580,25 @@ function setupAnalyzer() {
 function showAnalyzerSubState(mode, state) {
     if (mode === 'skin') {
         const states = {
-            input: document.getElementById('skin-input-state'),
-            preview: document.getElementById('skin-preview-zone'),
-            processing: document.getElementById('skin-processing-state'),
-            results: document.getElementById('skin-results-state')
+            input: byId('skin-input-state', 'skin-input-state-sb'),
+            preview: byId('skin-preview-zone', 'skin-preview-zone-sb'),
+            processing: byId('skin-processing-state', 'skin-processing-state-sb'),
+            results: byId('skin-results-state', 'skin-results-state-sb')
         };
         // Reset all
         Object.values(states).forEach(el => { if (el) el.style.display = 'none'; });
         
         if (state === 'input') {
             if (states.input) states.input.style.display = 'block';
-            const fileInput = document.getElementById('skin-file-input');
+            const fileInput = byId('skin-file-input', 'skin-file-input-sb');
             if (fileInput) fileInput.value = '';
         } else if (state === 'preview') {
             if (states.input) states.input.style.display = 'block';
             if (states.preview) states.preview.style.display = 'block';
-            if (document.querySelector('#skin-input-state .instruction-section')) {
-                document.querySelector('#skin-input-state .instruction-section').style.display = 'none';
-            }
-            if (document.querySelector('#skin-input-state .centered-action-group')) {
-                document.querySelector('#skin-input-state .centered-action-group').style.display = 'none';
-            }
+            const inst = states.input ? states.input.querySelector('.instruction-section') : null;
+            const acts = states.input ? states.input.querySelector('.centered-action-group') : null;
+            if (inst) inst.style.display = 'none';
+            if (acts) acts.style.display = 'none';
         } else if (state === 'processing') {
             if (states.processing) states.processing.style.display = 'block';
         } else if (state === 'results') {
@@ -579,10 +606,10 @@ function showAnalyzerSubState(mode, state) {
         }
     } else {
         const states = {
-            input: document.getElementById('ing-input-state'),
-            preview: document.getElementById('prod-preview-zone'),
-            processing: document.getElementById('prod-processing-state'),
-            results: document.getElementById('ing-results-state')
+            input: byId('ing-input-state', 'ing-input-state-sb'),
+            preview: byId('prod-preview-zone', 'prod-preview-zone-sb'),
+            processing: byId('prod-processing-state', 'prod-processing-state-sb'),
+            results: byId('ing-results-state', 'ing-results-state-sb')
         };
         Object.values(states).forEach(el => { if (el) el.style.display = 'none'; });
 
@@ -594,7 +621,7 @@ function showAnalyzerSubState(mode, state) {
                 if (inst) inst.style.display = 'block';
                 if (acts) acts.style.display = 'flex';
             }
-            const fileInput = document.getElementById('prod-file-input');
+            const fileInput = byId('prod-file-input', 'prod-file-input-sb');
             if (fileInput) fileInput.value = '';
         } else if (state === 'preview') {
             if (states.input) {
@@ -614,14 +641,18 @@ function showAnalyzerSubState(mode, state) {
 }
 
 function renderSkinResults(results, imgUrl) {
-    const img = document.getElementById('skin-result-img');
+    const img = byId('skin-result-img', 'skin-result-img-sb');
     if (img) img.src = imgUrl;
 
-    const badgeContainer = document.getElementById('skin-result-badges');
-    const list = document.getElementById('skin-concerns-list');
+    const badgeContainer = byId('skin-result-badges', 'skin-result-badges-sb');
+    const list = byId('skin-concerns-list', 'skin-concerns-list-sb');
+    const title = byId('skin-result-title', 'skin-result-title-sb');
+    const desc = byId('skin-result-desc', 'skin-result-desc-sb');
     
     if (badgeContainer) badgeContainer.innerHTML = '';
     if (list) list.innerHTML = '';
+    if (title) title.textContent = 'Analysis Complete';
+    if (desc) desc.textContent = "We've analyzed your photo. Here is what our trained models detected on your skin.";
 
     results.forEach(res => {
         // Badges
@@ -642,6 +673,79 @@ function renderSkinResults(results, imgUrl) {
 }
 
 function renderProdResults(data) {
+    const analysis = data.analysis || {};
+    const goodList = analysis.good_ingredients || [];
+    const badList = analysis.bad_ingredients || [];
+    const breakdown = data.ingredient_breakdown || [];
+    const detected = data.ingredients_detected || breakdown.map(item => item.name);
+    const score = Number(analysis.score || 0);
+    const safe = Boolean(analysis.safe);
+
+    const verdictTitle = byId('prod-verdict-title', 'prod-result-title');
+    const verdictSubtitle = byId('prod-verdict-subtitle', 'prod-result-desc');
+    const scoreText = byId('prod-score-text', 'prod-score-badge');
+    const scoreFill = document.getElementById('prod-score-fill');
+    const ingCount = document.getElementById('prod-ing-count');
+    const goodContainer = document.getElementById('prod-good-list');
+    const badContainer = document.getElementById('prod-bad-list');
+    const badCard = document.getElementById('prod-bad-card');
+    const otherContainer = document.getElementById('prod-others-list');
+    const pillsContainer = document.getElementById('prod-pills-container');
+    const fastFactsCard = document.getElementById('prod-fast-facts-card');
+    const tipText = document.getElementById('prod-tip-text');
+
+    if (verdictTitle) verdictTitle.textContent = safe ? 'Good Match' : 'Use With Caution';
+    if (verdictSubtitle) verdictSubtitle.textContent = analysis.recommendation || 'We checked this product against your skin profile.';
+    if (scoreText) {
+        if (scoreText.id === 'prod-score-badge') {
+            scoreText.className = `severity-badge ${safe ? 'badge-green' : 'badge-red'}`;
+            scoreText.textContent = `Compatibility: ${score}/10`;
+        } else {
+            scoreText.textContent = `${score.toFixed(1)} / 10`;
+        }
+    }
+    if (scoreFill) scoreFill.style.width = `${Math.max(0, Math.min(score, 10)) * 10}%`;
+    if (ingCount) ingCount.textContent = `${detected.length} ingredients detected`;
+    if (tipText) tipText.textContent = analysis.recommendation || 'Patch test first if your skin is sensitive.';
+
+    const renderIngredientRows = (container, items, emptyText) => {
+        if (!container) return;
+        if (!items.length) {
+            container.innerHTML = `<div class="ing-card"><p class="micro-text mb-0">${emptyText}</p></div>`;
+            return;
+        }
+        container.innerHTML = items.map((item) => {
+            const name = typeof item === 'string' ? item : item.name;
+            const reason = typeof item === 'string' ? '' : (item.reason || '');
+            return `
+                <div class="ing-card mb-3">
+                    <strong>${name}</strong>
+                    ${reason ? `<p class="micro-text mb-0">${reason}</p>` : ''}
+                </div>
+            `;
+        }).join('');
+    };
+
+    renderIngredientRows(goodContainer, goodList, 'No standout ingredients were flagged as especially helpful.');
+    renderIngredientRows(badContainer, badList, 'No major problem ingredients were detected.');
+    renderIngredientRows(
+        otherContainer,
+        breakdown.filter((item) => item.rating === 'neutral'),
+        'No additional neutral ingredients to show.'
+    );
+
+    if (badCard) badCard.style.display = badList.length ? 'block' : 'none';
+
+    if (pillsContainer && fastFactsCard) {
+        const pills = [];
+        if (safe) pills.push('Generally compatible');
+        if (goodList.length) pills.push(`${goodList.length} skin-friendly picks`);
+        if (badList.length) pills.push(`${badList.length} ingredients to watch`);
+        if (detected.length) pills.push(`${detected.length} total ingredients`);
+        pillsContainer.innerHTML = pills.map((text) => `<span class="pill active">${text}</span>`).join('');
+        fastFactsCard.style.display = pills.length ? 'block' : 'none';
+    }
+    return;
     const title = document.getElementById('prod-result-title');
     const scoreBadge = document.getElementById('prod-score-badge');
     const desc = document.getElementById('prod-result-desc');
@@ -657,17 +761,17 @@ function renderProdResults(data) {
 }
 
 function resetAnalyzer() {
-    const results = document.getElementById('skin-results-state');
-    const input = document.getElementById('skin-input-state');
+    const results = byId('skin-results-state', 'skin-results-state-sb');
+    const input = byId('skin-input-state', 'skin-input-state-sb');
     if (results) results.style.display = 'none';
     if (input) input.style.display = 'block';
     
-    const pZone = document.getElementById('skin-preview-zone');
+    const pZone = byId('skin-preview-zone', 'skin-preview-zone-sb');
     if (pZone) pZone.style.display = 'none';
     
     // Clear product results too
-    const ingResults = document.getElementById('ing-results-state');
-    const ingInput = document.getElementById('ing-input-state');
+    const ingResults = byId('ing-results-state', 'ing-results-state-sb');
+    const ingInput = byId('ing-input-state', 'ing-input-state-sb');
     if (ingResults) ingResults.style.display = 'none';
     if (ingInput) ingInput.style.display = 'block';
 }
@@ -699,7 +803,7 @@ function openAnalyzerDetail(subViewId) {
         // Reset state for the sub-view
         if (subViewId === 'sub-skin-analysis') resetAnalyzer();
         if (subViewId === 'sub-ingredient-scanner') {
-            const ingResults = document.getElementById('ing-results-state');
+            const ingResults = byId('ing-results-state', 'ing-results-state-sb');
             const ingInput = document.querySelector('#sub-ingredient-scanner .input-state');
             if (ingResults) ingResults.style.display = 'none';
             if (ingInput) ingInput.style.display = 'block';
@@ -829,7 +933,7 @@ function setupPlanner() {
     plannerState.dailyDone = getPlannerLastDoneKey() === getLocalDateKey();
     state.streak = plannerState.streak;
 
-    const overlayContainer = document.getElementById('planner-overlay-container');
+    const overlayContainer = document.getElementById('planner-overlay-container') || document.getElementById('planner-onboarding-overlay');
     const mainDashboard = document.getElementById('planner-main-dashboard');
     const editorOverlay = document.getElementById('routine-editor-overlay');
     
@@ -841,13 +945,16 @@ function setupPlanner() {
     if (!plannerState.hasSetup) {
         if (overlayContainer) overlayContainer.style.display = 'block';
         if (mainDashboard) mainDashboard.style.display = 'none';
+        const plannerWelcome = document.getElementById('planner-ob-welcome');
+        if (plannerWelcome) plannerWelcome.style.display = 'flex';
         const setupEntry = document.getElementById('setup-entry');
         if (setupEntry) setupEntry.style.display = 'flex';
     } else if (!plannerState.dailyDone) {
-        if (overlayContainer) overlayContainer.style.display = 'block';
-        if (mainDashboard) mainDashboard.style.display = 'none';
+        if (overlayContainer) overlayContainer.style.display = 'none';
+        if (mainDashboard) mainDashboard.style.display = 'block';
         const dailyEntry = document.getElementById('daily-entry');
         if (dailyEntry) dailyEntry.style.display = 'flex';
+        renderPlannerDashboard();
     } else {
         if (overlayContainer) overlayContainer.style.display = 'none';
         if (mainDashboard) mainDashboard.style.display = 'block';
@@ -857,19 +964,27 @@ function setupPlanner() {
 
 // SETUP FLOW
 function startSetup() {
-    document.getElementById('setup-entry').style.display = 'none';
-    document.getElementById('setup-questions').style.display = 'flex';
+    const setupEntry = document.getElementById('setup-entry') || document.getElementById('planner-ob-welcome');
+    const setupQuestionsScreen = document.getElementById('setup-questions') || document.getElementById('planner-ob-questions');
+    if (setupEntry) setupEntry.style.display = 'none';
+    if (setupQuestionsScreen) setupQuestionsScreen.style.display = 'flex';
     plannerState.setupStep = 0;
     plannerState.answers = {};
     renderSetupQuestion();
 }
 
 function renderSetupQuestion() {
-    const area = document.getElementById('question-area');
+    const area = document.getElementById('question-area') || document.getElementById('planner-ob-question-area');
     const step = setupQuestions[plannerState.setupStep];
     const progress = ((plannerState.setupStep + 1) / setupQuestions.length) * 100;
-    const progressBar = document.getElementById('setup-progress');
-    if (progressBar) progressBar.style.setProperty('--progress', `${progress}%`);
+    const progressBar = document.getElementById('setup-progress') || document.getElementById('planner-ob-progress');
+    if (progressBar) {
+        if (progressBar.id === 'planner-ob-progress') {
+            progressBar.style.width = `${progress}%`;
+        } else {
+            progressBar.style.setProperty('--progress', `${progress}%`);
+        }
+    }
 
     let html = `<h2 class="mb-4">${step.q}</h2>`;
     
@@ -943,7 +1058,21 @@ function finishSetup() {
     plannerState.hasSetup = true;
     localStorage.setItem('planner-has-setup', 'true');
     saveRoutine();
-    
+
+    const questionScreen = document.getElementById('planner-ob-questions');
+    const revealScreen = document.getElementById('planner-ob-reveal');
+    const morningReveal = document.getElementById('reveal-morning-steps');
+    const nightReveal = document.getElementById('reveal-night-steps');
+    const revealHtml = routine.map((item) => `<li>${item}</li>`).join('');
+
+    if (questionScreen && revealScreen) {
+        questionScreen.style.display = 'none';
+        revealScreen.style.display = 'flex';
+        if (morningReveal) morningReveal.innerHTML = revealHtml;
+        if (nightReveal) nightReveal.innerHTML = revealHtml;
+        return;
+    }
+
     showLoading();
     setTimeout(() => {
         hideLoading();
@@ -953,14 +1082,15 @@ function finishSetup() {
 
 // DAILY FLOW
 function openChecklist() {
-    document.getElementById('daily-entry').style.display = 'none';
-    const dailyChecklist = document.getElementById('daily-checklist');
+    const dailyEntry = document.getElementById('daily-entry');
+    if (dailyEntry) dailyEntry.style.display = 'none';
+    const dailyChecklist = document.getElementById('daily-checklist') || document.getElementById('routine-checklist-overlay');
     if (dailyChecklist) dailyChecklist.style.display = 'flex';
     renderDailyItems();
 }
 
 function renderDailyItems() {
-    const list = document.getElementById('daily-items-list');
+    const list = document.getElementById('daily-items-list') || document.getElementById('routine-checklist-items');
     if (list) {
         list.innerHTML = plannerState.routine.map((item, i) => `
             <div class="daily-row" onclick="toggleDailyItem(this, ${i})">
@@ -996,6 +1126,8 @@ function checkAllDone() {
 
 function finishChecklist() {
     if (plannerState.dailyDone) {
+        const checklistOverlay = document.getElementById('routine-checklist-overlay');
+        if (checklistOverlay) checklistOverlay.style.display = 'none';
         setupPlanner();
         return;
     }
@@ -1008,7 +1140,9 @@ function finishChecklist() {
     plannerState.streak++;
     localStorage.setItem('planner-streak', String(plannerState.streak));
     state.streak = plannerState.streak;
-    
+
+    const checklistOverlay = document.getElementById('routine-checklist-overlay');
+    if (checklistOverlay) checklistOverlay.style.display = 'none';
     setupPlanner();
     showToast("Routine completed! +1 Streak");
 }
@@ -1047,22 +1181,29 @@ function renderPlannerDashboard() {
     if (homeStreakEl) homeStreakEl.textContent = plannerState.streak;
     
     // Toggle Dashboard Selfie Area
-    const completionStatus = document.querySelector('.completion-status');
-    if (completionStatus) {
-        completionStatus.style.display = plannerState.dailyDone ? 'block' : 'none';
-    }
+    document.querySelectorAll('.completion-status').forEach((el) => {
+        el.style.display = plannerState.dailyDone ? 'block' : 'none';
+    });
+
+    const morningBlur = document.getElementById('morning-blur-overlay');
+    const nightBlur = document.getElementById('night-blur-overlay');
+    if (morningBlur) morningBlur.style.display = plannerState.dailyDone ? 'none' : 'flex';
+    if (nightBlur) nightBlur.style.display = plannerState.dailyDone ? 'none' : 'flex';
 
     renderPlannerCalendar();
     renderMainChecklist();
 }
 
 function renderMainChecklist() {
+    const html = plannerState.routine.map(item => `
+        <li><i class="fa-solid fa-check blue-check"></i> <span>${item}</span></li>
+    `).join('');
     const list = document.getElementById('main-routine-list');
-    if (list) {
-        list.innerHTML = plannerState.routine.map(item => `
-            <li><i class="fa-solid fa-check blue-check"></i> <span>${item}</span></li>
-        `).join('');
-    }
+    const morningList = document.getElementById('morning-routine-list');
+    const nightList = document.getElementById('night-routine-list');
+    if (list) list.innerHTML = html;
+    if (morningList) morningList.innerHTML = html;
+    if (nightList) nightList.innerHTML = html;
 }
 
 // CALENDAR
@@ -1170,6 +1311,209 @@ function saveRoutine() {
     localStorage.setItem('planner-routine', JSON.stringify(plannerState.routine));
 }
 
+function startPlannerOnboarding() {
+    const welcome = document.getElementById('planner-ob-welcome');
+    const questions = document.getElementById('planner-ob-questions');
+    if (welcome) welcome.style.display = 'none';
+    if (questions) questions.style.display = 'flex';
+    plannerState.setupStep = 0;
+    plannerState.answers = {};
+    renderSetupQuestion();
+}
+
+function finishPlannerOnboarding() {
+    const overlay = document.getElementById('planner-onboarding-overlay');
+    const reveal = document.getElementById('planner-ob-reveal');
+    if (reveal) reveal.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
+    setupPlanner();
+}
+
+function startRoutineChecklist(period = 'morning') {
+    const overlay = document.getElementById('routine-checklist-overlay');
+    const title = document.getElementById('checklist-title');
+    const subtitle = document.getElementById('checklist-subtitle');
+    if (title) title.textContent = "Today's Routine";
+    if (subtitle) subtitle.textContent = `${period[0].toUpperCase()}${period.slice(1)} Routine`;
+    if (overlay) overlay.style.display = 'block';
+    renderDailyItems();
+    checkAllDone();
+}
+
+function openRoutineEditorFromChecklist() {
+    openRoutineEditor();
+}
+
+function saveAndCloseEditor() {
+    closeRoutineEditor();
+}
+
+function openSelfieCamera() {
+    openCamera();
+}
+
+function openSelfieFromChecklist() {
+    openCamera();
+}
+
+function toggleIngredientsCollapse() {
+    const list = document.getElementById('prod-others-list');
+    if (!list) return;
+    list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+function openSettingsSubPage(pageId) {
+    const overlay = document.getElementById(`settings-${pageId}`);
+    if (overlay) overlay.style.display = 'block';
+}
+
+function closeSettingsSubPage(pageId) {
+    const normalized = pageId === 'settings-routine-reminders' ? pageId : `settings-${pageId}`;
+    const overlay = document.getElementById(normalized);
+    if (overlay) overlay.style.display = 'none';
+}
+
+function openSettingsToOnboarding() {
+    switchView('onboarding');
+}
+
+function toggleReminderScheduleItem() {
+    const toggle = document.getElementById('settings-reminder-toggle');
+    const scheduleItem = document.getElementById('reminder-schedule-item');
+    if (scheduleItem) scheduleItem.style.display = toggle && toggle.checked ? 'flex' : 'none';
+}
+
+function togglePasswordChange() {
+    const section = document.getElementById('password-change-section');
+    if (!section) return;
+    section.style.display = section.style.display === 'none' || !section.style.display ? 'flex' : 'none';
+}
+
+function saveAccountDetails() {
+    const profile = loadUserProfile() || {};
+    const input = byId('profile-edit-username', 'onboarding-profile-username');
+    if (input && input.value.trim()) {
+        profile.username = input.value.trim();
+        state.username = profile.username;
+        const userDisp = document.getElementById('user-display-name');
+        if (userDisp) userDisp.textContent = state.username;
+        safeStorage.set('sc-username', state.username);
+    }
+    saveUserProfile(profile);
+    closeSettingsSubPage('account-details');
+    showToast('Account details saved');
+}
+
+function saveEditProfile() {
+    saveAccountDetails();
+    closeEditProfile();
+}
+
+function closeEditProfile() {
+    const overlay = document.getElementById('profile-editor-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function saveSkinProfile() {
+    const profile = loadUserProfile() || {};
+    document.querySelectorAll('[data-profile-key]').forEach((group) => {
+        const key = group.dataset.profileKey;
+        if (!key) return;
+        if (group.classList.contains('color-swatches')) {
+            const active = group.querySelector('.swatch.active');
+            if (active) profile[key] = active.dataset.val || active.style.background;
+        } else if (group.classList.contains('pill-group') && group.classList.contains('single-select')) {
+            const active = group.querySelector('.pill.active');
+            if (active) profile[key] = active.dataset.val || active.textContent.trim();
+        } else if (group.classList.contains('pill-group') && group.classList.contains('multi-select')) {
+            profile[key] = Array.from(group.querySelectorAll('.pill.active')).map((pill) => pill.dataset.val || pill.textContent.trim());
+        }
+    });
+    saveUserProfile(profile);
+    applyUserProfile(profile);
+    closeSettingsSubPage('skin-profile');
+    showToast('Skin profile saved');
+}
+
+function saveReminders() {
+    const reminderSettings = {
+        enabled: Boolean(document.getElementById('settings-reminder-toggle')?.checked),
+        amActive: Boolean(document.getElementById('am-reminder-active')?.checked),
+        amTime: document.getElementById('am-reminder-time')?.value || '08:00',
+        pmActive: Boolean(document.getElementById('pm-reminder-active')?.checked),
+        pmTime: document.getElementById('pm-reminder-time')?.value || '21:30'
+    };
+    safeStorage.set('sc-reminders', JSON.stringify(reminderSettings));
+    closeSettingsSubPage('settings-routine-reminders');
+    showToast('Reminder settings saved');
+}
+
+function performPasswordChange() {
+    const oldPassword = document.getElementById('old-password')?.value || '';
+    const newPassword = document.getElementById('new-password')?.value || '';
+    const confirmPassword = document.getElementById('confirm-password')?.value || '';
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+        showToast('Please fill all password fields');
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        showToast('New passwords do not match');
+        return;
+    }
+    if (newPassword.length < 6) {
+        showToast('Password must be at least 6 characters');
+        return;
+    }
+    showToast('Password update is not connected yet');
+}
+
+function executeExportData() {
+    const payload = {
+        profile: loadUserProfile(),
+        planner: {
+            streak: plannerState.streak,
+            routine: plannerState.routine,
+            scans: plannerState.scans
+        },
+        session: {
+            username: safeStorage.get('sc-username')
+        }
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'skinbiee-export.json';
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('Export ready');
+}
+
+function openClearDataModal() {
+    const modal = document.getElementById('clear-data-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeClearDataModal() {
+    const modal = document.getElementById('clear-data-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function executeClearData() {
+    clearSession();
+    safeStorage.remove('sc-user-profile');
+    localStorage.removeItem('planner-has-setup');
+    localStorage.removeItem('planner-routine');
+    localStorage.removeItem('planner-streak');
+    localStorage.removeItem('planner-scans');
+    localStorage.removeItem('planner-daily-done');
+    localStorage.removeItem('planner-last-completed-date');
+    closeClearDataModal();
+    switchView('auth');
+    showToast('Local app data cleared');
+}
+
 /* ==========================================================================
    TAB: SETTINGS
    ========================================================================== */
@@ -1178,17 +1522,49 @@ function setupSettings() {
         sw.addEventListener('click', () => {
             document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
             sw.classList.add('active');
-            changeMascotColor(sw.dataset.color);
+            changeMascotColor(sw.dataset.color || sw.dataset.val);
         });
     });
 
-    document.getElementById('logout-btn').addEventListener('click', () => {
-        switchView('auth');
+    document.querySelectorAll('.pill-group .pill[data-theme]').forEach((pill) => {
+        pill.addEventListener('click', () => {
+            const targetTheme = pill.dataset.theme;
+            if (targetTheme && targetTheme !== state.theme) toggleTheme();
+        });
     });
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            clearSession();
+            switchView('auth');
+        });
+    }
+
+    const remindersRaw = safeStorage.get('sc-reminders');
+    if (remindersRaw) {
+        try {
+            const reminders = JSON.parse(remindersRaw);
+            const toggle = document.getElementById('settings-reminder-toggle');
+            const amActive = document.getElementById('am-reminder-active');
+            const amTime = document.getElementById('am-reminder-time');
+            const pmActive = document.getElementById('pm-reminder-active');
+            const pmTime = document.getElementById('pm-reminder-time');
+            if (toggle) toggle.checked = Boolean(reminders.enabled);
+            if (amActive) amActive.checked = Boolean(reminders.amActive);
+            if (amTime) amTime.value = reminders.amTime || amTime.value;
+            if (pmActive) pmActive.checked = Boolean(reminders.pmActive);
+            if (pmTime) pmTime.value = reminders.pmTime || pmTime.value;
+        } catch (e) {
+            console.warn('Could not restore reminders', e);
+        }
+    }
+    toggleReminderScheduleItem();
 }
 
 function openEditProfile() {
-    showToast('Edit profile clicked');
+    const overlay = document.getElementById('profile-editor-overlay');
+    if (overlay) overlay.style.display = 'block';
 }
 
 
