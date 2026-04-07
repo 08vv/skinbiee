@@ -1,4 +1,11 @@
 /* ==========================================================================
+   CONFIG & API
+   ========================================================================== */
+const API_BASE_URL = (window.location.port === "8001" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
+    ? "http://localhost:5000" 
+    : window.location.origin;
+
+/* ==========================================================================
    STATE & DOM ELEMENTS
    ========================================================================== */
 const state = {
@@ -419,10 +426,20 @@ function setupAnalyzer() {
 
             try {
                 showToast("Sending scan to AI model...");
-                const response = await fetch('http://127.0.0.1:5000/api/analyze-skin', {
+                const response = await fetch(`${API_BASE_URL}/api/analyze-skin`, {
                     method: 'POST',
                     body: formData
                 });
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error("[NET] Non-JSON response in script.js:", text);
+                    showToast("Server error: AI backend returned an invalid response.");
+                    showAnalyzerSubState('skin', 'input');
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'success') {
@@ -478,10 +495,20 @@ function setupAnalyzer() {
 
             try {
                 showToast("Processing product ingredients...");
-                const response = await fetch('http://127.0.0.1:5000/api/analyze-product', {
+                const response = await fetch(`${API_BASE_URL}/api/analyze-product`, {
                     method: 'POST',
                     body: formData
                 });
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error("[NET] Non-JSON response in script.js:", text);
+                    showToast("Server error: Product scanner returned an invalid response.");
+                    showAnalyzerSubState('prod', 'input');
+                    return;
+                }
+
                 const data = await response.json();
 
                 if (data.status === 'success') {
