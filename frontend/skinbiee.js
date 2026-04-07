@@ -1845,6 +1845,19 @@ function setupSettings() {
             showToast(e.target.checked ? 'Routine reminders enabled' : 'Routine reminders disabled');
         });
     }
+    
+    // Settings Navigation Logic
+    document.querySelectorAll('.set-item[data-page-id]').forEach(item => {
+        item.addEventListener('click', () => {
+            const pageId = item.dataset.pageId;
+            console.log('[DEBUG] Setting item clicked:', pageId);
+            if (pageId === 'onboarding') {
+                openSettingsToOnboarding();
+            } else if (pageId) {
+                openSettingsSubPage(pageId);
+            }
+        });
+    });
 
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -1861,17 +1874,22 @@ function openSettingsToOnboarding() {
 }
 
 function openSettingsSubPage(pageId) {
-    const targetId = `settings-${pageId}`;
-    const el = document.getElementById(targetId);
-    console.log('[DEBUG] openSettingsSubPage:', { pageId, targetId, found: !!el });
-    
-    if (el) {
-        el.style.setProperty('display', 'flex', 'important');
-    } else {
-        console.error('[ERROR] Element not found:', targetId);
-    }
-    
-    const profile = loadUserProfile() || {};
+    try {
+        const targetId = `settings-${pageId}`;
+        const el = document.getElementById(targetId);
+        console.log('[DEBUG] openSettingsSubPage:', { pageId, targetId, found: !!el });
+        
+        if (el) {
+            // Force flex display with !important to override any other rules
+            el.style.setProperty('display', 'flex', 'important');
+        } else {
+            console.error('[ERROR] Element not found:', targetId);
+            showToast('Something went wrong opening that page. 🥺');
+            return;
+        }
+        
+        const profile = loadUserProfile() || {};
+        console.log('[DEBUG] Profile loaded for sub-page:', !!profile);
 
     if (pageId === 'account-details') {
         const input = document.getElementById('profile-edit-username');
@@ -1894,6 +1912,10 @@ function openSettingsSubPage(pageId) {
                 });
             }
         });
+    }
+    } catch (err) {
+        console.error('[ERROR] openSettingsSubPage execution failed:', err);
+        showToast('A script error occurred. Please try again.');
     }
 }
 
@@ -2257,6 +2279,17 @@ function showToast(message) {
 
 window.addEventListener('DOMContentLoaded', init);
 document.addEventListener('click', (e) => {
+    // Debug all clicks to see what's being hit
+    const target = e.target;
+    const closestItem = target.closest('.set-item');
+    console.log('[DEBUG] Global Click:', { 
+        tag: target.tagName,
+        id: target.id, 
+        class: target.className,
+        hasId: !!target.id,
+        closestSetItem: closestItem ? closestItem.id || 'anonymous' : 'none'
+    });
+
     if (e.target.closest('#home-mascot')) {
         triggerMascotAnim('happy');
         setTimeout(() => { triggerMascotAnim('idle'); }, 800);

@@ -739,12 +739,12 @@
                 <div class="settings-list">
                     <div class="settings-group-title">PROFILE</div>
                     <div class="settings-section">
-                        <div class="set-item" onclick="openSettingsSubPage('account-details')">
+                        <div class="set-item" data-page-id="account-details">
                             <i class="fa-regular fa-user icon"></i>
                             <span>Account Details</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
                         </div>
-                        <div class="set-item" onclick="openSettingsSubPage('skin-profile')">
+                        <div class="set-item" data-page-id="skin-profile">
                             <i class="fa-solid fa-face-smile icon"></i>
                             <span>Skin Profile</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -753,7 +753,7 @@
 
                     <div class="settings-group-title">PERSONALIZATION</div>
                     <div class="settings-section">
-                        <div class="set-item" onclick="openSettingsToOnboarding()">
+                        <div class="set-item" data-page-id="onboarding">
                             <i class="fa-solid fa-clipboard-list icon"></i>
                             <span>Get to Know Me Better</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -770,7 +770,7 @@
                                 <span class="slider round"></span>
                             </label>
                         </div>
-                        <div class="set-item" id="reminder-schedule-item" style="display: none;" onclick="openSettingsSubPage('routine-reminders')">
+                        <div class="set-item" id="reminder-schedule-item" style="display: none;" data-page-id="routine-reminders">
                             <i class="fa-solid fa-clock icon"></i>
                             <span>Schedule Reminders</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -791,7 +791,7 @@
 
                     <div class="settings-group-title">DATA & PRIVACY</div>
                     <div class="settings-section">
-                        <div class="set-item" onclick="openSettingsSubPage('export-data')">
+                        <div class="set-item" data-page-id="export-data">
                             <i class="fa-solid fa-download icon"></i>
                             <span>Export Data</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -825,7 +825,7 @@
                         <label class="bold mb-1 block">Username</label>
                         <input type="text" id="profile-edit-username" class="kawaii-input" placeholder="Your Name">
                     </div>
-                    <button class="primary-btn full-width" onclick="saveEditProfile()">Save Changes</button>
+                    <button class="primary-btn full-width" onclick="saveAccountDetails()">Save Changes</button>
                 </div>
             </div>
 
