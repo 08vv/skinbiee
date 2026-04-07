@@ -1,0 +1,50 @@
+6f02e03 - Tue Apr 7 21:14:54 2026 - ui
+ab4bbba - Tue Apr 7 21:04:09 2026 - ui
+e8f5015 - Tue Apr 7 20:22:47 2026 - error
+0e813a7 - Tue Apr 7 20:05:33 2026 - error
+7c856fc - Tue Apr 7 20:00:47 2026 - error
+1a2e7d2 - Tue Apr 7 19:56:41 2026 - error
+ad3f30c - Tue Apr 7 19:36:38 2026 - error
+73ffd17 - Tue Apr 7 19:22:08 2026 - error
+6fe9ca1 - Tue Apr 7 18:58:32 2026 - error
+5e2d3fb - Tue Apr 7 18:35:45 2026 - error
+0b1e205 - Tue Apr 7 18:12:50 2026 - error
+2d4b466 - Tue Apr 7 17:53:20 2026 - login after que problems and otehr button problem
+634201e - Tue Apr 7 17:24:15 2026 - login after que problems and otehr button problem
+3c4ae50 - Tue Apr 7 17:05:19 2026 - login after que problems and otehr button problem
+8a95b06 - Tue Apr 7 16:52:40 2026 - login after que problems and otehr button problem
+7eb5755 - Tue Apr 7 16:38:40 2026 - login after que problems
+e6d3466 - Tue Apr 7 15:28:51 2026 - ..
+3f5c32a - Tue Apr 7 15:24:16 2026 - ..
+a80374b - Tue Apr 7 15:00:41 2026 - ..
+ba418af - Tue Apr 7 14:42:41 2026 - ..
+7156b19 - Tue Apr 7 14:20:36 2026 - remainder error
+3048ef9 - Tue Apr 7 14:07:00 2026 - routine reminder
+aee4219 - Tue Apr 7 13:41:24 2026 - .
+2e99e21 - Tue Apr 7 13:27:41 2026 - .
+d1ea129 - Tue Apr 7 12:47:58 2026 - .
+9150a7e - Tue Apr 7 12:28:35 2026 - SYNCHRONIZED skinbiee.html with index.html to ensure the new Routine Reminders feature is visible.
+6ff982b - Tue Apr 7 12:26:30 2026 - BUMPED Service Worker to v5 to force-reveal the new Routine Reminders feature. Please hard-refresh your browser.
+5cb31d8 - Tue Apr 7 11:51:15 2026 - NEW FEATURE: Routine Reminders. User can now toggle desktop/mobile notifications and schedule them with a cute new settings sub-page.
+36a4fbb - Tue Apr 7 11:38:53 2026 - FINAL ID SYNC: Removed all -sb suffixes from skinbiee.js to ensure 100% compatibility with the restored index.html.
+16a4c06 - Tue Apr 7 11:35:11 2026 - RESTORED Home page navigation: Fixed broken links to Analyzer, Planner, and Settings.
+4756b3f - Tue Apr 7 11:25:35 2026 - BUMPED Service Worker to v4 to force cache refresh. This fixes the stuck infinite loop.
+bd3124a - Tue Apr 7 11:20:46 2026 - FIXED self-referential infinite loop in safeStorage.clear(). Site should now be stable.
+e17ecc3 - Tue Apr 7 00:55:55 2026 - FINAL fix for localStorage infinite loop: Re-corrected wrapper to call native localStorage and replaced all .clear() calls.
+98e3735 - Tue Apr 7 00:54:23 2026 - FIXED critical infinite loop: Replaced safeLS with safeStorage and eliminated direct localStorage calls throughout the app.
+54e746b - Tue Apr 7 00:48:35 2026 - FIXED critical script crashes: Restored missing setup functions in skinbiee.js
+e31636c - Tue Apr 7 00:37:13 2026 - RESTORED frontend consistency: Overwrote index.html with correct skinbiee.html and matched JS IDs
+43b12c1 - Tue Apr 7 00:12:58 2026 - Final production fixes: ID harmonization and listener safety
+58aa60c - Tue Apr 7 00:09:24 2026 - Fix core JS logic: resolve safeLS recursion and improve button clicks
+46cac9a - Mon Apr 6 23:38:43 2026 - Linking frontend to production backend
+f161606 - Mon Apr 6 23:15:15 2026 - add
+39fcbe4 - Mon Apr 6 22:47:12 2026 - fix Keras 3 InputLayer shape bypass
+3028924 - Mon Apr 6 22:39:07 2026 - fix: patch model config to remove incompatible Keras 2 args, use default TF
+679963f - Mon Apr 6 22:32:16 2026 - fix: downgrade TF to 2.15 to ensure Keras 2 compatibility
+074705c - Mon Apr 6 22:28:10 2026 - fix: pin TF<2.19 to fix model deserialization, add root status page
+e628f96 - Mon Apr 6 20:34:08 2026 - Fix: update Docker system packages for Debian Trixie compatibility
+27a0558 - Mon Apr 6 20:25:14 2026 - Fix HF Build: use CPU-only torch to reduce disk/RAM usage
+5235e5e - Mon Apr 6 20:22:10 2026 - Trigger build change
+399ae12 - Mon Apr 6 20:11:32 2026 - Attempt build fix: remove pins and add wheel
+d70e9d3 - Mon Apr 6 20:04:03 2026 - Fix: use tensorflow-cpu for HF build
+7900b84 - Mon Apr 6 19:22:01 2026 - Deploy unified ML service

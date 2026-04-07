@@ -501,9 +501,9 @@ function setupBottomNav() {
    ========================================================================== */
 function setupAnalyzer() {
     // Buttons for Skin Analysis
-    const btnSkinCamera = byId('btn-skin-camera', 'btn-skin-camera-sb');
-    const btnSkinGallery = byId('btn-skin-gallery', 'btn-skin-gallery-sb');
-    const skinFileInput = byId('skin-file-input', 'skin-file-input-sb');
+    const btnSkinCamera = document.getElementById('btn-skin-camera');
+    const btnSkinGallery = document.getElementById('btn-skin-gallery');
+    const skinFileInput = document.getElementById('skin-file-input');
 
     if (btnSkinCamera) btnSkinCamera.onclick = () => skinFileInput.click();
     if (btnSkinGallery) btnSkinGallery.onclick = () => skinFileInput.click();
@@ -513,9 +513,9 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = byId('skin-img-preview', 'skin-img-preview-sb');
+                    const preview = document.getElementById('skin-img-preview');
                     if (preview) preview.src = event.target.result;
-                    const processingPreview = byId('skin-img-processing', 'skin-img-processing-sb');
+                    const processingPreview = document.getElementById('skin-img-processing');
                     if (processingPreview) processingPreview.src = event.target.result;
                     showAnalyzerSubState('skin', 'preview');
                     triggerMascotAnim('surprised');
@@ -525,7 +525,7 @@ function setupAnalyzer() {
         });
     }
 
-    const btnAnalyzeSkin = byId('btn-analyze-skin', 'btn-analyze-skin-sb');
+    const btnAnalyzeSkin = document.getElementById('btn-analyze-skin');
     if (btnAnalyzeSkin) {
         btnAnalyzeSkin.onclick = async () => {
             const file = skinFileInput.files[0];
@@ -571,9 +571,9 @@ function setupAnalyzer() {
     }
 
     // Buttons for Product Analysis
-    const btnProdCamera = byId('btn-prod-camera', 'btn-prod-camera-sb');
-    const btnProdGallery = byId('btn-prod-gallery', 'btn-prod-gallery-sb');
-    const prodFileInput = byId('prod-file-input', 'prod-file-input-sb');
+    const btnProdCamera = document.getElementById('btn-prod-camera');
+    const btnProdGallery = document.getElementById('btn-prod-gallery');
+    const prodFileInput = document.getElementById('prod-file-input');
 
     if (btnProdCamera) btnProdCamera.onclick = () => prodFileInput.click();
     if (btnProdGallery) btnProdGallery.onclick = () => prodFileInput.click();
@@ -583,9 +583,9 @@ function setupAnalyzer() {
             if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const preview = byId('prod-img-preview', 'prod-img-preview-sb');
+                    const preview = document.getElementById('prod-img-preview');
                     if (preview) preview.src = event.target.result;
-                    const processingPreview = byId('prod-img-processing', 'prod-img-processing-sb');
+                    const processingPreview = document.getElementById('prod-img-processing');
                     if (processingPreview) processingPreview.src = event.target.result;
                     showAnalyzerSubState('prod', 'preview');
                 };
@@ -594,7 +594,7 @@ function setupAnalyzer() {
         });
     }
 
-    const btnAnalyzeProd = byId('btn-analyze-prod', 'btn-analyze-prod-sb');
+    const btnAnalyzeProd = document.getElementById('btn-analyze-prod');
     if (btnAnalyzeProd) {
         btnAnalyzeProd.onclick = async () => {
             const file = prodFileInput.files[0];
@@ -640,13 +640,13 @@ function setupAnalyzer() {
     }
 
     // Remove buttons
-    const removeSkin = byId('remove-skin-preview', 'remove-skin-preview-sb');
+    const removeSkin = document.getElementById('remove-skin-preview');
     if (removeSkin) removeSkin.onclick = () => showAnalyzerSubState('skin', 'input');
     
-    const removeProd = byId('remove-prod-preview', 'remove-prod-preview-sb');
+    const removeProd = document.getElementById('remove-prod-preview');
     if (removeProd) removeProd.onclick = () => showAnalyzerSubState('prod', 'input');
 
-    const goProductsBtn = byId('btn-go-products', 'btn-go-products-sb');
+    const goProductsBtn = document.getElementById('btn-go-products');
     if (goProductsBtn) {
         goProductsBtn.onclick = () => {
             const query = safeStorage.get('sc-last-amazon-query') || 'skincare products';
@@ -661,17 +661,17 @@ function setupAnalyzer() {
 function showAnalyzerSubState(mode, state) {
     if (mode === 'skin') {
         const states = {
-            input: byId('skin-input-state', 'skin-input-state-sb'),
-            preview: byId('skin-preview-zone', 'skin-preview-zone-sb'),
-            processing: byId('skin-processing-state', 'skin-processing-state-sb'),
-            results: byId('skin-results-state', 'skin-results-state-sb')
+            input: document.getElementById('skin-input-state'),
+            preview: document.getElementById('skin-preview-zone'),
+            processing: document.getElementById('skin-processing-state'),
+            results: document.getElementById('skin-results-state')
         };
         // Reset all
         Object.values(states).forEach(el => { if (el) el.style.display = 'none'; });
         
         if (state === 'input') {
             if (states.input) states.input.style.display = 'block';
-            const fileInput = byId('skin-file-input', 'skin-file-input-sb');
+            const fileInput = document.getElementById('skin-file-input');
             if (fileInput) fileInput.value = '';
         } else if (state === 'preview') {
             if (states.input) states.input.style.display = 'block';
@@ -687,10 +687,10 @@ function showAnalyzerSubState(mode, state) {
         }
     } else {
         const states = {
-            input: byId('ing-input-state', 'ing-input-state-sb'),
-            preview: byId('prod-preview-zone', 'prod-preview-zone-sb'),
-            processing: byId('prod-processing-state', 'prod-processing-state-sb'),
-            results: byId('ing-results-state', 'ing-results-state-sb')
+            input: document.getElementById('ing-input-state'),
+            preview: document.getElementById('prod-preview-zone'),
+            processing: document.getElementById('prod-processing-state'),
+            results: document.getElementById('ing-results-state')
         };
         Object.values(states).forEach(el => { if (el) el.style.display = 'none'; });
 
@@ -702,7 +702,7 @@ function showAnalyzerSubState(mode, state) {
                 if (inst) inst.style.display = 'block';
                 if (acts) acts.style.display = 'flex';
             }
-            const fileInput = byId('prod-file-input', 'prod-file-input-sb');
+            const fileInput = document.getElementById('prod-file-input');
             if (fileInput) fileInput.value = '';
         } else if (state === 'preview') {
             if (states.input) {
@@ -722,196 +722,217 @@ function showAnalyzerSubState(mode, state) {
 }
 
 function renderSkinResults(results, imgUrl) {
-    const img = byId('skin-result-img', 'skin-result-img-sb');
+    const img = document.getElementById('skin-result-img');
     if (img) img.src = imgUrl;
 
-    const badgeContainer = byId('skin-result-badges', 'skin-result-badges-sb');
-    const list = byId('skin-concerns-list', 'skin-concerns-list-sb');
-    const title = byId('skin-result-title', 'skin-result-title-sb');
-    const desc = byId('skin-result-desc', 'skin-result-desc-sb');
-    const productRecContainer = document.getElementById('product-rec-container');
+    const badgeContainer = document.getElementById('skin-result-badges');
+    const list = document.getElementById('skin-concerns-list');
+    const title = document.getElementById('skin-result-title');
+    const desc = document.getElementById('skin-result-desc');
     
     if (badgeContainer) badgeContainer.innerHTML = '';
-    if (list) list.innerHTML = '';
-    if (title) title.textContent = 'Analysis Complete';
-    if (desc) desc.textContent = "We've analyzed your photo. Here is what our trained models detected on your skin.";
+    if (list) {
+        list.innerHTML = '';
+        list.classList.add('result-card-entry');
+    }
+
+    const advice = {
+        "Acne": "Your skin is dealing with some breakouts. We'll focus on soothing and clearing these areas gently! 🌿",
+        "Dark Spots": "We noticed some areas with extra pigment. These can fade over time with brightening care! ✨",
+        "Oiliness": "Your skin is producing extra glow. We'll help balance it so you stay fresh all day. 🌊",
+        "Dryness": "Your skin is feeling a bit thirsty! We'll look for rich, hydrating ingredients for you. 💧",
+        "Normal": "Your skin is looking balanced and healthy! Let's keep it protected and happy. ☀️",
+        "Healthy / Normal": "Overall, your skin is in a great place! Just keep up the healthy habits. 🌟"
+    };
+
+    const skinTypeMap = {
+        "Oiliness": "Oily", "Dryness": "Dry", "Acne": "Acne-Prone", "Normal": "Normal", "Healthy / Normal": "Normal"
+    };
+    const detectedConcerns = results.map(r => r.concern);
+    let skinType = 'Normal';
+    for (const concern of detectedConcerns) {
+        if (skinTypeMap[concern]) { skinType = skinTypeMap[concern]; break; }
+    }
+    if (title) title.textContent = skinType;
+
+    const mainConcern = results.sort((a,b) => b.confidence - a.confidence)[0];
+    if (desc) {
+        if (mainConcern && (mainConcern.concern === 'Healthy / Normal' || mainConcern.concern === 'Normal')) {
+            desc.innerHTML = `<strong>Overall:</strong> Your skin looks healthy and balanced! Keep up the good habits. 🌟`;
+        } else if (mainConcern) {
+            desc.innerHTML = `<strong>Overall:</strong> Your skin is showing signs of <strong>${mainConcern.concern}</strong>. Don't worry, bestie — we've got a plan for you! 💖`;
+        }
+    }
 
     results.forEach(res => {
-        // Badges
+        const severityColor = res.severity === 'Moderate' ? 'badge-yellow' : res.severity === 'Mild' ? 'badge-green' : 'badge-red';
+        const borderColor = res.severity === 'Moderate' ? '#ffd93d' : res.severity === 'Mild' ? '#6bcb77' : '#ff6b6b';
+
         const badge = document.createElement('span');
-        badge.className = `severity-badge ${res.severity === 'Severe' ? 'badge-red' : res.severity === 'Moderate' ? 'badge-yellow' : 'badge-green'}`;
+        badge.className = `severity-badge ${severityColor}`;
         badge.textContent = `${res.severity} ${res.concern}`;
         if (badgeContainer) badgeContainer.appendChild(badge);
 
-        // List
         const card = document.createElement('div');
         card.className = 'ing-card mb-3';
+        card.style.borderLeft = `5px solid ${borderColor}`;
         card.innerHTML = `
-            <strong>${res.concern}</strong>
-            <p class="micro-text mb-0">Confidence: ${(res.confidence * 100).toFixed(1)}%</p>
+            <div class="flex-between">
+                <strong>${res.concern}</strong>
+                <span class="micro-text text-muted">Severity: ${res.severity}</span>
+            </div>
+            <p class="micro-text mt-2 mb-0">${advice[res.concern] || "We'll help you manage this concern with the right routine! 🧴"}</p>
         `;
         if (list) list.appendChild(card);
     });
 
-    renderSkinProductRecommendations(results, productRecContainer);
+    const existingBtn = document.getElementById('btn-go-products');
+    if (!existingBtn) {
+        const btn = document.createElement('button');
+        btn.id = 'btn-go-products';
+        btn.className = 'primary-btn full-width mt-4';
+        btn.textContent = 'See Recommended Products 🛍️';
+        btn.onclick = () => renderSkinProductRecommendations(results);
+        if (list) list.parentElement.appendChild(btn);
+
+        const recContainer = document.createElement('div');
+        recContainer.id = 'product-rec-container';
+        if (list) list.parentElement.appendChild(recContainer);
+    } else {
+        existingBtn.onclick = () => renderSkinProductRecommendations(results);
+        existingBtn.textContent = 'See Recommended Products 🛍️';
+        const recContainer = document.getElementById('product-rec-container');
+        if (recContainer) {
+            recContainer.innerHTML = '';
+        }
+    }
 }
 
-function renderSkinProductRecommendations(results, container) {
+function renderSkinProductRecommendations(results) {
+    const container = document.getElementById('product-rec-container');
     if (!container) return;
 
-    const primary = Array.isArray(results) && results.length
-        ? [...results].sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0))[0]
-        : null;
+    if (container.innerHTML.trim() !== '') {
+        container.innerHTML = '';
+        const btn = document.getElementById('btn-go-products');
+        if (btn) btn.textContent = 'See Recommended Products 🛍️';
+        return;
+    }
 
-    const concern = (primary && primary.concern) ? String(primary.concern) : 'Normal';
-    const recommendationsByConcern = {
-        Acne: {
-            query: 'salicylic acid cleanser niacinamide serum acne prone skin',
-            items: ['Salicylic acid cleanser', 'Niacinamide serum', 'Oil-free moisturizer']
-        },
-        'Dark Spots': {
-            query: 'vitamin c serum niacinamide dark spots skincare',
-            items: ['Vitamin C serum', 'Niacinamide treatment', 'Daily sunscreen SPF 50']
-        },
-        Oiliness: {
-            query: 'gel moisturizer foaming cleanser oily skin skincare',
-            items: ['Foaming cleanser', 'Gel moisturizer', 'Lightweight sunscreen']
-        },
-        Dryness: {
-            query: 'ceramide moisturizer hyaluronic acid serum dry skin',
-            items: ['Ceramide moisturizer', 'Hyaluronic acid serum', 'Gentle cream cleanser']
-        },
-        Normal: {
-            query: 'gentle skincare moisturizer sunscreen routine',
-            items: ['Gentle cleanser', 'Barrier moisturizer', 'Daily sunscreen']
-        }
-    };
-
-    const selected = recommendationsByConcern[concern] || recommendationsByConcern.Normal;
-    safeStorage.set('sc-last-amazon-query', selected.query);
+    const btn = document.getElementById('btn-go-products');
+    if (btn) btn.textContent = 'Hide Recommendations ✕';
 
     container.innerHTML = `
-        <div class="result-card mt-4">
-            <h3 class="card-section-title">Recommended Products</h3>
-            <div class="ingredient-rows">
-                ${selected.items.map((item) => `
-                    <div class="ing-card mb-3">
-                        <strong>${item}</strong>
-                        <p class="micro-text mb-0">Suggested based on your ${concern.toLowerCase()} result.</p>
-                    </div>
-                `).join('')}
-            </div>
+        <div class="rec-section-header mt-4">
+            <h3>Recommended for You</h3>
+            <p class="micro-text" style="color:var(--text-secondary);margin-bottom:0">Curated picks based on your scan results</p>
         </div>
+        <div class="product-rec-grid mt-3" id="rec-cards-grid"></div>
     `;
+
+    const grid = container.querySelector('#rec-cards-grid');
+
+    const PRODUCT_MAP = {
+        'Acne':          { query: 'best salicylic acid face wash for acne skin india', tip: 'Use a salicylic acid-based face wash to unclog pores.' },
+        'Dark Spots':    { query: 'dark spot removal serum cream india', tip: 'A Vitamin C or niacinamide serum helps fade dark spots.' },
+        'Oiliness':      { query: 'oil control mattifying face wash india', tip: 'A lightweight, oil-free moisturiser keeps shine in check.' },
+        'Dryness':       { query: 'best deep moisturiser for dry skin india', tip: 'Look for hyaluronic acid or ceramide-rich moisturisers.' },
+        'Normal':        { query: 'gentle daily face wash normal skin india', tip: 'Maintain your balance with a gentle cleanser and SPF.' },
+        'Healthy / Normal': { query: 'gentle daily face wash normal skin india', tip: 'Keep your healthy skin protected with a good SPF routine.' },
+        'Dark Circles':  { query: 'dark circle removal under eye cream india', tip: 'Caffeine or retinol eye creams can lighten dark circles.' },
+        'Pigmentation':  { query: 'pigmentation removal face cream india', tip: 'Alpha-arbutin or kojic acid serums work well on pigmentation.' },
+        'Wrinkles':      { query: 'anti aging wrinkle cream retinol india', tip: 'Retinol and peptide creams are proven anti-aging ingredients.' },
+        'Redness':       { query: 'soothing redness relief face cream india', tip: 'Centella asiatica and green tea extracts calm redness.' },
+        'Sensitive Skin':{ query: 'gentle face wash sensitive skin fragrance free india', tip: 'Stick to fragrance-free, dermatologist-tested products.' }
+    };
+
+    const mapFunc = {
+        'Acne': '🧴', 'Dark Spots': '✨', 'Oiliness': '💦',
+        'Dryness': '💧', 'Normal': '🌿', 'Healthy / Normal': '🌿',
+        'Dark Circles': '👁️', 'Pigmentation': '🌸', 'Wrinkles': '🕰️',
+        'Redness': '🌹', 'Sensitive Skin': '🤍'
+    };
+
+    results.forEach(res => {
+        const info = PRODUCT_MAP[res.concern] || PRODUCT_MAP['Normal'];
+        const amazonUrl = `https://www.amazon.in/s?k=${encodeURIComponent(info.query)}`;
+        const emoji = mapFunc[res.concern] || '✨';
+
+        const card = document.createElement('div');
+        card.className = 'product-rec-card';
+        card.innerHTML = `
+            <div class="rec-card-icon">${emoji}</div>
+            <div class="rec-card-body">
+                <h4 class="rec-card-title">${res.concern}</h4>
+                <p class="rec-card-tip">${info.tip}</p>
+                <a class="shop-btn" style="text-decoration:none;" href="${amazonUrl}" target="_blank" rel="noopener noreferrer">
+                    Shop on Amazon <span class="shop-arrow">→</span>
+                </a>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
 }
 
 function renderProdResults(data) {
-    const analysis = data.analysis || {};
-    const goodList = analysis.good_ingredients || [];
-    const badList = analysis.bad_ingredients || [];
-    const breakdown = data.ingredient_breakdown || [];
-    const detected = data.ingredients_detected || breakdown.map(item => item.name);
-    const score = Number(analysis.score || 0);
-    const safe = Boolean(analysis.safe);
+    const analysis   = data.analysis   || {};
+    const breakdown  = data.ingredient_breakdown || [];
+    const rawIngredients = data.ingredients || [];
+    
+    let score = typeof analysis.score === 'number' ? analysis.score : 5.0;
+    if (score > 10.5) score = score / 10;
+    score = Math.min(10, Math.max(0, score));
 
-    const verdictTitle = byId('prod-verdict-title', 'prod-result-title');
-    const verdictSubtitle = byId('prod-verdict-subtitle', 'prod-result-desc');
-    const scoreText = byId('prod-score-text', 'prod-score-badge');
-    const scoreFill = document.getElementById('prod-score-fill');
-    const ingCount = document.getElementById('prod-ing-count');
-    const goodContainer = document.getElementById('prod-good-list');
-    const badContainer = document.getElementById('prod-bad-list');
-    const badCard = document.getElementById('prod-bad-card');
-    const otherContainer = document.getElementById('prod-others-list');
-    const pillsContainer = document.getElementById('prod-pills-container');
-    const fastFactsCard = document.getElementById('prod-fast-facts-card');
-    const tipText = document.getElementById('prod-tip-text');
+    const isGood = score >= 7.0;
+    const isWarn = score >= 4.0 && score < 7.0;
 
-    if (verdictTitle) verdictTitle.textContent = safe ? 'Good Match' : 'Use With Caution';
-    if (verdictSubtitle) verdictSubtitle.textContent = analysis.recommendation || 'We checked this product against your skin profile.';
-    if (scoreText) {
-        if (scoreText.id === 'prod-score-badge') {
-            scoreText.className = `severity-badge ${safe ? 'badge-green' : 'badge-red'}`;
-            scoreText.textContent = `Compatibility: ${score}/10`;
-        } else {
-            scoreText.textContent = `${score.toFixed(1)} / 10`;
-        }
-    }
-    if (scoreFill) scoreFill.style.width = `${Math.max(0, Math.min(score, 10)) * 10}%`;
-    if (ingCount) ingCount.textContent = `${detected.length} ingredients detected`;
-    if (tipText) tipText.textContent = analysis.recommendation || 'Patch test first if your skin is sensitive.';
-
-    const renderIngredientRows = (container, items, emptyText) => {
-        if (!container) return;
-        if (!items.length) {
-            container.innerHTML = `<div class="ing-card"><p class="micro-text mb-0">${emptyText}</p></div>`;
-            return;
-        }
-        container.innerHTML = items.map((item) => {
-            const name = typeof item === 'string' ? item : item.name;
-            const reason = typeof item === 'string' ? '' : (item.reason || '');
-            return `
-                <div class="ing-card mb-3">
-                    <strong>${name}</strong>
-                    ${reason ? `<p class="micro-text mb-0">${reason}</p>` : ''}
-                </div>
-            `;
-        }).join('');
-    };
-
-    renderIngredientRows(goodContainer, goodList, 'No standout ingredients were flagged as especially helpful.');
-    renderIngredientRows(badContainer, badList, 'No major problem ingredients were detected.');
-    renderIngredientRows(
-        otherContainer,
-        breakdown.filter((item) => item.rating === 'neutral'),
-        'No additional neutral ingredients to show.'
-    );
-
-    if (badCard) badCard.style.display = badList.length ? 'block' : 'none';
-
-    if (pillsContainer && fastFactsCard) {
-        const pills = [];
-        if (safe) pills.push('Generally compatible');
-        if (goodList.length) pills.push(`${goodList.length} skin-friendly picks`);
-        if (badList.length) pills.push(`${badList.length} ingredients to watch`);
-        if (detected.length) pills.push(`${detected.length} total ingredients`);
-        pillsContainer.innerHTML = pills.map((text) => `<span class="pill active">${text}</span>`).join('');
-        fastFactsCard.style.display = pills.length ? 'block' : 'none';
-    }
-    return;
     const title = document.getElementById('prod-result-title');
     const scoreBadge = document.getElementById('prod-score-badge');
     const desc = document.getElementById('prod-result-desc');
     const ingredients = document.getElementById('prod-ingredients-text');
 
-    if (title) title.textContent = "Analysis: " + (data.analysis.safe ? "Safe for you! ✅" : "Caution needed! ⚠️");
+    if (title) title.textContent = isGood ? "Safe for you! ✅" : isWarn ? "Use With Caution ⚠️" : "Not Recommended ❌";
+    
     if (scoreBadge) {
-        scoreBadge.className = `severity-badge ${data.analysis.safe ? 'badge-green' : 'badge-red'}`;
-        scoreBadge.textContent = `Compatibility: ${data.analysis.score}/10`;
+        scoreBadge.className = `severity-badge ${isGood ? 'badge-green' : isWarn ? 'badge-yellow' : 'badge-red'}`;
+        scoreBadge.textContent = `Compatibility: ${score.toFixed(1)}/10`;
     }
-    if (desc) desc.textContent = data.analysis.recommendation || "We found some ingredients that might affect your skin concerns.";
-    if (ingredients) ingredients.textContent = data.ingredients.substring(0, 200) + (data.ingredients.length > 200 ? "..." : "");
+    
+    if (desc) {
+        const skinCond = (data.skin_condition || 'your skin').replace(/_/g, ' ');
+        desc.textContent = analysis.recommendation || `We evaluated this product against ${skinCond}.`;
+    }
+    
+    if (ingredients) {
+        if (breakdown.length > 0) {
+            ingredients.textContent = breakdown.map(i => i.name).join(', ');
+        } else if (rawIngredients && rawIngredients.length > 0) {
+            ingredients.textContent = typeof rawIngredients === 'string' ? (rawIngredients.substring(0, 300) + (rawIngredients.length > 300 ? "..." : "")) : "";
+        } else {
+            ingredients.textContent = "No ingredients were reliably detected.";
+        }
+    }
 }
 
 function resetAnalyzer() {
-    const results = byId('skin-results-state', 'skin-results-state-sb');
-    const input = byId('skin-input-state', 'skin-input-state-sb');
-    if (results) results.style.display = 'none';
-    if (input) input.style.display = 'block';
-    
-    const pZone = byId('skin-preview-zone', 'skin-preview-zone-sb');
-    if (pZone) pZone.style.display = 'none';
-    
-    // Clear product results too
-    const ingResults = byId('ing-results-state', 'ing-results-state-sb');
-    const ingInput = byId('ing-input-state', 'ing-input-state-sb');
+    const skinResults = document.getElementById('skin-results-state');
+    const skinInput = document.getElementById('skin-input-state');
+    if (skinResults) skinResults.style.display = 'none';
+    if (skinInput) skinInput.style.display = 'block';
+
+    const ingResults = document.getElementById('ing-results-state');
+    const ingInput = document.getElementById('ing-input-state');
     if (ingResults) ingResults.style.display = 'none';
     if (ingInput) ingInput.style.display = 'block';
+
+    const skinPreview = document.getElementById('skin-preview-zone');
+    const prodPreview = document.getElementById('prod-preview-zone');
+    if (skinPreview) skinPreview.style.display = 'none';
+    if (prodPreview) prodPreview.style.display = 'none';
 }
 
 /**
  * Opens a sub-view in the analyzer tab
- * @param {string} subViewId 
  */
 function openAnalyzerDetail(subViewId) {
     const dashboard = document.getElementById('analyzer-main-dashboard');
@@ -920,23 +941,15 @@ function openAnalyzerDetail(subViewId) {
     if (dashboard) dashboard.style.display = 'none';
     if (detailView) detailView.style.display = 'block';
     
-    // Hide all sub-views first
     document.querySelectorAll('.sub-view').forEach(v => v.style.display = 'none');
     
-    // Show the specific sub-view
     const targetView = document.getElementById(subViewId);
     if (targetView) {
         targetView.style.display = 'block';
-        
-        // Populate timeline if opened
-        if (subViewId === 'sub-timeline') {
-            renderScanHistory();
-        }
-
-        // Reset state for the sub-view
+        if (subViewId === 'sub-timeline') renderScanHistory();
         if (subViewId === 'sub-skin-analysis') resetAnalyzer();
         if (subViewId === 'sub-ingredient-scanner') {
-            const ingResults = byId('ing-results-state', 'ing-results-state-sb');
+            const ingResults = document.getElementById('ing-results-state');
             const ingInput = document.querySelector('#sub-ingredient-scanner .input-state');
             if (ingResults) ingResults.style.display = 'none';
             if (ingInput) ingInput.style.display = 'block';

@@ -1,0 +1,101 @@
+commit ab4bbbaa1d31ab01c74670fc2a9efb6dc0fb013b
+Author: Your Name <your.email@example.com>
+Date:   Tue Apr 7 21:04:09 2026 +0530
+
+    ui
+
+diff --git a/frontend/index.html b/frontend/index.html
+index 17679d4..7ee70f5 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -376,8 +376,6 @@
+                                     <!-- List of detected items -->
+                                 </div>
+ 
+-                                <div id="product-rec-container"></div>
+-
+                                 <div class="action-buttons mt-5">
+                                     <button class="primary-btn full-width" id="btn-go-products">Would you like to see recommended products?</button>
+                                     <button class="text-btn full-width mt-3" onclick="resetAnalyzer()">Scan Another Photo</button>
+@@ -428,72 +426,18 @@
+                             </div>
+ 
+                             <div class="results-state" id="ing-results-state" style="display:none;">
+-                                <!-- Card 1: Verdict -->
+-                                <div class="result-card verdict-card">
+-                                    <div class="verdict-icon-container">
+-                                        <div class="mascot-blob idle micro">
+-                                            <div class="mascot-face">
+-                                                <div class="eye left"></div>
+-                                                <div class="eye right"></div>
+-                                                <div class="mouth"></div>
+-                                            </div>
+-                                        </div>
+-                                    </div>
+-                                    <h2 id="prod-verdict-title">Good Match</h2>
+-                                    <p id="prod-verdict-subtitle">This product suits your skin well.</p>
+-                                    
+-                                    <div class="score-bar-wrapper">
+-                                        <div class="score-bar-track">
+-                                            <div id="prod-score-fill"></div>
+-                                        </div>
+-                                    </div>
+-                                    <div id="prod-score-text" class="bold">7.0 / 10</div>
+-                                    <p id="prod-ing-count" class="micro-text">17 ingredients detected</p>
+-                                </div>
+-
+-                                <!-- Card 2: Quick Facts -->
+-                                <div id="prod-fast-facts-card" class="result-card" style="display: none;">
+-                                    <div class="pill-scroll-row" id="prod-pills-container">
+-                                        <!-- Pills like "Alcohol-Free" -->
+-                                    </div>
+-                                </div>
+-
+-                                <!-- Card 3: Works for your skin -->
+-                                <div id="prod-good-card" class="result-card">
+-                                    <h3 class="card-section-title">Works for your skin 🌸</h3>
+-                                    <div id="prod-good-list" class="ingredient-rows">
+-                                        <!-- Good ingredients -->
+-                                    </div>
+-                                </div>
+-
+-                                <!-- Card 4: Watch out for these -->
+-                                <div id="prod-bad-card" class="result-card" style="display: none;">
+-                                    <h3 class="card-section-title">Watch out for these ⚡</h3>
+-                                    <div id="prod-bad-list" class="ingredient-rows">
+-                                        <!-- Bad ingredients -->
+-                                    </div>
++                                <div class="result-header text-center">
++                                    <h2 id="prod-result-title">Product Analysis</h2>
++                                    <div id="prod-score-badge" class="mt-2"></div>
+                                 </div>
+-
+-                                <!-- Card 5: Everything else -->
+-                                <div class="result-card">
+-                                    <div class="collapse-toggle" onclick="toggleIngredientsCollapse()">
+-                                        <span>See all ingredients <i class="fa-solid fa-chevron-down"></i></span>
+-                                    </div>
+-                                    <div id="prod-others-list" class="ingredient-rows" style="display: none;">
+-                                        <!-- Neutral ingredients -->
+-                                    </div>
++                                <div class="explanation-box card-glass mt-3">
++                                    <p id="prod-result-desc"></p>
+                                 </div>
+-
+-                                <!-- Card 6: Tip -->
+-                                <div class="result-card">
+-                                    <div class="tip-content">
+-                                        <span>💡</span>
+-                                        <p id="prod-tip-text"></p>
+-                                    </div>
++                                <div class="mt-4">
++                                    <h4>Detected Ingredients</h4>
++                                    <p class="micro-text text-muted" id="prod-ingredients-text" style="font-style: italic;"></p>
+                                 </div>
+-
+-
+-                                <button class="primary-btn full-width mt-2" onclick="closeAnalyzerDetail()">Scan Another Product</button>
++                                <button class="text-btn full-width mt-4" onclick="openAnalyzerDetail('sub-ingredient-scanner')">Scan Another Product</button>
+                             </div>
+                         </div>
+ 
