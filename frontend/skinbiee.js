@@ -647,7 +647,12 @@ function setupAnalyzer() {
     if (removeProd) removeProd.onclick = () => showAnalyzerSubState('prod', 'input');
 
     const goProductsBtn = byId('btn-go-products', 'btn-go-products-sb');
-    if (goProductsBtn) goProductsBtn.onclick = () => openAnalyzerDetail('sub-ingredient-scanner');
+    if (goProductsBtn) {
+        goProductsBtn.onclick = () => {
+            const query = safeStorage.get('sc-last-amazon-query') || 'skincare products';
+            window.open(`https://www.amazon.in/s?k=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
+        };
+    }
 }
 
 /**
@@ -724,6 +729,7 @@ function renderSkinResults(results, imgUrl) {
     const list = byId('skin-concerns-list', 'skin-concerns-list-sb');
     const title = byId('skin-result-title', 'skin-result-title-sb');
     const desc = byId('skin-result-desc', 'skin-result-desc-sb');
+    const productRecContainer = document.getElementById('product-rec-container');
     
     if (badgeContainer) badgeContainer.innerHTML = '';
     if (list) list.innerHTML = '';
@@ -746,6 +752,57 @@ function renderSkinResults(results, imgUrl) {
         `;
         if (list) list.appendChild(card);
     });
+
+    renderSkinProductRecommendations(results, productRecContainer);
+}
+
+function renderSkinProductRecommendations(results, container) {
+    if (!container) return;
+
+    const primary = Array.isArray(results) && results.length
+        ? [...results].sort((a, b) => Number(b.confidence || 0) - Number(a.confidence || 0))[0]
+        : null;
+
+    const concern = (primary && primary.concern) ? String(primary.concern) : 'Normal';
+    const recommendationsByConcern = {
+        Acne: {
+            query: 'salicylic acid cleanser niacinamide serum acne prone skin',
+            items: ['Salicylic acid cleanser', 'Niacinamide serum', 'Oil-free moisturizer']
+        },
+        'Dark Spots': {
+            query: 'vitamin c serum niacinamide dark spots skincare',
+            items: ['Vitamin C serum', 'Niacinamide treatment', 'Daily sunscreen SPF 50']
+        },
+        Oiliness: {
+            query: 'gel moisturizer foaming cleanser oily skin skincare',
+            items: ['Foaming cleanser', 'Gel moisturizer', 'Lightweight sunscreen']
+        },
+        Dryness: {
+            query: 'ceramide moisturizer hyaluronic acid serum dry skin',
+            items: ['Ceramide moisturizer', 'Hyaluronic acid serum', 'Gentle cream cleanser']
+        },
+        Normal: {
+            query: 'gentle skincare moisturizer sunscreen routine',
+            items: ['Gentle cleanser', 'Barrier moisturizer', 'Daily sunscreen']
+        }
+    };
+
+    const selected = recommendationsByConcern[concern] || recommendationsByConcern.Normal;
+    safeStorage.set('sc-last-amazon-query', selected.query);
+
+    container.innerHTML = `
+        <div class="result-card mt-4">
+            <h3 class="card-section-title">Recommended Products</h3>
+            <div class="ingredient-rows">
+                ${selected.items.map((item) => `
+                    <div class="ing-card mb-3">
+                        <strong>${item}</strong>
+                        <p class="micro-text mb-0">Suggested based on your ${concern.toLowerCase()} result.</p>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
 }
 
 function renderProdResults(data) {
