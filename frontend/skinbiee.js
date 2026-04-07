@@ -1163,66 +1163,52 @@ function setupPlanner() {
     console.log("[DEBUG] Planner State:", { hasSetup: plannerState.hasSetup, dailyDone: plannerState.dailyDone });
     state.streak = plannerState.streak;
 
-    const overlayContainer = byId('planner-onboarding-overlay', 'planner-overlay-container');
+    const overlayContainer = document.getElementById('planner-onboarding-overlay');
     const mainDashboard = document.getElementById('planner-main-dashboard');
     const editorOverlay = document.getElementById('routine-editor-overlay');
-    const plannerView = document.getElementById('view-planner');
     
+    // Safety: Ensure we hide overlays by default
     if (overlayContainer) overlayContainer.style.display = 'none';
     if (editorOverlay) editorOverlay.style.display = 'none';
-    if (plannerView) plannerView.style.display = 'block';
     
-    document.querySelectorAll('.overlay-screen').forEach(s => s.style.display = 'none');
-    
+    // Toggling between Onboarding and Dashboard
     if (!plannerState.hasSetup) {
-        if (overlayContainer) overlayContainer.style.display = 'block';
+        if (overlayContainer) {
+            overlayContainer.style.display = 'block';
+            document.querySelectorAll('.overlay-screen').forEach(s => s.style.display = 'none');
+            const welcome = document.getElementById('planner-ob-welcome');
+            if (welcome) welcome.style.display = 'flex';
+        }
         if (mainDashboard) mainDashboard.style.display = 'none';
-        const plannerWelcome = document.getElementById('planner-ob-welcome');
-        if (plannerWelcome) plannerWelcome.style.display = 'flex';
-        const setupEntry = document.getElementById('setup-entry');
-        if (setupEntry) setupEntry.style.display = 'flex';
-    } else if (!plannerState.dailyDone) {
-        if (overlayContainer) overlayContainer.style.display = 'none';
-        if (mainDashboard) mainDashboard.style.display = 'block';
-        const dailyEntry = document.getElementById('daily-entry');
-        if (dailyEntry) dailyEntry.style.display = 'flex';
-        renderPlannerDashboard();
     } else {
         if (overlayContainer) overlayContainer.style.display = 'none';
-        if (mainDashboard) mainDashboard.style.display = 'block';
-        renderPlannerDashboard();
-    }
-
-    if (overlayContainer) {
-        overlayContainer.style.visibility = overlayContainer.style.display === 'none' ? 'hidden' : 'visible';
-    }
-    if (mainDashboard) {
-        mainDashboard.style.visibility = mainDashboard.style.display === 'none' ? 'hidden' : 'visible';
+        if (mainDashboard) {
+            mainDashboard.style.display = 'block';
+            renderPlannerDashboard();
+        }
     }
 }
 
 // SETUP FLOW
-function startSetup() {
-    const setupEntry = byId('planner-ob-welcome', 'setup-entry');
-    const setupQuestionsScreen = byId('planner-ob-questions', 'setup-questions');
-    if (setupEntry) setupEntry.style.display = 'none';
-    if (setupQuestionsScreen) setupQuestionsScreen.style.display = 'flex';
+function startPlannerOnboarding() {
+    const welcome = document.getElementById('planner-ob-welcome');
+    const questions = document.getElementById('planner-ob-questions');
+    if (welcome) welcome.style.display = 'none';
+    if (questions) questions.style.display = 'flex';
     plannerState.setupStep = 0;
     plannerState.answers = {};
     renderSetupQuestion();
 }
 
 function renderSetupQuestion() {
-    const area = document.getElementById('question-area') || document.getElementById('planner-ob-question-area');
+    const area = byId('planner-ob-question-area', 'question-area');
     const step = setupQuestions[plannerState.setupStep];
     const progress = ((plannerState.setupStep + 1) / setupQuestions.length) * 100;
-    const progressBar = document.getElementById('setup-progress') || document.getElementById('planner-ob-progress');
+    const progressBar = byId('planner-ob-progress', 'setup-progress');
+    
     if (progressBar) {
-        if (progressBar.id === 'planner-ob-progress') {
-            progressBar.style.width = `${progress}%`;
-        } else {
-            progressBar.style.setProperty('--progress', `${progress}%`);
-        }
+        progressBar.style.width = `${progress}%`;
+        progressBar.style.setProperty('--progress', `${progress}%`);
     }
 
     let html = `<h2 class="mb-4">${step.q}</h2>`;
@@ -1270,23 +1256,21 @@ function nextSetupStep() {
         plannerState.setupStep++;
         renderSetupQuestion();
     } else {
-        finishSetup();
+        finishSetupInternal();
     }
 }
 
-function finishSetup() {
-    // Top 2 steps logic
+function finishSetupInternal() {
+    // Generate routine based on answers
     const routine = [];
-    const type = plannerState.answers.skinType;
-    const concern = plannerState.answers.concern;
+    const type = plannerState.answers.skinType || 'Normal';
+    const concern = plannerState.answers.concern || 'Glow';
 
-    // Type Step
     if (type === 'Oily') routine.push("Salicylic Cleanser");
     else if (type === 'Dry') routine.push("Creamy Cleanser");
     else if (type === 'Sensitive') routine.push("Centella Lotion");
     else routine.push("Mild Foam Cleanser");
 
-    // Concern Step
     if (concern === 'Acne') routine.push("Spot Treatment");
     else if (concern === 'Glow') routine.push("Vitamin C Serum");
     else if (concern === 'Dark Spots') routine.push("Niacinamide Serum");
@@ -1302,22 +1286,26 @@ function finishSetup() {
     const revealScreen = document.getElementById('planner-ob-reveal');
     const morningReveal = document.getElementById('reveal-morning-steps');
     const nightReveal = document.getElementById('reveal-night-steps');
-    const revealHtml = routine.map((item) => `<li>${item}</li>`).join('');
-
+    
     if (questionScreen && revealScreen) {
         questionScreen.style.display = 'none';
         revealScreen.style.display = 'flex';
+        const revealHtml = routine.map((item) => `<li>${item}</li>`).join('');
         if (morningReveal) morningReveal.innerHTML = revealHtml;
         if (nightReveal) nightReveal.innerHTML = revealHtml;
-        return;
-    }
-
-    showLoading();
-    setTimeout(() => {
-        hideLoading();
+    } else {
         setupPlanner();
-    }, 1500);
+    }
 }
+
+function finishPlannerOnboarding() {
+    const overlay = document.getElementById('planner-onboarding-overlay');
+    const reveal = document.getElementById('planner-ob-reveal');
+    if (reveal) reveal.style.display = 'none';
+    if (overlay) overlay.style.display = 'none';
+    setupPlanner();
+}
+
 
 // DAILY FLOW
 function openChecklist() {
@@ -1560,13 +1548,7 @@ function startPlannerOnboarding() {
     renderSetupQuestion();
 }
 
-function finishPlannerOnboarding() {
-    const overlay = document.getElementById('planner-onboarding-overlay');
-    const reveal = document.getElementById('planner-ob-reveal');
-    if (reveal) reveal.style.display = 'none';
-    if (overlay) overlay.style.display = 'none';
-    setupPlanner();
-}
+
 
 function startRoutineChecklist(period = 'morning') {
     const overlay = document.getElementById('routine-checklist-overlay');
@@ -1918,9 +1900,9 @@ function checkProactiveGreeting() {
     if (history && history.children.length <= 1) {
         let msg = `Hey ${state.username}! I was just looking at your skin journey... `;
         
-        if (state.view === 'view-analyzer') {
+        if (state.view === 'analyzer') {
             msg += "That last scan looked interesting. Want to dive into what those results mean for your routine? 🔬";
-        } else if (state.view === 'view-planner') {
+        } else if (state.view === 'planner') {
             msg += `You're on a ${plannerState.streak} day streak! I'm so proud of you. Let's keep it going today! 🔥`;
         } else {
             msg += "You're doing great! Anything specific you want to chat about? I'm all ears! 💖";
