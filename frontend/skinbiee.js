@@ -7,7 +7,7 @@ const safeStorage = {
   get: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
   set: (key, val) => { try { localStorage.setItem(key, val); } catch(e) {} },
   remove: (key) => { try { localStorage.removeItem(key); } catch(e) {} },
-  clear: () => { try { safeStorage.clear(); } catch(e) {} }
+  clear: () => { try { localStorage.clear(); } catch(e) {} }
 };
 
 /* ==========================================================================
