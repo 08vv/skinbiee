@@ -1,4 +1,8 @@
-const API_BASE_URL = ""; // Use relative paths for robustness
+// Auto-detect API backend if run on different ports (e.g. Frontend 8001 -> Backend 5000)
+const API_BASE_URL = (window.location.port === "8001" || window.location.hostname === "localhost") 
+    ? "http://localhost:5000" 
+    : ""; 
+
 
 
 /* --- Safe LocalStorage Utility --- */
@@ -63,8 +67,9 @@ async function refreshUserDataFromServer() {
     if (state.userId == null) return;
     try {
         const res = await fetch(`${API_BASE_URL}/api/user/data`, { headers: authHeadersRaw() });
+        if (res.status === 401) { clearSession(); switchView('auth'); return; }
         const data = await res.json();
-        if (data.status === 'success') {
+        if (data.status === 'success' || data.success) {
             state.activeDates = new Set(data.active_dates || []);
             state.streak = data.streak || 0;
         }
@@ -343,12 +348,12 @@ function setupOnboardingListeners() {
         if (state.onboardingStep === 1) {
             const age = document.getElementById('ob-age').value;
             const gender = currentStep.querySelector('.pill.active');
-            if (!age || !gender) isValid = false;
+            if (!gender) { showToast("Please select your gender"); isValid = false; }
         } else if (state.onboardingStep === 2) {
             const skinType = currentStep.querySelector('[data-target="ob-skintype"] .pill.active');
             const concern = currentStep.querySelector('[data-target="ob-concern"] .pill.active');
             const sensitive = currentStep.querySelector('[data-target="ob-sensitive"] .pill.active');
-            if (!skinType || !concern || !sensitive) isValid = false;
+            if (!skinType) { showToast("Please select your skin type"); isValid = false; }
         } else if (state.onboardingStep >= 3 && state.onboardingStep <= 4) {
             const groups = currentStep.querySelectorAll('.pill-group.single-select');
             groups.forEach(g => {
@@ -933,7 +938,7 @@ function setupPlanner() {
     plannerState.dailyDone = getPlannerLastDoneKey() === getLocalDateKey();
     state.streak = plannerState.streak;
 
-    const overlayContainer = document.getElementById('planner-overlay-container') || document.getElementById('planner-onboarding-overlay');
+    const overlayContainer = byId('planner-onboarding-overlay', 'planner-overlay-container');
     const mainDashboard = document.getElementById('planner-main-dashboard');
     const editorOverlay = document.getElementById('routine-editor-overlay');
     
@@ -964,8 +969,8 @@ function setupPlanner() {
 
 // SETUP FLOW
 function startSetup() {
-    const setupEntry = document.getElementById('setup-entry') || document.getElementById('planner-ob-welcome');
-    const setupQuestionsScreen = document.getElementById('setup-questions') || document.getElementById('planner-ob-questions');
+    const setupEntry = byId('planner-ob-welcome', 'setup-entry');
+    const setupQuestionsScreen = byId('planner-ob-questions', 'setup-questions');
     if (setupEntry) setupEntry.style.display = 'none';
     if (setupQuestionsScreen) setupQuestionsScreen.style.display = 'flex';
     plannerState.setupStep = 0;

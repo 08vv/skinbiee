@@ -26,6 +26,7 @@ timeout /t 2 /nobreak >nul
 
 :: Start AI Backend
 echo 🚀 Starting AI Backend (Port 5000)...
+set PORT=5000
 start "Skinbiee AI Backend" cmd /c "python analysis_server.py"
 
 :: Start Frontend Viewer

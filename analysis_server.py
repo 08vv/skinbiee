@@ -661,7 +661,7 @@ def get_data():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 7860))
+    port = int(os.environ.get("PORT", 5000))
     try:
         from waitress import serve
         print(f"🚀 AI Server started on {port}")
