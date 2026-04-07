@@ -201,25 +201,10 @@ a {
     font-size: 24px;
 }
 
-.app-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    object-fit: cover;
-    box-shadow: 0 4px 10px rgba(116, 192, 252, 0.4);
-    border: 2px solid white;
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.logo-area:hover .app-logo {
-    transform: scale(1.1) rotate(5deg);
-}
-
 .app-name {
     font-family: var(--font-heading);
     font-weight: 800;
-    font-size: 1.25rem;
-    letter-spacing: -0.5px;
+    font-size: 1.2rem;
 }
 
 .bottom-nav {
@@ -1720,19 +1705,16 @@ input:checked+.slider:before {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     text-align: center;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--text-muted);
-    padding: 0 5px;
-    margin-bottom: 8px;
 }
 
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
+    min-height: 280px; /* Prevent collapse */
     width: 100%;
-    padding: 0 5px;
-    gap: 2px;
 }
 
 .cal-day {
