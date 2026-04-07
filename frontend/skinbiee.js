@@ -295,28 +295,23 @@ function setupAuthListeners() {
     const switchTextEl = document.getElementById('auth-switch-text');
     let isSignup = true;
 
-    console.log(\"Auth listeners initialized\");
-
     if (switchTextEl) {
         switchTextEl.onclick = (e) => {
             if (e.target.id === 'auth-switch-link') {
                 e.preventDefault();
                 isSignup = !isSignup;
-                console.log(\"Auth mode toggled. isSignup:\", isSignup);
-                
                 const emailGroup = document.querySelector('.signup-only');
                 const forgotLink = document.querySelector('.login-only');
-                
                 if (isSignup) {
                     if (emailGroup) emailGroup.style.display = 'block';
                     if (forgotLink) forgotLink.style.display = 'none';
                     submitBtn.textContent = 'Create Account';
-                    switchTextEl.innerHTML = `Already have an account? <a href=\"#\" id=\"auth-switch-link\">Log In</a>`;
+                    switchTextEl.innerHTML = `Already have an account? <a href="#" id="auth-switch-link">Log In</a>`;
                 } else {
                     if (emailGroup) emailGroup.style.display = 'none';
                     if (forgotLink) forgotLink.style.display = 'block';
                     submitBtn.textContent = 'Log In';
-                    switchTextEl.innerHTML = `New here? <a href=\"#\" id=\"auth-switch-link\">Sign Up</a>`;
+                    switchTextEl.innerHTML = `New here? <a href="#" id="auth-switch-link">Sign Up</a>`;
                 }
             }
         };
@@ -325,146 +320,55 @@ function setupAuthListeners() {
     if (authForm) {
         authForm.onsubmit = async (e) => {
             e.preventDefault();
-            const unameInput = document.getElementById('auth-username');
-            const passInput = document.getElementById('auth-password');
-            const emailInput = document.getElementById('auth-email');
+            const uname = document.getElementById('auth-username').value.trim();
+            const password = document.getElementById('auth-password').value;
             
-            const uname = unameInput ? unameInput.value.trim() : '';
-            const password = passInput ? passInput.value : '';
-            
-            if (isSignup) {
-                const email = emailInput ? emailInput.value.trim() : '';
-                if (!email) {
-                    showToast('Please enter an email address.');
-                    return;
+            showLoading('Connecting...');
+            const endpoint = isSignup ? 'register' : 'login';
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/auth/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: uname, password })
+                });
+                const data = await res.json();
+                hideLoading();
+                if (!res.ok) { showToast(data.error || 'Auth failed'); return; }
+                persistSession(data.user_id, data.username, data.token);
+                
+                // Set default profile if none exists
+                let profile = loadUserProfile();
+                if (!profile) {
+                    profile = {
+                        username: state.username,
+                        skinType: 'Normal',
+                        concern: ['None'],
+                        sensitive: 'No'
+                    };
+                    saveUserProfile(profile);
                 }
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(email)) {
-                    showToast('Please use a valid email address.');
-                    return;
+                applyUserProfile(profile);
+
+                if (isSignup) switchView('onboarding');
+                else { 
+                    switchView('home'); 
+                    showToast(`Welcome back, ${state.username}! ✨`); 
                 }
-            }
-
-            if (!uname || !password) {
-                showToast('Please enter username and password.');
-                return;
-            }
-
-            if (isSignup && password.length < 6) {
-                showToast('Password must be at least 6 characters long.');
-                return;
-            }
-
-            showLoading('Waking up server (may take 30-60s on first load)...');
-
-            if (isSignup) {
-                try {
-                    const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: uname, password })
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    hideLoading();
-                    if (!res.ok) {
-                        showToast(data.error || 'Could not create account.');
-                        return;
-                    }
-                    persistSession(data.user_id, data.username, data.token);
-                    syncPlannerStateFromStorage();
-                    switchView('onboarding');
-                } catch (err) {
-                    console.error(err);
-                    hideLoading();
-                    showToast('Connection error — is the API server running?');
-                }
-            } else {
-                try {
-                    const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: uname, password })
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    hideLoading();
-                    if (!res.ok) {
-                        showToast(data.error || 'Invalid username or password.');
-                        return;
-                    }
-                    persistSession(data.user_id, data.username, data.token);
-                    syncPlannerStateFromStorage();
-                    let profile = loadUserProfile();
-                    if (!profile) {
-                        profile = {
-                            username: state.username,
-                            skinType: 'Normal',
-                            concern: 'None',
-                            sensitive: 'No'
-                        };
-                        saveUserProfile(profile);
-                    }
-                    applyUserProfile(profile);
-                    await refreshUserDataFromServer();
-                    switchView('home');
-                    triggerMascotAnim('happy');
-                    showToast(`Welcome back, ${state.username}!`);
-                    renderScanHistory();
-                } catch (err) {
-                    console.error(err);
-                    hideLoading();
-                    showToast('Connection error — is the API server running?');
-                }
-            }
-        };
-    }
-
-    // Eye toggle
-    const eyeToggle = document.querySelector('.eye-toggle');
-    if (eyeToggle) {
-        eyeToggle.onclick = function () {
-            const input = document.getElementById('auth-password');
-            const icon = this.querySelector('i');
-            if (input && icon) {
-                if (input.type === 'password') {
-                    input.type = 'text';
-                    icon.classList.replace('fa-eye', 'fa-eye-slash');
-                } else {
-                    input.type = 'password';
-                    icon.classList.replace('fa-eye-slash', 'fa-eye');
-                }
+                refreshUserDataFromServer();
+            } catch (err) { 
+                hideLoading(); 
+                showToast('Connection error - is the server awake?'); 
             }
         };
     }
 }
 
-/* ==========================================================================
-   ONBOARDING FLOW
-   ========================================================================== */
 function setupOnboardingListeners() {
     const nextBtn = document.getElementById('ob-next-btn');
     const backBtn = document.getElementById('ob-back');
     const mascot = document.getElementById('ob-mascot');
     
-    if (!nextBtn || !backBtn || !mascot) return;
-
-    // FIX: Add click listeners for onboarding pills
-    document.querySelectorAll('.ob-step .pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            const group = pill.closest('.pill-group');
-            if (!group) return;
-            if (group.classList.contains('multi-select')) {
-                pill.classList.toggle('active');
-            } else {
-                group.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-                pill.classList.add('active');
-            }
-            // Trigger actives text
-            if (group.id === 'ob-actives-toggle') {
-                const at = document.getElementById('ob-actives-text');
-                if (at) at.style.display = (pill.dataset.val === 'Yes') ? 'block' : 'none';
-            }
-        });
-    });
+    if (!nextBtn || !backBtn) return;
 
     nextBtn.addEventListener('click', () => {
         const currentStep = document.getElementById(`ob-step-${state.onboardingStep}`);
@@ -475,21 +379,13 @@ function setupOnboardingListeners() {
             const gender = currentStep.querySelector('.pill.active');
             if (!age || !gender) isValid = false;
         } else if (state.onboardingStep === 2) {
-            const skinType = currentStep.querySelector('[data-target=\"ob-skintype\"] .pill.active');
-            const concerns = currentStep.querySelectorAll('[data-target=\"ob-concern\"] .pill.active');
-            const sensitive = currentStep.querySelector('[data-target=\"ob-sensitive\"] .pill.active');
+            const skinType = currentStep.querySelector('[data-target="ob-skintype"] .pill.active');
+            const concerns = currentStep.querySelectorAll('[data-target="ob-concern"] .pill.active');
+            const sensitive = currentStep.querySelector('[data-target="ob-sensitive"] .pill.active');
             if (!skinType || concerns.length === 0 || !sensitive) isValid = false;
-        } else if (state.onboardingStep >= 3 && state.onboardingStep <= 4) {
-            const groups = currentStep.querySelectorAll('.pill-group.single-select');
-            groups.forEach(g => {
-                if (!g.querySelector('.pill.active')) isValid = false;
-            });
         }
 
-        if (!isValid) {
-            showToast('Please answer all questions to continue');
-            return;
-        }
+        if (!isValid) { showToast('Please answer all questions!'); return; }
 
         if (state.onboardingStep < 4) {
             document.getElementById(`ob-step-${state.onboardingStep}`).classList.remove('active');
@@ -498,33 +394,20 @@ function setupOnboardingListeners() {
             document.getElementById('ob-step-num').textContent = state.onboardingStep;
             backBtn.style.visibility = 'visible';
         } else if (state.onboardingStep === 4) {
-            const profileData = {
+            const profile = {
                 username: state.username,
-                age: document.getElementById('ob-age').value,
-                gender: (document.querySelector('#ob-step-1 .pill.active') || {}).textContent || '',
-                skinType: (document.querySelector('[data-target=\"ob-skintype\"] .pill.active') || {}).textContent || '',
-                concern: Array.from(document.querySelectorAll('[data-target=\"ob-concern\"] .pill.active')).map(p => p.textContent),
-                sensitive: (document.querySelector('[data-target=\"ob-sensitive\"] .pill.active') || {}).textContent || '',
+                skinType: (document.querySelector('[data-target="ob-skintype"] .pill.active') || {}).dataset.val,
+                concern: Array.from(document.querySelectorAll('[data-target="ob-concern"] .pill.active')).map(p => p.dataset.val),
+                sensitive: (document.querySelector('[data-target="ob-sensitive"] .pill.active') || {}).dataset.val
             };
-            saveUserProfile(profileData);
-
+            saveUserProfile(profile);
             document.getElementById(`ob-step-4`).classList.remove('active');
             document.getElementById(`ob-step-done`).classList.add('active');
-
-            mascot.classList.replace('idle', 'happy');
-            document.querySelector('.ob-progress').style.display = 'none';
-            backBtn.style.visibility = 'hidden';
-
-            nextBtn.textContent = state.fromSettings ? 'Go to Settings' : 'Go to Home';
+            if (mascot) mascot.classList.replace('idle', 'happy');
+            nextBtn.textContent = 'Get Started ✨';
             state.onboardingStep = 5;
         } else {
-            applyUserProfile(loadUserProfile());
-            if (state.fromSettings) {
-                state.fromSettings = false;
-                switchView('settings');
-            } else {
-                switchView('home');
-            }
+            switchView('home');
         }
     });
 
@@ -534,13 +417,7 @@ function setupOnboardingListeners() {
             state.onboardingStep--;
             document.getElementById(`ob-step-${state.onboardingStep}`).classList.add('active');
             document.getElementById('ob-step-num').textContent = state.onboardingStep;
-
-            if (state.onboardingStep === 1 && !state.fromSettings) {
-                backBtn.style.visibility = 'hidden';
-            }
-        } else if (state.fromSettings && state.onboardingStep === 1) {
-            state.fromSettings = false;
-            switchView('settings');
+            if (state.onboardingStep === 1) backBtn.style.visibility = 'hidden';
         }
     });
 }
