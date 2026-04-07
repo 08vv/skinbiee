@@ -727,10 +727,6 @@
                         <button class="primary-btn full-width mt-3" onclick="saveAndCloseEditor()">Save</button>
                     </div>
                 </div>
-
-                <div class="spacer-bottom"></div>
-            </section>
-
                 <div class="spacer-bottom"></div>
             </section>
 
@@ -814,140 +810,102 @@
 
                 <div class="spacer-bottom"></div>
 
-                <!-- SETTINGS OVERLAYS (Moved inside view-settings) -->
-                <!-- Account Details -->
-                <div id="settings-account-details" class="sub-page-overlay">
-                    <div class="sub-page-header">
-                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('account-details')"><i class="fa-solid fa-chevron-left"></i></button>
-                        <h2 class="sub-page-title">Account Details</h2>
-                    </div>
-                    <div class="sub-page-card">
-                        <div style="text-align: center;">
-                            <div style="width: 80px; height: 80px; background: var(--bg-app); border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--primary);">
-                                <i class="fa-regular fa-user"></i>
-                            </div>
-                            <button class="text-btn mt-2" style="color: var(--primary); font-size: 0.9rem;">Change Photo</button>
-                        </div>
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Display Name</label>
-                            <input type="text" id="profile-edit-username" class="sub-page-input" placeholder="Your Name">
-                        </div>
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Email Address</label>
-                            <input type="email" class="sub-page-input" placeholder="you@example.com">
-                        </div>
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Date of Birth</label>
-                            <input type="date" class="sub-page-input">
-                        </div>
-                        <button class="text-btn" style="color: var(--primary); align-self: flex-start; padding: 0;">Change Password</button>
-                    </div>
-                    <button class="primary-btn mt-4 full-width" onclick="saveAccountDetails()">Save Changes</button>
-                </div>
 
-                <!-- Skin Profile -->
-                <div id="settings-skin-profile" class="sub-page-overlay">
-                    <div class="sub-page-header">
-                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('skin-profile')"><i class="fa-solid fa-chevron-left"></i></button>
-                        <h2 class="sub-page-title">Skin Profile</h2>
-                    </div>
-                    <div class="sub-page-card">
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Skin Type</label>
-                            <div class="pill-group single-select" data-profile-key="skinType">
-                                <button class="pill active" data-val="Normal">Normal</button>
-                                <button class="pill" data-val="Oily">Oily</button>
-                                <button class="pill" data-val="Dry">Dry</button>
-                                <button class="pill" data-val="Combination">Combination</button>
-                                <button class="pill" data-val="Sensitive">Sensitive</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Skin Tone</label>
-                            <div class="color-swatches" data-profile-key="skinTone">
-                                <div class="swatch active" style="background: #FFDFC4;" data-val="#FFDFC4"></div>
-                                <div class="swatch" style="background: #F0D5BE;" data-val="#F0D5BE"></div>
-                                <div class="swatch" style="background: #D6B89F;" data-val="#D6B89F"></div>
-                                <div class="swatch" style="background: #A77C58;" data-val="#A77C58"></div>
-                                <div class="swatch" style="background: #5E3E26;" data-val="#5E3E26"></div>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Primary Concerns</label>
-                            <div class="pill-group multi-select" data-profile-key="concern">
-                                <button class="pill active" data-val="Acne">Acne</button>
-                                <button class="pill" data-val="Glow">Glow</button>
-                                <button class="pill" data-val="Dark spots">Dark spots</button>
-                                <button class="pill" data-val="Dryness">Dryness</button>
-                                <button class="pill" data-val="Anti-aging">Anti-aging</button>
-                                <button class="pill" data-val="Sensitivity">Sensitivity</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Sensitivities/Allergies</label>
-                            <input type="text" class="sub-page-input" placeholder="e.g. Fragrance, Niacinamide">
-                        </div>
-                    </div>
-                    <button class="primary-btn mt-4 full-width" onclick="saveSkinProfile()">Save Skin Profile</button>
-                </div>
-
-                <!-- Export Data -->
-                <div id="settings-export-data" class="sub-page-overlay">
-                    <div class="sub-page-header">
-                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('export-data')"><i class="fa-solid fa-chevron-left"></i></button>
-                        <h2 class="sub-page-title">Export Data</h2>
-                    </div>
-                    <div class="sub-page-card">
-                        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 8px;">Download a spreadsheet of all your Skinbiee data</p>
-                        <ul class="data-export-list">
-                            <li><strong>User Info</strong> — name, skin type, tone, concerns</li>
-                            <li><strong>Face Scans</strong> — dates, results, detected concerns</li>
-                            <li><strong>Product Scans</strong> — dates, product, flags, rating</li>
-                            <li><strong>Calendar</strong> — routine dates, streaks</li>
-                        </ul>
-                    </div>
-                    <button class="primary-btn mt-4 full-width" onclick="executeExportData()">Export as Spreadsheet</button>
-                </div>
-
-                <!-- Routine Reminders Schedule -->
-                <div id="settings-routine-reminders" class="sub-page-overlay">
-                    <div class="sub-page-header">
-                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('routine-reminders')"><i class="fa-solid fa-chevron-left"></i></button>
-                        <h2 class="sub-page-title">Reminders</h2>
-                    </div>
-                    <div class="sub-page-card">
-                        <p class="micro-text text-muted mb-4" style="text-align: center;">Pick your glow-up times! We'll send a cute nudge to keep your streak alive. ✨</p>
-                        
-                        <div class="reminder-time-row mb-4">
-                            <div class="flex-between align-center mb-2">
-                                <span class="bold"><i class="fa-solid fa-sun" style="color: #f6a623; margin-right: 8px;"></i>Morning Sunshine</span>
-                                <label class="switch switch-sm">
-                                    <input type="checkbox" id="am-reminder-active" checked>
-                                    <span class="slider round"></span>
-                                </label>
-                            </div>
-                            <input type="time" id="am-reminder-time" class="sub-page-input" value="08:00">
-                        </div>
-
-                        <div class="reminder-time-row">
-                            <div class="flex-between align-center mb-2">
-                                <span class="bold"><i class="fa-solid fa-moon" style="color: #7c8cf8; margin-right: 8px;"></i>Night Glow</span>
-                                <label class="switch switch-sm">
-                                    <input type="checkbox" id="pm-reminder-active" checked>
-                                    <span class="slider round"></span>
-                                </label>
-                            </div>
-                            <input type="time" id="pm-reminder-time" class="sub-page-input" value="21:30">
-                        </div>
-                    </div>
-                    <p class="micro-text text-center mt-3 px-4" style="color: var(--text-secondary);">Notifications will appear on this device even if the app is closed. Enable browser notifications when prompted!</p>
-                    <button class="primary-btn mt-4 full-width" onclick="saveReminders()">Save Reminders 🔔</button>
-                </div>
 
             </section>
 
-            <!-- SETTINGS OVERLAYS (Wait, removed duplicate/misplaced section) -->
-        </main>
+            <!-- SETTINGS OVERLAYS -->
+            <div id="settings-account-details" class="sub-page-overlay">
+                <div class="sub-page-header">
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('account-details')"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h2 class="sub-page-title">Profile</h2>
+                </div>
+                <div class="sub-page-card">
+                    <div style="margin-bottom: 24px;">
+                        <label class="bold mb-1 block">Username</label>
+                        <input type="text" id="profile-edit-username" class="kawaii-input" placeholder="Your Name">
+                    </div>
+                    <button class="primary-btn full-width" onclick="saveEditProfile()">Save Changes</button>
+                </div>
+            </div>
+
+            <div id="settings-skin-profile" class="sub-page-overlay">
+                <div class="sub-page-header">
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('skin-profile')"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h2 class="sub-page-title">Skin Profile</h2>
+                </div>
+                <div class="sub-page-card" data-profile-key="skintype">
+                    <h4 class="mb-3">Skin Type</h4>
+                    <div class="pill-group single-select" data-profile-key="skintype">
+                        <button class="pill" data-val="Oily">Oily</button>
+                        <button class="pill" data-val="Dry">Dry</button>
+                        <button class="pill" data-val="Combination">Combination</button>
+                        <button class="pill" data-val="Normal">Normal</button>
+                    </div>
+                </div>
+                <div class="sub-page-card mt-3">
+                    <h4 class="mb-3">Concerns</h4>
+                    <div class="pill-group multi-select" data-profile-key="concern">
+                        <button class="pill" data-val="Acne">Acne</button>
+                        <button class="pill" data-val="Dark spots">Dark spots</button>
+                        <button class="pill" data-val="Dryness">Dryness</button>
+                        <button class="pill" data-val="Anti-aging">Anti-aging</button>
+                        <button class="pill" data-val="Redness">Redness</button>
+                    </div>
+                </div>
+                <button class="primary-btn full-width mt-4" onclick="saveSkinProfile()">Save Profile ✨</button>
+            </div>
+
+            <div id="settings-export-data" class="sub-page-overlay">
+                <div class="sub-page-header">
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('export-data')"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h2 class="sub-page-title">Export</h2>
+                </div>
+                <div class="sub-page-card">
+                    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 8px;">Download a spreadsheet of all your Skinbiee data</p>
+                    <ul class="data-export-list">
+                        <li><strong>User Info</strong> — name, skin type, tone, concerns</li>
+                        <li><strong>Face Scans</strong> — dates, results, detected concerns</li>
+                        <li><strong>Product Scans</strong> — dates, product, flags, rating</li>
+                        <li><strong>Calendar</strong> — routine dates, streaks</li>
+                    </ul>
+                </div>
+                <button class="primary-btn mt-4 full-width" onclick="executeExportData()">Export as Spreadsheet</button>
+            </div>
+
+            <div id="settings-routine-reminders" class="sub-page-overlay">
+                <div class="sub-page-header">
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('routine-reminders')"><i class="fa-solid fa-chevron-left"></i></button>
+                    <h2 class="sub-page-title">Reminders</h2>
+                </div>
+                <div class="sub-page-card">
+                    <p class="micro-text text-muted mb-4" style="text-align: center;">Pick your glow-up times! We'll send a cute nudge to keep your streak alive. ✨</p>
+                    
+                    <div class="reminder-time-row mb-4">
+                        <div class="flex-between align-center mb-2">
+                            <span class="bold"><i class="fa-solid fa-sun" style="color: #f6a623; margin-right: 8px;"></i>Morning Sunshine</span>
+                            <label class="switch switch-sm">
+                                <input type="checkbox" id="am-reminder-active" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <input type="time" id="am-reminder-time" class="sub-page-input" value="08:00">
+                    </div>
+
+                    <div class="reminder-time-row">
+                        <div class="flex-between align-center mb-2">
+                            <span class="bold"><i class="fa-solid fa-moon" style="color: #7c8cf8; margin-right: 8px;"></i>Night Glow</span>
+                            <label class="switch switch-sm">
+                                <input type="checkbox" id="pm-reminder-active" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <input type="time" id="pm-reminder-time" class="sub-page-input" value="21:30">
+                    </div>
+                </div>
+                <p class="micro-text text-center mt-3 px-4" style="color: var(--text-secondary);">Notifications will appear on this device even if the app is closed. Enable browser notifications when prompted!</p>
+                <button class="primary-btn mt-4 full-width" onclick="saveReminders()">Save Reminders 🔔</button>
+            </div>
 
             <!-- Clear Data Modal -->
             <div id="clear-data-modal" class="clear-data-modal-overlay">

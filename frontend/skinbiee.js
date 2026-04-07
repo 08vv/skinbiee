@@ -1861,7 +1861,15 @@ function openSettingsToOnboarding() {
 }
 
 function openSettingsSubPage(pageId) {
-    document.getElementById(`settings-${pageId}`).style.display = 'flex';
+    const targetId = `settings-${pageId}`;
+    const el = document.getElementById(targetId);
+    console.log('[DEBUG] openSettingsSubPage:', { pageId, targetId, found: !!el });
+    
+    if (el) {
+        el.style.setProperty('display', 'flex', 'important');
+    } else {
+        console.error('[ERROR] Element not found:', targetId);
+    }
     
     const profile = loadUserProfile() || {};
 
