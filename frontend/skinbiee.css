@@ -2193,3 +2193,96 @@ input:checked+.slider:before {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ==========================================================================
+   PWA INSTALL PROMPT
+   ========================================================================== */
+.pwa-prompt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    padding: 24px;
+    animation: fadeIn 0.4s ease;
+}
+
+.pwa-prompt-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 32px;
+    width: 100%;
+    max-width: 400px;
+    padding: 32px;
+    text-align: center;
+    box-shadow: var(--shadow-float);
+    animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    overflow: hidden;
+}
+
+.pwa-prompt-card::before {
+    content: " \;
+ position: absolute;
+ top: -50%;
+ left: -50%;
+ width: 200%;
+ height: 200%;
+ background: radial-gradient(circle, var(--accent-blue) 0%, transparent 70%);
+ opacity: 0.1;
+ z-index: -1;
+}
+
+.pwa-mascot-container {
+ margin-bottom: 20px;
+}
+
+.pwa-prompt-card h2 {
+ font-size: 1.5rem;
+ margin-bottom: 12px;
+}
+
+.pwa-prompt-card p {
+ color: var(--text-secondary);
+ font-size: 0.95rem;
+ line-height: 1.6;
+ margin-bottom: 30px;
+}
+
+.pwa-actions {
+ display: flex;
+ flex-direction: column;
+ gap: 12px;
+}
+
+.pwa-close-btn {
+ position: absolute;
+ top: 20px;
+ right: 20px;
+ background: transparent;
+ border: none;
+ font-size: 1.2rem;
+ color: var(--text-muted);
+ cursor: pointer;
+ padding: 5px;
+}
+
+@keyframes fadeIn {
+ from { opacity: 0; }
+ to { opacity: 1; }
+}
+
+@keyframes slideUp {
+ from { opacity: 0; transform: translateY(40px); }
+ to { opacity: 1; transform: translateY(0); }
+}
+

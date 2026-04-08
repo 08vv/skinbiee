@@ -1,3 +1,28 @@
+let deferredPrompt;
+
+// PWA Event Listeners
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    console.log('[PWA] beforeinstallprompt captured');
+});
+
+window.addEventListener('appinstalled', (e) => {
+    console.log('[PWA] App installed successfully');
+    safeStorage.set('sc-pwa-installed', 'true');
+    const prompt = document.getElementById('pwa-prompt-overlay');
+    if (prompt) prompt.style.display = 'none';
+});
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('[PWA] Service Worker registered:', reg))
+            .catch(err => console.log('[PWA] Service Worker registration failed:', err));
+    });
+}
+
 // Auto-detect API backend (Frontend 8001 -> Backend 5000 locally, deployed frontend -> Render backend)
 const API_BASE_URL = (window.location.port === "8001" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
     ? "http://localhost:5000" 
@@ -160,6 +185,10 @@ function init() {
             switchView("home");
             refreshUserDataFromServer();
         }
+
+        // Initialize PWA Download Prompt (Show up to 3 times)
+        initPWAPrompt();
+
         console.log("[DEBUG] init completed successfully");
     } catch (err) {
         console.error("[CRITICAL] init failed:", err);
@@ -1997,6 +2026,61 @@ function showToast(message) {
         toast.style.animation = 'slideDownToast 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) reverse forwards';
         setTimeout(() => toast.remove(), 300);
     }, 2500);
+}
+
+/* ==========================================================================
+   PWA INSTALLATION LOGIC
+   ========================================================================== */
+function initPWAPrompt() {
+    const isInstalled = safeStorage.get('sc-pwa-installed') === 'true' || 
+                        window.matchMedia('(display-mode: standalone)').matches;
+    
+    if (isInstalled) {
+        safeStorage.set('sc-pwa-installed', 'true');
+        return;
+    }
+
+    let shownCount = parseInt(safeStorage.get('sc-pwa-shown-count') || '0', 10);
+    
+    // User requested "at least 3 times pop of download"
+    // We will show it until shownCount reaches 3 or they install it.
+    if (shownCount >= 3) return;
+
+    // Wait a brief period before showing the popup to not disrupt initial load
+    setTimeout(() => {
+        const overlay = document.getElementById('pwa-prompt-overlay');
+        const installBtn = document.getElementById('pwa-main-install-btn');
+        const laterBtn = document.getElementById('pwa-later-btn');
+        const closeBtn = document.getElementById('pwa-close-btn');
+
+        if (!overlay) return;
+
+        overlay.style.display = 'flex';
+        shownCount++;
+        safeStorage.set('sc-pwa-shown-count', shownCount.toString());
+
+        if (installBtn) {
+            installBtn.onclick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        safeStorage.set('sc-pwa-installed', 'true');
+                    }
+                    deferredPrompt = null;
+                } else {
+                    // Fallback for browsers logic
+                    showToast("To install: Open browser menu and select 'Install App' or 'Add to Home Screen'.");
+                }
+                overlay.style.display = 'none';
+            };
+        }
+
+        const closePrompt = () => { overlay.style.display = 'none'; };
+        if (laterBtn) laterBtn.onclick = closePrompt;
+        if (closeBtn) closeBtn.onclick = closePrompt;
+
+    }, 4000); 
 }
 
 // Start App
