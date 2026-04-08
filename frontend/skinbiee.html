@@ -1052,29 +1052,14 @@
 
         <!-- TOAST CONTAINER -->
         <div id="toast-container"></div>
-        <!-- PREMIUM PWA DOWNLOAD PROMPT -->
-        <div id="pwa-prompt-overlay" class="pwa-prompt-overlay" style="display: none;">
-            <div class="pwa-prompt-card">
-                <button class="pwa-close-btn" id="pwa-close-btn">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-                <div class="pwa-mascot-container">
-                    <div class="mascot-blob happy" style="width: 100px; height: 100px; margin: 0 auto;">
-                        <div class="mascot-face">
-                            <div class="eye left"></div>
-                            <div class="eye right"></div>
-                            <div class="mouth"></div>
-                            <div class="blush left"></div>
-                            <div class="blush right"></div>
-                        </div>
-                    </div>
-                </div>
-                <h2>Get Skinbiee Pro ✨</h2>
-                <p>Install our web app to track your routine anytime, even offline, and never miss a day of your skincare streak!</p>
-                <div class="pwa-actions">
-                    <button class="primary-btn full-width" id="pwa-main-install-btn">Download Now 🌟</button>
-                    <button class="text-btn" id="pwa-later-btn">Maybe Later</button>
-                </div>
+        <!-- PWA INSTALL MODAL -->
+        <div id="pwa-install-overlay" class="overlay-screen" style="display: none; z-index: 3000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5);">
+            <div class="result-card" style="margin: 0 20px; padding: 25px; text-align: center; max-width: 350px;">
+                <div class="mascot-blob idle micro mb-3" style="margin: 0 auto;"></div>
+                <h2 style="font-size: 20px; margin-bottom: 8px;">Install Skinbiee App</h2>
+                <p class="text-muted micro-text" style="margin-bottom: 20px;">Download the app to your Home Screen to easily track your daily routines and keep your streak alive!</p>
+                <button class="primary-btn full-width mb-2" id="pwa-install-btn">Install Now 🌟</button>
+                <button class="secondary-btn full-width" onclick="document.getElementById('pwa-install-overlay').style.display='none'">Maybe Later</button>
             </div>
         </div>
 
