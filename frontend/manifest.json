@@ -1,19 +1,18 @@
 {
   "name": "Skinbiee",
   "short_name": "Skinbiee",
-  "description": "Your AI skincare companion and routine tracker.",
-  "start_url": "/skinbiee.html",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8f9fc",
-  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "theme_color": "#64b5f6",
   "icons": [
     {
-      "src": "assets/icon-192x192.png",
+      "src": "assets/app-icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "assets/icon-512x512.png",
+      "src": "assets/app-icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

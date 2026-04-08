@@ -1,6 +1,9 @@
-// Auto-detect API backend (Frontend 8001 -> Backend 5000 locally, deployed frontend -> Render backend)
-const API_BASE_URL = (window.location.port === "8001" || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
-    ? "http://localhost:5000" 
+// Auto-detect API backend (local PC, localhost, or same-LAN phone access -> local Flask backend)
+const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const isPrivateIpv4 = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(window.location.hostname);
+const isLocalFrontend = window.location.port === "8001" || isLocalHost || isPrivateIpv4;
+const API_BASE_URL = isLocalFrontend
+    ? `http://${window.location.hostname || "localhost"}:5000`
     : "https://skinbiee-backend-hxkz.onrender.com";
 
 
@@ -127,11 +130,59 @@ const floatMascotBtn = document.getElementById('float-mascot-btn');
 const themeToggleBtn = document.getElementById('theme-toggle');
 
 /* ==========================================================================
+   SERVICE WORKER REGISTRATION
+   ========================================================================== */
+function registerServiceWorker() {
+    console.log('[PWA] Checking PWA criteria...');
+    console.log('[PWA] HTTPS:', location.protocol === 'https:' || location.hostname === 'localhost');
+    console.log('[PWA] Service Worker supported:', 'serviceWorker' in navigator);
+    
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            console.log('[PWA] Page loaded, attempting service worker registration...');
+            // Try root path first since that's where the server serves it from
+            navigator.serviceWorker.register('/sw.js')
+                .then((registration) => {
+                    console.log('[SW] Service Worker registered successfully:', registration.scope);
+                    console.log('[SW] Active:', registration.active);
+                    console.log('[SW] Installing:', registration.installing);
+                    console.log('[SW] Waiting:', registration.waiting);
+                    
+                    // Check if PWA install criteria are met
+                    setTimeout(() => {
+                        console.log('[PWA] Checking if install button should appear...');
+                        console.log('[PWA] Manifest exists:', !!document.querySelector('link[rel="manifest"]'));
+                        console.log('[PWA] Service Worker active:', !!registration.active);
+                        console.log('[PWA] User not on mobile:', !/Mobi|Android/i.test(navigator.userAgent));
+                    }, 2000);
+                })
+                .catch((error) => {
+                    console.log('[SW] Service Worker registration failed:', error);
+                    // Try frontend path as fallback
+                    console.log('[SW] Trying frontend service worker path');
+                    navigator.serviceWorker.register('/frontend/sw.js')
+                        .then((reg) => {
+                            console.log('[SW] Frontend service worker registered:', reg.scope);
+                        })
+                        .catch((err) => {
+                            console.log('[SW] Frontend path also failed:', err);
+                        });
+                });
+        });
+    } else {
+        console.log('[SW] Service Workers are not supported in this browser');
+    }
+}
+
+/* ==========================================================================
    INITIALIZATION
    ========================================================================== */
-function init() {
+async function init() {
     console.log("[DEBUG] init started");
     try {
+        // Register Service Worker for PWA functionality
+        registerServiceWorker();
+        
         // Setup Theme
         const savedTheme = localStorage.getItem('sc-theme');
         if (savedTheme === 'dark') {
@@ -147,6 +198,8 @@ function init() {
 
         // App Navigation
         setupBottomNav();
+
+        await loadGlowBotChatData();
 
         // Mascot Listeners
         setupMascotChat();
@@ -1813,6 +1866,7 @@ function openEditProfile() {
 function setupMascotChat() {
     const compactChat = document.getElementById('chat-panel');
     const fsChat = document.getElementById('chat-fs-panel');
+    initializeGlowBotChat();
 
     // Open Compact
     floatMascotBtn.addEventListener('click', () => {
@@ -1875,7 +1929,186 @@ function setupChatInputs() {
     });
 }
 
-function handleChatSend(inputId) {
+let glowBotMessages = [];
+let glowBotProactiveShown = false;
+let glowBotChatData = null;
+let glowBotChatDataPromise = null;
+
+function getGlowBotProfile() {
+    return loadUserProfile() || {};
+}
+
+function getGlowBotSkinContext() {
+    const profile = getGlowBotProfile();
+    return String(profile.concern || profile.skinType || 'skin').trim();
+}
+
+function getGlowBotContext() {
+    return {
+        name: state.username || 'Friend',
+        condition: getGlowBotSkinContext(),
+        streak: String(state.streak || plannerState.streak || 0),
+        currentView: state.view || 'home'
+    };
+}
+
+function normalizeGlowBotText(text) {
+    return String(text || '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function fillGlowBotTemplate(template, context = getGlowBotContext()) {
+    return String(template || '')
+        .replaceAll('{name}', context.name)
+        .replaceAll('{condition}', context.condition)
+        .replaceAll('{streak}', context.streak);
+}
+
+function pickGlowBotResponse(responses) {
+    if (!Array.isArray(responses) || responses.length === 0) return '';
+    return responses[Math.floor(Math.random() * responses.length)];
+}
+
+async function loadGlowBotChatData() {
+    if (glowBotChatData) return glowBotChatData;
+    if (glowBotChatDataPromise) return glowBotChatDataPromise;
+
+    glowBotChatDataPromise = fetch(`${API_BASE_URL}/api/chat-data`, {
+        headers: authHeadersRaw()
+    })
+        .then(async (response) => {
+            const parsed = await readApiResponse(response);
+            if (!parsed.ok || !parsed.data || typeof parsed.data !== 'object') {
+                throw new Error(parsed.error || 'Invalid chat data payload');
+            }
+            glowBotChatData = parsed.data;
+            initializeGlowBotChat();
+            return glowBotChatData;
+        })
+        .catch((error) => {
+            console.warn('[GlowBot] Chat data unavailable:', error);
+            glowBotChatData = null;
+            return null;
+        })
+        .finally(() => {
+            glowBotChatDataPromise = null;
+        });
+
+    return glowBotChatDataPromise;
+}
+
+function getGlowBotJsonResponse(input) {
+    if (!glowBotChatData) return null;
+
+    const normalizedInput = normalizeGlowBotText(input);
+    const context = getGlowBotContext();
+    let fallbackIntent = null;
+
+    for (const [, intent] of Object.entries(glowBotChatData)) {
+        if (!intent || !Array.isArray(intent.responses)) continue;
+
+        const keywords = Array.isArray(intent.keywords) ? intent.keywords : [];
+        if (keywords.length === 0) {
+            fallbackIntent = intent;
+            continue;
+        }
+
+        const matched = keywords.some((keyword) => {
+            const normalizedKeyword = normalizeGlowBotText(keyword);
+            return normalizedKeyword && normalizedInput.includes(normalizedKeyword);
+        });
+
+        if (matched) {
+            return fillGlowBotTemplate(pickGlowBotResponse(intent.responses), context);
+        }
+    }
+
+    if (fallbackIntent) {
+        return fillGlowBotTemplate(pickGlowBotResponse(fallbackIntent.responses), context);
+    }
+
+    return null;
+}
+
+async function getGlowBotOpenRouterResponse(input) {
+    try {
+        const context = getGlowBotContext();
+        const response = await fetch(`${API_BASE_URL}/api/glowbot-chat`, {
+            method: 'POST',
+            headers: {
+                ...authHeadersRaw(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: input,
+                name: context.name,
+                condition: context.condition,
+                streak: context.streak,
+                current_view: context.currentView
+            })
+        });
+
+        const parsed = await readApiResponse(response);
+        if (!parsed.ok || !parsed.data || parsed.data.status !== 'success' || !parsed.data.reply) {
+            return null;
+        }
+
+        return String(parsed.data.reply).trim();
+    } catch (error) {
+        console.warn('[GlowBot] OpenRouter layer unavailable:', error);
+        return null;
+    }
+}
+
+function getGlowBotGreeting() {
+    const greetingFromJson = getGlowBotJsonResponse('hello');
+    if (greetingFromJson) return greetingFromJson;
+
+    const skinContext = getGlowBotSkinContext();
+    const streak = state.streak || plannerState.streak || 0;
+
+    if (state.view === 'analyzer') {
+        return `Hi ${state.username}! Want help understanding your latest ${skinContext} scan or product check?`;
+    }
+    if (state.view === 'planner') {
+        return `Hi ${state.username}! You're on a ${streak}-day streak. Want a quick routine check-in for today?`;
+    }
+    return `Hi ${state.username}! I'm GlowBot. Ask me about your ${skinContext}, routine, scans, or ingredients.`;
+}
+
+function initializeGlowBotChat() {
+    if (glowBotMessages.length === 0) {
+        glowBotMessages = [{ sender: 'mascot', text: getGlowBotGreeting() }];
+    } else if (!glowBotMessages.some(msg => msg.sender === 'user')) {
+        glowBotMessages[0] = { sender: 'mascot', text: getGlowBotGreeting() };
+    }
+    renderGlowBotMessages();
+}
+
+function renderGlowBotMessages() {
+    const containers = [
+        document.getElementById('chat-history-compact'),
+        document.getElementById('chat-history-fs')
+    ];
+
+    containers.forEach(container => {
+        if (!container) return;
+        container.innerHTML = '';
+
+        glowBotMessages.forEach(({ sender, text }) => {
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${sender}-bubble`;
+            bubble.textContent = text;
+            container.appendChild(bubble);
+        });
+
+        container.scrollTop = container.scrollHeight;
+    });
+}
+
+async function handleChatSend(inputId) {
     const inputEl = document.getElementById(inputId);
     const text = inputEl.value.trim();
     if (!text) return;
@@ -1889,30 +2122,19 @@ function handleChatSend(inputId) {
     // Mascot "Thinking"
     triggerMascotAnim('thinking');
     
-    setTimeout(() => {
-        const response = getMascotAIResponse(text);
+    setTimeout(async () => {
+        const response = await getMascotAIResponse(text);
         appendChatMessage('mascot', response);
         triggerMascotAnim('happy');
     }, 1000);
 }
 
 function appendChatMessage(sender, text) {
-    const containers = [
-        document.getElementById('chat-history-compact'),
-        document.getElementById('chat-history-fs')
-    ];
-
-    containers.forEach(container => {
-        if (!container) return;
-        const bubble = document.createElement('div');
-        bubble.className = `chat-bubble ${sender}-bubble`;
-        bubble.textContent = text;
-        container.appendChild(bubble);
-        container.scrollTop = container.scrollHeight;
-    });
+    glowBotMessages.push({ sender, text });
+    renderGlowBotMessages();
 }
 
-function checkProactiveGreeting() {
+function checkProactiveGreetingLegacy() {
     // Only greet proactively if chat was just opened and no recent history
     const history = document.getElementById('chat-history-compact');
     if (history && history.children.length <= 1) {
@@ -1930,7 +2152,25 @@ function checkProactiveGreeting() {
     }
 }
 
-function getMascotAIResponse(input) {
+function checkProactiveGreeting() {
+    const hasUserMessages = glowBotMessages.some(msg => msg.sender === 'user');
+    if (!glowBotProactiveShown && !hasUserMessages) {
+        glowBotProactiveShown = true;
+        let msg = `Hey ${state.username}, I'm here with a quick check-in. `;
+
+        if (state.view === 'analyzer') {
+            msg += 'If you want, I can help explain your scan result or ingredient score.';
+        } else if (state.view === 'planner') {
+            msg += `Your current streak is ${state.streak || plannerState.streak || 0} days. Let's keep it going today.`;
+        } else {
+            msg += `Want tips for your ${getGlowBotSkinContext()} or help building today's routine?`;
+        }
+
+        setTimeout(() => appendChatMessage('mascot', msg), 500);
+    }
+}
+
+function getMascotLegacyFallbackResponseOld(input) {
     const low = input.toLowerCase();
     
     // Intent: Greeting
@@ -1955,6 +2195,88 @@ function getMascotAIResponse(input) {
 
     // Default: Friendly companion
     return `That's interesting! Tell me more about that. You know I love hearing about your journey, and I'm always here if you need a tip or just a buddy to talk to! 🌿`;
+}
+
+function getMascotEmergencyFallbackResponse(input) {
+    const low = normalizeGlowBotText(input);
+    const skinContext = getGlowBotSkinContext();
+    const streak = state.streak || plannerState.streak || 0;
+
+    if (low.includes('hi') || low.includes('hello') || low.includes('hey')) {
+        return `Hi ${state.username}! How can I help with your ${skinContext} today?`;
+    }
+
+    if (low.includes('streak') || low.includes('progress') || low.includes('how am i doing')) {
+        return `You're on a ${streak}-day streak, ${state.username}. Consistency like that really helps your skin over time.`;
+    }
+
+    if (low.includes('routine') || low.includes('am') || low.includes('pm') || low.includes('order')) {
+        return `A solid simple routine is cleanser, treatment, moisturizer, and SPF in the morning. If you want, I can tailor that to your ${skinContext}.`;
+    }
+
+    if (low.includes('spf') || low.includes('sunscreen') || low.includes('sun')) {
+        return 'Wear SPF 30 or higher every morning and reapply if you are outdoors. It is one of the best things you can do for irritation, marks, and long-term skin health.';
+    }
+
+    if (low.includes('acne') || low.includes('pimple') || low.includes('breakout') || low.includes('zit')) {
+        return 'For breakouts, keep things gentle and consistent. Salicylic acid, niacinamide, and a non-comedogenic moisturizer are good starting points.';
+    }
+
+    if (low.includes('dry') || low.includes('flaky') || low.includes('tight') || low.includes('dehydrated')) {
+        return 'Dry-feeling skin usually needs barrier support. Try a gentle cleanser, hydrating serum, ceramides, and a richer moisturizer.';
+    }
+
+    if (low.includes('oily') || low.includes('greasy') || low.includes('shiny')) {
+        return 'Oily skin still needs moisture. Lightweight gel moisturizers, niacinamide, and gentle cleansing can help balance shine without over-stripping.';
+    }
+
+    if (low.includes('dark spot') || low.includes('pigment') || low.includes('marks') || low.includes('uneven')) {
+        return 'For dark spots, vitamin C in the morning and daily sunscreen are a strong combo. Ingredients like niacinamide or alpha arbutin can also help over time.';
+    }
+
+    if (low.includes('sensitive') || low.includes('barrier') || low.includes('irritat') || low.includes('redness')) {
+        return 'If your skin feels reactive, strip the routine back a little. Focus on fragrance-free basics, barrier-supporting moisturizers, and slow introduction of actives.';
+    }
+
+    if (low.includes('retinol') || low.includes('retinoid')) {
+        return 'Start retinol slowly, usually a couple of nights a week, and moisturize well. Daily sunscreen matters even more when you use it.';
+    }
+
+    if (low.includes('niacinamide')) {
+        return 'Niacinamide is a nice all-rounder. It can help with oiliness, redness, and post-acne marks without making a routine too complicated.';
+    }
+
+    if (low.includes('scan') || low.includes('result') || low.includes('confidence') || low.includes('analyz')) {
+        return 'If you share your scan result or concern, I can help you interpret it in simple terms and suggest the next routine step.';
+    }
+
+    if (low.includes('product') || low.includes('ingredient')) {
+        return `I can help you think through ingredients for your ${skinContext}. Tell me the ingredient name or what product you are checking.`;
+    }
+
+    if (low.includes('planner') || low.includes('calendar') || low.includes('reminder')) {
+        return 'Use the planner to log AM and PM routines each day. That makes it much easier to spot patterns and build a streak.';
+    }
+
+    if (low.includes('thanks') || low.includes('thank you')) {
+        return `Always here for you, ${state.username}. Keep going, your skin journey is built on steady small wins.`;
+    }
+
+    if (low.includes('bye') || low.includes('see you')) {
+        return `See you soon, ${state.username}. Don't forget your sunscreen and a little patience with your skin.`;
+    }
+
+    return `I can help with routines, ingredients, scan results, or daily skincare habits. Tell me what is going on with your ${skinContext} and we'll figure it out.`;
+}
+
+async function getMascotAIResponse(input) {
+    const aiReply = await getGlowBotOpenRouterResponse(input);
+    if (aiReply) return aiReply;
+
+    const jsonReply = getGlowBotJsonResponse(input);
+    if (jsonReply) return jsonReply;
+
+    return getMascotEmergencyFallbackResponse(input);
 }
 
 function triggerMascotAnim(animType) {
@@ -1999,8 +2321,151 @@ function showToast(message) {
     }, 2500);
 }
 
+/* ==========================================================================
+   PWA INSTALLATION (Both Native + Custom Pop-up)
+   ========================================================================== */
+let deferredPrompt = null;
+const MAX_INSTALL_PROMPTS = 3;
+const PROMPT_DELAYS = [0, 86400000, 259200000]; // 0, 24h, 72h in milliseconds
+
+// Listen for the beforeinstallprompt event
+window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('[PWA] beforeinstallprompt fired - browser install button should appear');
+    // Don't prevent default - let browser show native install button
+    deferredPrompt = e;
+    
+    // Also show custom pop-up after 2 seconds (only if not already installed)
+    setTimeout(() => {
+        showInstallPrompt();
+    }, 2000);
+});
+
+// Listen for app installed event
+window.addEventListener('appinstalled', () => {
+    console.log('[PWA] App was installed!');
+    localStorage.setItem('pwa-installed', 'true');
+    hideInstallPrompt();
+});
+
+// Fallback: Show pop-up even if beforeinstallprompt doesn't fire
+setTimeout(() => {
+    if (!deferredPrompt) {
+        console.log('[PWA] No beforeinstallprompt, showing fallback pop-up');
+        showInstallPrompt();
+    }
+}, 3000);
+
+// Function to show install prompt
+function showInstallPrompt() {
+    // Don't show if already in PWA mode (installed app)
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+        console.log('[PWA] Already running as installed PWA, skipping pop-up');
+        return;
+    }
+    
+    // Get current prompt count
+    let promptCount = parseInt(localStorage.getItem('install-prompt-count') || '0');
+    
+    // Don't show if max prompts reached
+    if (promptCount >= MAX_INSTALL_PROMPTS) {
+        console.log('[PWA] Max install prompts already shown');
+        return;
+    }
+    
+    // Check if enough time has passed for this prompt
+    const firstPromptTime = parseInt(localStorage.getItem('first-prompt-time') || '0');
+    const currentTime = Date.now();
+    const delayForThisPrompt = PROMPT_DELAYS[promptCount];
+    
+    if (currentTime - firstPromptTime < delayForThisPrompt) {
+        console.log('[PWA] Not enough time passed for next prompt');
+        return;
+    }
+    
+    const overlay = document.getElementById('pwa-install-overlay');
+    if (overlay && overlay.style.display === 'none') {
+        overlay.style.display = 'flex';
+        
+        // Update counters
+        if (promptCount === 0) {
+            localStorage.setItem('first-prompt-time', currentTime.toString());
+        }
+        localStorage.setItem('install-prompt-count', (promptCount + 1).toString());
+        
+        console.log(`[PWA] Showing install prompt #${promptCount + 1} of ${MAX_INSTALL_PROMPTS}`);
+    }
+}
+
+// Handle install button click
+function handleInstallClick() {
+    if (deferredPrompt) {
+        // Trigger browser's native install dialog
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('[PWA] User accepted install');
+                showToast('Installing Skinbiee App...');
+                hideInstallPrompt();
+                // Mark as installed (will be confirmed by appinstalled event)
+            } else {
+                console.log('[PWA] User dismissed install');
+                showToast('Maybe next time!');
+            }
+            deferredPrompt = null;
+        });
+    } else {
+        // Mark as installed since user is manually installing
+        localStorage.setItem('pwa-installed', 'true');
+        hideInstallPrompt();
+        
+        // Show detailed manual instructions based on browser
+        const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+        const isFirefox = /Firefox/.test(navigator.userAgent);
+        const isBrave = /Brave/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && /Apple Computer/.test(navigator.vendor);
+        
+        let instructions = '';
+        if (isBrave || isChrome) {
+            instructions = 'Look for the install icon (download/+) in your browser address bar or click the menu (three dots) and select "Install Skinbiee"';
+        } else if (isFirefox) {
+            instructions = 'Open your browser menu and look for "Install" or "Add to Home Screen"';
+        } else if (isSafari) {
+            instructions = 'Tap the Share button and select "Add to Home Screen"';
+        } else {
+            instructions = 'Look for "Install" or "Add to Home Screen" in your browser menu';
+        }
+        
+        showToast(instructions);
+    }
+}
+
+// Function to hide install prompt
+function hideInstallPrompt() {
+    const overlay = document.getElementById('pwa-install-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+
+// Function to dismiss install prompt
+function dismissInstallPrompt() {
+    localStorage.setItem('install-prompt-shown', 'true');
+    hideInstallPrompt();
+}
+
+// Setup PWA install listeners
+function setupPWAInstall() {
+    const installBtn = document.getElementById('pwa-install-btn');
+    if (installBtn) {
+        installBtn.addEventListener('click', handleInstallClick);
+    }
+}
+
 // Start App
-window.addEventListener('DOMContentLoaded', init);
+window.addEventListener('DOMContentLoaded', () => {
+    init();
+    setupPWAInstall();
+});
 
 document.addEventListener('click', (e) => {
     if (e.target.closest('#home-mascot')) {

@@ -6,11 +6,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-MODEL_ID = "google/gemini-flash-1.5"
+MODEL_ID = "google/gemma-3-27b-it:free"
 
 def call_gemini(prompt, system_instruction="You are an expert dermatological assistant."):
     """
-    Calls Gemini 1.5 Flash via OpenRouter.
+    Calls OpenRouter chat completions using the configured model.
     Returns the text response.
     """
     if not OPENROUTER_API_KEY:

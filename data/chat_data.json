@@ -1,245 +1,421 @@
 {
   "greeting": {
-    "keywords": ["hello", "hi", "hey", "sup", "hiya"],
+    "keywords": ["hello", "hi", "hey", "sup", "hiya", "good morning", "good evening", "good night"],
     "responses": [
       "Hey {name}! How's your {condition} feeling today? 🌸",
       "Hi {name}! You're on a {streak} day streak, keep it up! 💪",
       "Hello {name}! Ready to glow? Let's talk skin today ✨",
       "Hey {name}! Your {condition} journey is going great — {streak} days and counting 🔥",
       "Hi {name}! I'm GlowBot, your skin bestie 🌸 What can I help you with today?",
-      "Hey! Glad you're here {name} — let's talk about that {condition} of yours 💜"
+      "Hey! Glad you're here {name} — let's talk about that {condition} of yours 💜",
+      "Good to see you {name}! {streak} days strong — your skin is loving the consistency 🌟",
+      "Hey {name}! Skin feeling good today? Let's make sure it stays that way ✨"
     ]
   },
   "acne": {
-    "keywords": ["acne", "pimple", "breakout", "zit", "blemish"],
+    "keywords": ["acne", "pimple", "breakout", "zit", "blemish", "spots", "cystic", "hormonal acne", "fungal acne"],
     "responses": [
       "For acne, try salicylic acid cleanser + niacinamide + SPF daily 🎯",
       "Breakouts? Keep your hands off your face and use a gentle BHA 🌿",
-      "Niacinamide is your best friend for {condition} — reduces redness fast! 💜"
+      "Niacinamide is your best friend for {condition} — reduces redness fast! 💜",
+      "Hormonal acne around your chin and jaw? That needs a different approach — niacinamide + zinc works great 💡",
+      "For {condition}, change your pillowcase every 2-3 days — bacteria buildup is a hidden trigger 🛏️",
+      "Cystic acne {name}? Don't pop it — ice it for 2 mins to reduce inflammation 🧊",
+      "Fungal acne looks like tiny uniform bumps — it needs antifungal treatment, not regular acne products ⚠️",
+      "Diet can trigger {condition} too — dairy and high sugar foods are common culprits {name} 🥛"
     ]
   },
   "dry_skin": {
-    "keywords": ["dry", "flaky", "tight", "dehydrated", "peeling"],
+    "keywords": ["dry", "flaky", "tight", "dehydrated", "peeling", "dull", "rough", "ashy"],
     "responses": [
       "For dry skin: hyaluronic acid + ceramides + a rich moisturizer 💧",
       "Try layering a hydrating toner before your moisturizer {name}! 🫧",
-      "Avoid hot showers and harsh cleansers — they strip your skin barrier 🚿"
+      "Avoid hot showers and harsh cleansers — they strip your skin barrier 🚿",
+      "Apply moisturizer within 60 seconds of washing your face {name} — that locks in moisture! ⏱️",
+      "Dull and dry? Your skin is screaming for hydration — try a hydrating overnight mask 🌙",
+      "For {condition}, switch to a cream cleanser instead of foaming — much gentler on dry skin 🧴",
+      "Slugging at night — applying Vaseline as last step — is a game changer for very dry {condition} {name}! 💡",
+      "Rough or ashy patches? Gentle exfoliation once a week + heavy moisturizer will smooth things out 🌿"
     ]
   },
   "oily_skin": {
-    "keywords": ["oily", "shiny", "greasy", "sebum", "t-zone"],
+    "keywords": ["oily", "shiny", "greasy", "sebum", "t-zone", "large pores", "slippery"],
     "responses": [
       "For oily skin: niacinamide + zinc + lightweight gel moisturizer 🧴",
       "Clay masks once a week can really help control that shine {name}! ✨",
-      "Don't skip moisturizer — dehydrated skin actually produces MORE oil! 💡"
+      "Don't skip moisturizer — dehydrated skin actually produces MORE oil! 💡",
+      "Blotting papers are your best friend during the day {name} — no need to redo makeup 🌟",
+      "Niacinamide 10% reduces sebum production significantly — use it twice daily for {condition} 💜",
+      "For {condition}, use a foam or gel cleanser morning and night — nothing creamy 🌿",
+      "Large pores with oily skin? Salicylic acid toner 3x a week will visibly tighten them {name} 🎯",
+      "Oil-free SPF is non-negotiable for {condition} — never skip it thinking it'll make you oilier ☀️"
     ]
   },
   "dark_spots": {
-    "keywords": ["dark spots", "pigmentation", "marks", "hyperpigmentation", "uneven"],
+    "keywords": ["dark spots", "pigmentation", "marks", "hyperpigmentation", "uneven", "post acne marks", "melasma", "discoloration"],
     "responses": [
       "Vitamin C in the morning + SPF is the ultimate dark spot duo ☀️",
       "Alpha arbutin and niacinamide together work great for {condition} marks 🌟",
-      "Consistency is key for dark spots {name} — give it 8-12 weeks 🗓️"
+      "Consistency is key for dark spots {name} — give it 8-12 weeks 🗓️",
+      "Melasma needs extra sun protection — even indoor light can make it worse {name} 🪟",
+      "Post-acne marks are not scars {name}! They fade with time + vitamin C + SPF 💙",
+      "Tranexamic acid is incredible for stubborn {condition} — look for it in serums 🌿",
+      "Never pick at spots {name} — it turns a temporary mark into a long-term scar ⚠️",
+      "Alpha arbutin works best layered under moisturizer — use it morning and night for {condition} ✨"
+    ]
+  },
+  "sensitive_skin": {
+    "keywords": ["sensitive", "redness", "rosacea", "irritated", "reactive", "burning", "stinging", "flushing"],
+    "responses": [
+      "For sensitive skin {name}, less is more — stick to fragrance-free gentle products 🌿",
+      "Avoid acids and retinol until your barrier is strong — try ceramides and centella first 💙",
+      "Redness and irritation? Your barrier needs love — try CeraVe or La Roche-Posay {name} 🛡️",
+      "Rosacea triggers include spicy food, alcohol, and hot water — try to identify yours {name} 🌡️",
+      "Always patch test new products on your inner arm first before applying to your face 🧪",
+      "Centella asiatica is incredible for calming {condition} — look for it in your moisturizer 🌱",
+      "For reactive skin {name}, introduce ONE new product at a time and wait 2 weeks before adding another 💡",
+      "Fragrance is the number one irritant for sensitive skin — always check ingredient lists {name} ⚠️"
+    ]
+  },
+  "combination_skin": {
+    "keywords": ["combination", "combo skin", "oily t-zone", "dry cheeks", "mixed skin"],
+    "responses": [
+      "Combo skin? Use a gentle gel cleanser and lightweight moisturizer {name} 💧",
+      "Target oily zones with niacinamide and dry areas with ceramides — no need for one product to do it all 🎯",
+      "Multi-masking works great for combination skin — clay on T-zone, hydrating mask on cheeks 🌿",
+      "For {condition}, use a balancing toner with niacinamide — it regulates oil AND hydrates dry patches ✨",
+      "Don't over-cleanse {name}! Twice a day max — over washing makes the oily zones even oilier 💡",
+      "Lightweight gel moisturizer works for your whole face with combination skin — no need for two products 🧴"
+    ]
+  },
+  "blackheads": {
+    "keywords": ["blackhead", "blackheads", "clogged pores", "open pores", "whitehead", "sebaceous filaments"],
+    "responses": [
+      "Salicylic acid + niacinamide is the best combo for blackheads {name} 🎯",
+      "Don't squeeze blackheads — use a BHA toner 2-3x a week instead 🌿",
+      "Pore strips give instant results but BHA keeps them clear long term {name} 💡",
+      "Sebaceous filaments look like blackheads but they always come back — BHA minimizes them over time 🔍",
+      "Clay masks once a week draw out impurities and visibly reduce blackheads {name} 🧖",
+      "Oil cleansing actually dissolves blackheads — try the double cleanse method at night! 🌙",
+      "Niacinamide tightens pores over time so blackheads become less visible {name} ✨"
+    ]
+  },
+  "eye_area": {
+    "keywords": ["eye cream", "dark circles", "puffy eyes", "under eye", "eye bags", "crow's feet", "fine lines eyes"],
+    "responses": [
+      "For dark circles {name}, caffeine eye cream in the morning works great! ☕",
+      "The under eye area is delicate — avoid strong actives there and use a gentle eye cream 💙",
+      "Puffy eyes? Cold spoon or caffeine serum in the AM reduces swelling fast {name} 🧊",
+      "Dark circles from lack of sleep vs pigmentation need different treatments — which is yours {name}? 💤",
+      "Vitamin K and caffeine together target under-eye dark circles really effectively 🌿",
+      "Pat eye cream gently with your ring finger {name} — never rub, the skin there is very thin! 🤏",
+      "Retinol eye cream at night can reduce crow's feet over time — start with the lowest strength 🌙"
+    ]
+  },
+  "weather": {
+    "keywords": ["winter", "summer", "humid", "dry weather", "season", "cold weather", "hot weather", "climate"],
+    "responses": [
+      "Switch to a richer moisturizer in winter {name} — cold air strips your barrier fast! ❄️",
+      "Hot and humid? Lightweight gel products and extra SPF are your best friends ☀️",
+      "Your {condition} routine might need seasonal adjustments — listen to your skin! 🌤️",
+      "In winter, add a facial oil as your last PM step {name} — it seals in all that moisture 🌙",
+      "Summer heat increases oil production — switch to gel cleanser and lightweight moisturizer 🌊",
+      "Indoor heating in winter is just as drying as cold air outside — run a humidifier if you can {name} 💧"
     ]
   },
   "niacinamide": {
-    "keywords": ["niacinamide", "niacin"],
+    "keywords": ["niacinamide", "niacin", "vitamin b3"],
     "responses": [
       "Niacinamide is amazing for {condition}! Reduces inflammation, controls oil, and fades marks 🌿",
       "Use niacinamide twice daily — it works for almost every skin type including {condition} 💜",
-      "Niacinamide + zinc is a power combo especially great for {condition} ✨"
+      "Niacinamide + zinc is a power combo especially great for {condition} ✨",
+      "10% niacinamide is strong enough to see real results for {condition} in 4 weeks {name} 💡",
+      "Niacinamide pairs well with almost everything — retinol, vitamin C, AHA, BHA 🌟",
+      "For {condition} marks, niacinamide fades them by blocking melanin transfer — use it daily {name} 🎯"
     ]
   },
   "retinol": {
-    "keywords": ["retinol", "retinoid", "tretinoin"],
+    "keywords": ["retinol", "retinoid", "tretinoin", "retin-a", "retinal"],
     "responses": [
       "Start retinol slow — 2x a week at night only. Great for {condition} long term 💡",
       "Always use SPF the next morning when using retinol {name}! ☀️",
-      "Retinol can cause purging at first — totally normal, stick with it 💪"
+      "Retinol can cause purging at first — totally normal, stick with it 💪",
+      "Sandwich method for retinol beginners {name}: moisturizer → retinol → moisturizer on top 🥪",
+      "Tretinoin is prescription-strength retinoid — much stronger than OTC retinol, see a doctor for it 🏥",
+      "Retinal (retinaldehyde) is the sweet spot between retinol and tretinoin — effective but gentler 🌿",
+      "Never use retinol with benzoyl peroxide on the same night — they cancel each other out ⚠️",
+      "After 3 months of retinol use, you can slowly increase frequency {name} — listen to your skin 📅"
     ]
   },
   "spf": {
-    "keywords": ["spf", "sunscreen", "sun protection", "uv"],
+    "keywords": ["spf", "sunscreen", "sun protection", "uv", "uvb", "uva", "mineral sunscreen", "chemical sunscreen"],
     "responses": [
       "SPF every single morning is non-negotiable especially with {condition} ☀️",
       "SPF 30 minimum {name}! Reapply every 2 hours if you're outside 🌤️",
-      "Sunscreen is the best anti-aging AND anti-dark spot product you can use 🏆"
+      "Sunscreen is the best anti-aging AND anti-dark spot product you can use 🏆",
+      "Mineral sunscreen (zinc oxide) is better for sensitive and acne-prone skin {name} 🌿",
+      "Chemical sunscreen absorbs UV rays, mineral reflects them — both work, pick what suits {condition} 💡",
+      "Don't forget neck and hands {name} — they age faster than your face without SPF! 🙌",
+      "Indoor UV through windows still causes {condition} marks to darken — SPF even inside! 🪟",
+      "Tinted SPF doubles as light coverage and protects from visible light too — great for {condition} ✨"
     ]
   },
   "routine": {
-    "keywords": ["routine", "steps", "morning", "night", "pm", "am", "order"],
+    "keywords": ["routine", "steps", "morning", "night", "pm", "am", "order", "layering", "what order"],
     "responses": [
       "Basic AM routine for {condition}: Cleanser → Niacinamide → Moisturizer → SPF 🌅",
       "Basic PM routine for {condition}: Cleanser → Treatment → Moisturizer 🌙",
-      "Keep it simple {name}! 3-4 steps done consistently beats 10 steps done randomly 💯"
+      "Keep it simple {name}! 3-4 steps done consistently beats 10 steps done randomly 💯",
+      "Layer products thinnest to thickest {name} — toner, serum, moisturizer, oil/SPF last 📋",
+      "Wait 30 seconds between each layer for better absorption — especially actives {name} ⏱️",
+      "Double cleansing at night: oil cleanser first removes SPF, then water cleanser cleans skin 🌙",
+      "Never mix vitamin C and niacinamide in the same step — use them at different times of day ⚠️",
+      "AM focus: protect. PM focus: repair and treat. That's the whole framework {name} 💡"
     ]
   },
   "streak": {
-    "keywords": ["streak", "progress", "consistency", "days", "how am i doing"],
+    "keywords": ["streak", "progress", "consistency", "days", "how am i doing", "am i improving"],
     "responses": [
       "You're on a {streak} day streak {name}! That's amazing 🔥",
       "{streak} days of consistency! Your {condition} will definitely thank you 🌟",
-      "Keep going {name}! {streak} days strong — consistency is everything in skincare 💪"
+      "Keep going {name}! {streak} days strong — consistency is everything in skincare 💪",
+      "Skin takes 28 days to fully renew — your {streak} day streak means real change is happening {name} 🌱",
+      "{streak} days in and you're already building the best habit for your {condition} 🎯",
+      "The secret to great skin is boring consistency {name} — and you're nailing it at {streak} days 💜"
     ]
   },
   "navigation": {
-    "keywords": ["login", "how to use", "help", "tabs", "where", "navigate", "sign in"],
+    "keywords": ["login", "how to use", "help", "tabs", "where", "navigate", "sign in", "get started", "how does this work"],
     "responses": [
       "No login needed! Just open the app and start scanning 😊",
       "Use the tabs at the top: Home, Analyzer, Planner, and Settings 📱",
-      "Head to the Analyzer tab to scan your skin, or Planner to track your routine! 🗺️"
+      "Head to the Analyzer tab to scan your skin, or Planner to track your routine! 🗺️",
+      "Start with a skin scan in the Analyzer tab {name} — it detects your condition in seconds 📸",
+      "After scanning, head to the Planner tab to log your routine and track your {streak} day streak 📅",
+      "Settings tab lets you update your profile, skin type, and preferences {name} ⚙️"
     ]
   },
   "thanks": {
-    "keywords": ["thank", "thanks", "thank you", "helpful", "great", "awesome"],
+    "keywords": ["thank", "thanks", "thank you", "helpful", "great", "awesome", "you're the best", "love you"],
     "responses": [
       "Aww you're welcome {name}! Your skin is going to glow 🌸",
       "Happy to help! Keep up that {streak} day streak 💪",
-      "Always here for you {name}! Consistency is your superpower ✨"
+      "Always here for you {name}! Consistency is your superpower ✨",
+      "That's what I'm here for {name}! Now go apply that SPF 😄☀️",
+      "You're doing amazing {name} — {streak} days and glowing skin incoming 🌟"
     ]
   },
   "bad_skin_day": {
-    "keywords": ["bad skin", "worse", "getting worse", "not working", "frustrated", "giving up"],
+    "keywords": ["bad skin", "worse", "getting worse", "not working", "frustrated", "giving up", "hopeless", "nothing works", "hate my skin"],
     "responses": [
       "Hey {name}, skin journeys have ups and downs — don't give up 💙",
       "Bad skin days are temporary! Your {streak} day streak proves you're committed 🌱",
-      "Skin takes 4-6 weeks to show real change {name} — you've got this 💪"
+      "Skin takes 4-6 weeks to show real change {name} — you've got this 💪",
+      "Purging is real {name} — new actives can make skin worse before it gets better. Stick with it 🌿",
+      "If nothing is working after 8 weeks of consistency, it might be time to see a dermatologist 💙",
+      "Stress, diet, and sleep affect {condition} as much as products do {name} — how's your sleep been? 😴",
+      "You've got {streak} days of effort behind you {name} — that's not nothing. Keep going 🔥"
     ]
   },
   "bye": {
-    "keywords": ["bye", "goodbye", "see you", "later", "cya"],
+    "keywords": ["bye", "goodbye", "see you", "later", "cya", "goodnight", "talk later"],
     "responses": [
       "Bye {name}! Don't forget your SPF tomorrow ☀️",
       "See you later! Keep glowing 🌸",
-      "Take care {name}! Your skin is in good hands 💜"
+      "Take care {name}! Your skin is in good hands 💜",
+      "Goodnight {name}! Don't skip that PM moisturizer 🌙",
+      "Catch you later {name}! Keep that {streak} day streak alive 🔥"
     ]
   },
   "vitamin_c": {
-    "keywords": ["vitamin c", "ascorbic acid", "brightening"],
+    "keywords": ["vitamin c", "ascorbic acid", "brightening", "glow", "radiance", "l-ascorbic"],
     "responses": [
       "Vitamin C in the morning helps fade {condition} marks and brightens skin! Always follow with SPF ☀️",
       "Use Vitamin C serum after cleansing in your AM routine {name} — it's a game changer for {condition} 🍊",
-      "Vitamin C + Niacinamide + SPF is the ultimate morning trio for {condition} ✨"
+      "Vitamin C + Niacinamide + SPF is the ultimate morning trio for {condition} ✨",
+      "L-ascorbic acid is the most effective form of vitamin C but also the most unstable — store it in a dark cool place {name} 🌡️",
+      "If vitamin C irritates your skin {name}, try ascorbyl glucoside — gentler but still effective 🌿",
+      "Vitamin C oxidizes and turns orange — if your serum has changed color, it's time to replace it ⚠️"
     ]
   },
   "hyaluronic_acid": {
-    "keywords": ["hyaluronic acid", "hyaluronic", "hydration", "moisture"],
+    "keywords": ["hyaluronic acid", "hyaluronic", "hydration", "moisture", "water", "plump"],
     "responses": [
       "Hyaluronic acid pulls moisture into your skin — apply it on damp skin for best results {name}! 💧",
       "Great for {condition}! Layer hyaluronic acid before your moisturizer 🫧",
-      "If your {condition} feels tight or dehydrated, hyaluronic acid is your go-to 💙"
+      "If your {condition} feels tight or dehydrated, hyaluronic acid is your go-to 💙",
+      "In dry climates, seal hyaluronic acid with a moisturizer immediately — or it pulls moisture OUT of your skin {name}! ⚠️",
+      "Multi-weight hyaluronic acid penetrates different skin layers — look for it in your serum 🌟",
+      "Hyaluronic acid works for every skin type including {condition} — even oily skin needs hydration {name} 💡"
     ]
   },
   "ceramides": {
-    "keywords": ["ceramide", "ceramides", "skin barrier", "barrier"],
+    "keywords": ["ceramide", "ceramides", "skin barrier", "barrier", "stripped", "compromised barrier"],
     "responses": [
       "Ceramides repair your skin barrier — essential if {condition} has damaged it 🛡️",
       "CeraVe products are packed with ceramides and perfect for {condition} {name}! 💜",
-      "A damaged barrier makes {condition} worse — ceramides rebuild it overnight 🌙"
+      "A damaged barrier makes {condition} worse — ceramides rebuild it overnight 🌙",
+      "Signs of a broken barrier: stinging from water, redness, extreme sensitivity {name} 🚨",
+      "If your barrier is damaged, pause all actives for 2 weeks and just use ceramides + moisturizer 💙",
+      "Ceramides + niacinamide + hyaluronic acid is the ultimate barrier repair trio for {condition} 🌿"
     ]
   },
   "salicylic_acid": {
-    "keywords": ["salicylic acid", "bha", "salicylic"],
+    "keywords": ["salicylic acid", "bha", "salicylic", "beta hydroxy"],
     "responses": [
       "Salicylic acid is a BHA that gets deep into pores — perfect for {condition} 🎯",
       "Use salicylic acid cleanser or toner 2-3x a week for {condition} {name} 🌿",
-      "Salicylic acid unclogs pores and reduces blackheads — great for oily and acne skin 💚"
+      "Salicylic acid unclogs pores and reduces blackheads — great for oily and acne skin 💚",
+      "Start salicylic acid slowly {name} — daily use can be too much at first, build up gradually 📅",
+      "Salicylic acid is oil-soluble so it penetrates sebum-filled pores that AHAs can't reach 💡",
+      "For body acne {name}, salicylic acid body wash is incredibly effective — use it 3x a week 🚿"
     ]
   },
   "benzoyl_peroxide": {
-    "keywords": ["benzoyl peroxide", "benzoyl", "bp"],
+    "keywords": ["benzoyl peroxide", "benzoyl", "bp", "antibacterial"],
     "responses": [
       "Benzoyl peroxide kills acne-causing bacteria directly — strong but effective for {condition} 💪",
       "Start with 2.5% benzoyl peroxide {name} — lower strength means less irritation 🌿",
-      "Don't use benzoyl peroxide with retinol on the same night — they cancel each other out! ⚠️"
+      "Don't use benzoyl peroxide with retinol on the same night — they cancel each other out! ⚠️",
+      "Benzoyl peroxide bleaches fabric {name} — use white pillowcases and towels when using it 🛏️",
+      "Wash-off benzoyl peroxide is just as effective as leave-on but causes less dryness {name} 💡",
+      "Benzoyl peroxide + niacinamide is a great combo — BP kills bacteria, niacinamide reduces inflammation 🌿"
+    ]
+  },
+  "aha_exfoliant": {
+    "keywords": ["aha", "glycolic acid", "lactic acid", "exfoliate", "exfoliant", "peel", "alpha hydroxy"],
+    "responses": [
+      "AHAs like glycolic and lactic acid exfoliate the surface — great for {condition} texture and glow ✨",
+      "Lactic acid is gentler than glycolic {name} — better choice if you have sensitive {condition} 🌿",
+      "Always use SPF the day after AHA use — your skin is more sun-sensitive 🌤️",
+      "Start AHA once a week at night {name} and build up slowly — never use daily from the start ⚠️",
+      "AHA + retinol on the same night is too much — alternate them on different nights {name} 📅",
+      "Glycolic acid is the strongest AHA and great for rough texture, dullness, and {condition} marks 🎯"
     ]
   },
   "scan": {
-    "keywords": ["scan", "analyze", "analyse", "take photo", "selfie", "upload", "detect"],
+    "keywords": ["scan", "analyze", "analyse", "take photo", "selfie", "upload", "detect", "photo"],
     "responses": [
       "Go to the Analyzer tab to scan your face! It detects 5 conditions: acne, dry skin, oily skin, dark spots, and normal skin 📸",
       "Head to the Analyzer tab {name} — upload a selfie or take one and I'll detect your skin condition! 🔍",
-      "The skin scanner uses AI to detect your condition with a confidence score — try it in the Analyzer tab! 🤖"
+      "The skin scanner uses AI to detect your condition with a confidence score — try it in the Analyzer tab! 🤖",
+      "For best scan results {name}, use natural lighting and a clean bare face with no makeup 💡",
+      "Scan regularly to track how your {condition} changes over time — consistency in scanning = better data 📊"
     ]
   },
   "scan_result": {
-    "keywords": ["what does it mean", "explain result", "my result", "confidence", "severity", "what is mild", "what is moderate", "what is severe"],
+    "keywords": ["what does it mean", "explain result", "my result", "confidence", "severity", "what is mild", "what is moderate", "what is severe", "score mean"],
     "responses": [
       "Your scan shows {condition}! Confidence above 85% means Severe, 65-85% is Moderate, below 65% is Mild 📊",
       "Mild means early stage, Moderate means it needs attention, Severe means please consult a dermatologist too 💙",
-      "Your {condition} result means I'll recommend specific ingredients to help — check the recommendations below your scan! 🌿"
+      "Your {condition} result means I'll recommend specific ingredients to help — check the recommendations below your scan! 🌿",
+      "Higher confidence score = clearer detection {name} — the AI is more certain about what it sees 🤖",
+      "Compare your latest scan with previous ones in the dashboard to see real progress {name}! 📈"
     ]
   },
   "planner": {
-    "keywords": ["planner", "calendar", "log", "track", "schedule", "reminder"],
+    "keywords": ["planner", "calendar", "log", "track", "schedule", "reminder", "habit", "log routine"],
     "responses": [
       "Head to the Planner tab to log your AM and PM routine for today {name}! 📅",
       "The Planner has a calendar view — tap any day to log your routine and skin feeling 🗓️",
-      "Logging daily helps track your {condition} progress over time — consistency is everything! 💪"
+      "Logging daily helps track your {condition} progress over time — consistency is everything! 💪",
+      "Set reminders in the Planner so you never miss your AM or PM routine {name} ⏰",
+      "You can log how your skin feels each day — this helps spot patterns in your {condition} journey 🌟"
     ]
   },
   "dashboard": {
-    "keywords": ["dashboard", "progress", "chart", "graph", "improvement", "history", "trend"],
+    "keywords": ["dashboard", "progress", "chart", "graph", "improvement", "history", "trend", "stats"],
     "responses": [
       "Your dashboard in the Planner tab shows your skin condition trend over time {name}! 📈",
       "The progress charts show routine consistency, skin feeling trend, and scan history all in one place 📊",
-      "You need at least 2 scans to see your trend — keep scanning to track your {condition} journey! 🌟"
+      "You need at least 2 scans to see your trend — keep scanning to track your {condition} journey! 🌟",
+      "Your {streak} day streak is tracked right there on the dashboard {name} — watch it grow! 🔥",
+      "Dashboard shows weekly and monthly views — great for seeing long-term {condition} improvements 📅"
     ]
   },
   "product_scanner": {
-    "keywords": ["product", "ingredient list", "check product", "is this good", "product score", "compatible"],
+    "keywords": ["product", "ingredient list", "check product", "is this good", "product score", "compatible", "ingredients"],
     "responses": [
       "Go to the Analyzer tab and use the Product Scanner section — paste your ingredient list and I'll score it for {condition}! 🧴",
       "The product scorer rates 0-100 based on how compatible ingredients are with your {condition} 📊",
-      "You can even compare two products side by side to see which one suits {condition} better {name}! ⚖️"
+      "You can even compare two products side by side to see which one suits {condition} better {name}! ⚖️",
+      "Paste the full ingredient list from the product packaging {name} — the more complete, the better the score 🔍",
+      "The scorer flags harmful or irritating ingredients for your {condition} so you know what to avoid ⚠️"
+    ]
+  },
+  "unknown_ingredient": {
+    "keywords": ["what is", "what does", "is it safe", "good ingredient", "bad ingredient", "ingredient mean", "is this safe"],
+    "responses": [
+      "Use the Product Scanner in the Analyzer tab {name} — paste the full ingredient list and I'll score it for {condition}! 🧴",
+      "Not sure about that ingredient? The Product Analyzer tab will tell you if it's safe for {condition} 🔍",
+      "Head to the Analyzer tab and paste the ingredient list — I'll check compatibility with your {condition} {name}! ✨",
+      "In general {name}, short ingredient lists are better — fewer mystery ingredients for {condition} to react to 💡"
     ]
   },
   "routine_builder": {
-    "keywords": ["build routine", "create routine", "generate routine", "what should i use", "suggest routine"],
+    "keywords": ["build routine", "create routine", "generate routine", "what should i use", "suggest routine", "help me build"],
     "responses": [
       "Go to the Planner tab and use the Routine Builder {name}! Answer a few questions and I'll generate your AM and PM routine for {condition} 🌅🌙",
       "The Routine Builder considers your skin condition, time available, and budget — head to the Planner tab! ⚙️",
-      "For {condition} I'd suggest: AM — Cleanser, Niacinamide, SPF. PM — Cleanser, Treatment, Moisturizer 🌿"
+      "For {condition} I'd suggest: AM — Cleanser, Niacinamide, SPF. PM — Cleanser, Treatment, Moisturizer 🌿",
+      "A 3-step routine done daily beats a 10-step routine done once a week {name} — keep it sustainable 💯"
     ]
   },
   "settings": {
-    "keywords": ["settings", "profile", "name", "change name", "dark mode", "notification", "export", "clear data"],
+    "keywords": ["settings", "profile", "name", "change name", "dark mode", "notification", "export", "clear data", "account"],
     "responses": [
       "Head to the Settings tab to update your name, skin type, and notification preferences {name}! ⚙️",
       "You can export your scan history as CSV or clear all data from the Settings tab 📁",
-      "Settings tab also has dark mode toggle and full privacy info — all your data stays local! 🔒"
+      "Settings tab also has dark mode toggle and full privacy info — all your data stays local! 🔒",
+      "Update your skin condition in Settings {name} so GlowBot can give you better personalized tips 🌸"
     ]
   },
   "privacy": {
-    "keywords": ["privacy", "data", "safe", "stored", "server", "secure", "personal"],
+    "keywords": ["privacy", "data", "safe", "stored", "server", "secure", "personal", "who can see"],
     "responses": [
       "Your data is 100% local {name} — stored only on your device, never sent to any server 🔒",
       "No personal information is collected. Images are processed in memory and not saved by default 🛡️",
-      "This app uses local SQLite storage only — your skin data stays private and secure 💙"
+      "This app uses local SQLite storage only — your skin data stays private and secure 💙",
+      "No account needed, no cloud sync, no data sharing — what's on your device stays on your device {name} 🔐"
     ]
   },
   "dermatologist": {
-    "keywords": ["doctor", "dermatologist", "derma", "see a doctor", "professional", "clinic"],
+    "keywords": ["doctor", "dermatologist", "derma", "see a doctor", "professional", "clinic", "prescription"],
     "responses": [
       "I'm just a skincare companion {name} — for serious {condition} concerns please see a dermatologist 💙",
       "This app is for guidance only, not medical advice. If {condition} is severe, please consult a professional 🏥",
-      "A dermatologist can give you prescription treatments that I can't recommend — please visit one if needed 💜"
+      "A dermatologist can give you prescription treatments that I can't recommend — please visit one if needed 💜",
+      "Prescription retinoids, antibiotics, and spironolactone are options only a dermatologist can prescribe {name} 💊",
+      "If your {condition} is causing pain, bleeding, or extreme distress — please see a doctor, not just an app 🏥"
     ]
   },
   "compliment_app": {
-    "keywords": ["love this app", "great app", "this is helpful", "nice app", "good app"],
+    "keywords": ["love this app", "great app", "this is helpful", "nice app", "good app", "amazing app"],
     "responses": [
       "Aww thank you {name}! Built with love to help your {condition} journey 🌸",
       "So glad it's helping! Keep up that {streak} day streak 💪✨",
-      "That means everything {name}! Keep scanning and tracking — your skin will thank you 🌟"
+      "That means everything {name}! Keep scanning and tracking — your skin will thank you 🌟",
+      "You just made GlowBot's day {name}! Now go drink some water for that {condition} 💧😄"
     ]
   },
   "milestone": {
-    "keywords": ["7 days", "week streak", "30 days", "monthly", "milestone", "achievement"],
+    "keywords": ["7 days", "week streak", "30 days", "monthly", "milestone", "achievement", "one week", "one month"],
     "responses": [
       "🎉 {streak} days is incredible {name}! Your {condition} must be showing real improvement!",
       "Milestone unlocked! {streak} days of consistency — you're a skincare pro now {name} 🏆",
-      "WOW {streak} days! At this rate your {condition} doesn't stand a chance 🌟🔥"
+      "WOW {streak} days! At this rate your {condition} doesn't stand a chance 🌟🔥",
+      "{streak} days {name}! Skin cell turnover takes 28 days — you've already completed full cycles 🌱",
+      "Keep stacking those days {name} — every single one is moving your {condition} in the right direction 💜"
+    ]
+  },
+  "sleep_lifestyle": {
+    "keywords": ["sleep", "stress", "diet", "water", "lifestyle", "exercise", "drink water", "food"],
+    "responses": [
+      "Sleep is when your skin repairs itself {name} — 7-8 hours is the best skincare product you're not buying 😴",
+      "Stress triggers cortisol which directly worsens {condition} — try to manage it alongside your routine 🧘",
+      "Drinking enough water helps but won't fix {condition} alone — topical hydration is still needed 💧",
+      "Exercise increases circulation and helps {condition} — just cleanse right after sweating {name}! 🏃",
+      "High sugar and dairy can trigger breakouts in some people {name} — try cutting back and see if {condition} improves 🥛"
     ]
   },
   "fallback": {
@@ -247,7 +423,9 @@
     "responses": [
       "Hmm not sure about that {name}! Try asking me about your {condition}, ingredients like niacinamide or retinol, or your routine 🌸",
       "I'm best at skincare! Ask me about acne, dry skin, oily skin, dark spots, ingredients, or how to use this app 💜",
-      "That's outside my expertise {name}! But ask me anything about {condition} or your skincare routine and I'm all yours ✨"
+      "That's outside my expertise {name}! But ask me anything about {condition} or your skincare routine and I'm all yours ✨",
+      "Not quite my area {name}! I know skincare, ingredients, your streak, and the app inside out — ask me anything about those 🌟",
+      "Hmm try rephrasing {name}! I can help with skin conditions, routines, ingredients, scanning, or tracking your progress 💙"
     ]
   }
 }

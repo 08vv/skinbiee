@@ -25,7 +25,7 @@ from werkzeug.exceptions import HTTPException
 
 load_dotenv()
 from modules.product_scanner import analyze_custom_ingredients
-from modules.llm_provider import analyze_ingredients_llm
+from modules.llm_provider import analyze_ingredients_llm, call_gemini
 from modules.history_db import (
     add_scan, add_daily_log, get_all_scans, get_daily_logs,
     get_user_by_username, get_user_skin_condition,
@@ -693,6 +693,51 @@ def analyze_prod():
 
 
 # ── Daily log + user data routes ──────────────────────────────────────────────
+
+@app.route('/api/chat-data', methods=['GET'])
+def get_chat_data():
+    try:
+        chat_data_path = os.path.join(os.path.dirname(__file__), 'data', 'chat_data.json')
+        with open(chat_data_path, 'r', encoding='utf-8') as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({"error": f"Unable to load chat data: {e}"}), 500
+
+
+@app.route('/api/glowbot-chat', methods=['POST'])
+def glowbot_chat():
+    payload = request.get_json(silent=True) or {}
+    message = (payload.get('message') or '').strip()
+    if not message:
+        return jsonify({"error": "Message is required"}), 400
+
+    user_name = (payload.get('name') or 'Friend').strip() or 'Friend'
+    condition = (payload.get('condition') or 'skin').strip() or 'skin'
+    streak = str(payload.get('streak') or 0)
+    current_view = (payload.get('current_view') or 'home').strip() or 'home'
+
+    prompt = f"""
+    The user '{user_name}' is using a skincare app and asked: "{message}".
+    Their main skin context is "{condition}".
+    Their current streak is "{streak}".
+    Their current app view is "{current_view}".
+
+    Respond as GlowBot, a friendly skincare assistant.
+    Keep the answer supportive, concise, practical, and easy to understand.
+    Use at most 2 short paragraphs and avoid sounding clinical unless needed.
+    Mention the user's name only when it feels natural.
+    """
+
+    reply = call_gemini(
+        prompt,
+        system_instruction="You are GlowBot, a friendly skincare companion inside the Skinbiee app."
+    )
+
+    if not reply:
+        return jsonify({"error": "GlowBot AI unavailable"}), 503
+
+    return jsonify({"status": "success", "reply": reply})
+
 
 @app.route('/api/daily-log', methods=['POST'])
 def save_log():

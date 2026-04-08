@@ -15,14 +15,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- PWA Setup -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json?v=3">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/app-icon-32.png">
+    <link rel="apple-touch-icon" href="assets/app-icon-180.png">
     <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Skinbiee">
-    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-
-    <link rel="icon" href="assets/icon-192x192.png">
 </head>
 
 <body>
@@ -1052,21 +1051,22 @@
 
         <!-- TOAST CONTAINER -->
         <div id="toast-container"></div>
+        
         <!-- PWA INSTALL MODAL -->
         <div id="pwa-install-overlay" class="overlay-screen" style="display: none; z-index: 3000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5);">
             <div class="result-card" style="margin: 0 20px; padding: 25px; text-align: center; max-width: 350px;">
                 <div class="mascot-blob idle micro mb-3" style="margin: 0 auto;"></div>
                 <h2 style="font-size: 20px; margin-bottom: 8px;">Install Skinbiee App</h2>
                 <p class="text-muted micro-text" style="margin-bottom: 20px;">Download the app to your Home Screen to easily track your daily routines and keep your streak alive!</p>
-                <button class="primary-btn full-width mb-2" id="pwa-install-btn">Install Now 🌟</button>
-                <button class="secondary-btn full-width" onclick="document.getElementById('pwa-install-overlay').style.display='none'">Maybe Later</button>
+                <button class="primary-btn full-width mb-2" id="pwa-install-btn">Install Now ?</button>
+                <button class="secondary-btn full-width" onclick="dismissInstallPrompt()">Maybe Later</button>
             </div>
         </div>
 
         <!-- IOS INSTALL BANNER -->
         <div id="ios-install-banner" style="display: none; position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); z-index: 10000; border-top-left-radius: 20px; border-top-right-radius: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <strong style="color: var(--text-primary);">Install on iOS 🍎</strong>
+                <strong style="color: var(--text-primary);">Install on iOS ?</strong>
                 <button class="icon-btn" onclick="document.getElementById('ios-install-banner').style.display='none'" style="width: 30px; height: 30px; border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <p class="micro-text mb-0" style="color: var(--text-secondary);">To install Skinbiee, tap the <strong>Share</strong> button <i class="fa-solid fa-arrow-up-from-bracket"></i> below and select <strong>"Add to Home Screen"</strong>.</p>
