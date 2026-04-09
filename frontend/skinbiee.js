@@ -634,6 +634,7 @@ function setupAnalyzer() {
 
                 if (data.status === 'success') {
                     showToast("Analysis complete! Rendering results.");
+                    if (data.warning) showToast(data.warning);
                     renderSkinResults(Array.isArray(data.results) ? data.results : [], data.image_url || URL.createObjectURL(file));
                     showAnalyzerSubState('skin', 'results');
                     triggerMascotAnim('happy');
@@ -718,6 +719,7 @@ function setupAnalyzer() {
 
                 if (data.status === 'success') {
                     showToast("Scanner success! Results ready.");
+                    if (data.warning) showToast(data.warning);
                     renderProdResults(data);
                     showAnalyzerSubState('prod', 'results');
                     triggerMascotAnim('happy');

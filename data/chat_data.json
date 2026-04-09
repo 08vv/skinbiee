@@ -187,7 +187,7 @@
   "navigation": {
     "keywords": ["login", "how to use", "help", "tabs", "where", "navigate", "sign in", "get started", "how does this work"],
     "responses": [
-      "No login needed! Just open the app and start scanning 😊",
+      "You can scan without logging in, but signing in saves your scans and progress history 😊",
       "Use the tabs at the top: Home, Analyzer, Planner, and Settings 📱",
       "Head to the Analyzer tab to scan your skin, or Planner to track your routine! 🗺️",
       "Start with a skin scan in the Analyzer tab {name} — it detects your condition in seconds 📸",

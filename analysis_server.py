@@ -569,17 +569,13 @@ def api_logout():
 @app.route('/api/analyze-skin', methods=['POST'])
 def analyze_skin():
     user = get_current_user()
-    if not user:
-        return jsonify({"error": "Authentication required"}), 401
-    uid = user["user_id"]
+    uid = user["user_id"] if user else None
     f = request.files.get('image')
     if not f:
         return jsonify({"error": "No image"}), 400
 
     b = f.read()
     url = upload_img(b, "skinbiee/face_scans")
-    if not url:
-        return jsonify({"error": "Image upload failed. Configure Cloudinary."}), 503
 
     # Forward to ML service
     ml_resp = _call_ml_service(b, "skin")
@@ -592,13 +588,20 @@ def analyze_skin():
         res = [{"concern": "Normal", "severity": "Mild", "confidence": 0.9}]
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        # res[0] is safe because we ensured it above
-        add_scan(uid, ts, res[0]['concern'], res[0]['confidence'], res[0]['severity'], image_path=url)
-    except Exception as e:
-        return jsonify({"error": f"Failed to save scan: {e}"}), 500
+    if uid is not None:
+        try:
+            # res[0] is safe because we ensured it above
+            add_scan(uid, ts, res[0]['concern'], res[0]['confidence'], res[0]['severity'], image_path=url or "")
+        except Exception as e:
+            return jsonify({"error": f"Failed to save scan: {e}"}), 500
 
-    return jsonify({"status": "success", "results": res, "image_url": url})
+    resp = {"status": "success", "results": res, "image_url": url}
+    if uid is None:
+        resp["warning"] = "Scan completed without login, so it was not saved to history."
+    elif not url:
+        resp["warning"] = "Scan completed, but the image could not be uploaded to Cloudinary."
+
+    return jsonify(resp)
 
 
 # ── Product scan route (forwards OCR to HF, keeps analysis local) ────────────
@@ -606,9 +609,7 @@ def analyze_skin():
 @app.route('/api/analyze-product', methods=['POST'])
 def analyze_prod():
     user = get_current_user()
-    if not user:
-        return jsonify({"error": "Authentication required"}), 401
-    uid = user["user_id"]
+    uid = user["user_id"] if user else None
     f   = request.files.get('image')
     debug_mode = request.args.get('debug', '').lower() == 'true'
     if not f:
@@ -618,8 +619,6 @@ def analyze_prod():
 
     # 1. Upload to Cloudinary
     url = upload_img(b, "skinbiee/product_scans")
-    if not url:
-        return jsonify({"error": "Image upload failed. Configure Cloudinary."}), 503
 
     # 2. Forward to HF ML service for OCR
     ml_resp = _call_ml_service(b, "product")
@@ -649,10 +648,13 @@ def analyze_prod():
     ingredients_text = ", ".join(ingredients_list)
 
     # 5. Fetch skin condition
-    try:
-        skin_condition = get_user_skin_condition(uid)
-    except Exception as e:
-        print(f"[analyze_prod] Could not fetch skin condition: {e}")
+    if uid is not None:
+        try:
+            skin_condition = get_user_skin_condition(uid)
+        except Exception as e:
+            print(f"[analyze_prod] Could not fetch skin condition: {e}")
+            skin_condition = "general"
+    else:
         skin_condition = "general"
 
     # 6. Analyse (LLM → rule-based fallback)
@@ -671,10 +673,11 @@ def analyze_prod():
 
     # 8. Persist
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        add_scan(uid, ts, "Product Scan", 1.0, an.get('recommendation', 'Info'), image_path=url)
-    except Exception as e:
-        return jsonify({"error": f"Failed to save scan: {e}"}), 500
+    if uid is not None:
+        try:
+            add_scan(uid, ts, "Product Scan", 1.0, an.get('recommendation', 'Info'), image_path=url or "")
+        except Exception as e:
+            return jsonify({"error": f"Failed to save scan: {e}"}), 500
 
     # 9. Response
     resp = {
@@ -685,6 +688,10 @@ def analyze_prod():
         "analysis":             an,
         "image_url":            url,
     }
+    if uid is None:
+        resp["warning"] = "Scan completed without login, so it was not saved to history."
+    elif not url:
+        resp["warning"] = "Scan completed, but the image could not be uploaded to Cloudinary."
     if debug_mode:
         resp["ocr_raw"]              = ocr_raw
         resp["ocr_ingredients_raw"]  = ocr_ingredients_raw_text
