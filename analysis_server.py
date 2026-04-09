@@ -135,7 +135,7 @@ def validate_required_services():
     require_cloudinary_config()
 
 
-validate_required_services()
+# validate_required_services()  # Temporarily disabled for debugging
 
 
 def record_storage_failure(kind: str, error: Exception | str, context: dict | None = None):
