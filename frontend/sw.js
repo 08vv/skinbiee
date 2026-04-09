@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skinbiee-cache-v24';
+const CACHE_NAME = 'skinbiee-cache-v25';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -10,9 +10,10 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
-    );
+    // Force immediate takeover with zero friction.
+    // Eager cache.addAll can fail if the CDN redirects /index.html to / (301s fail addAll),
+    // causing the new SW to silently abort installation leaving users stuck on old versions.
+    // The NetworkFirst fetch handler will automatically heavily cache these on first load anyway.
     self.skipWaiting();
 });
 
