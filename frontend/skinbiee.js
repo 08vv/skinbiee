@@ -2283,62 +2283,10 @@ function closeClearDataModal() {
     if (modal) modal.style.display = 'none';
 }
 
-function executeClearData() {
-    const currentUserId = state.userId;
-    clearSession();
-    clearScopedStorage(currentUserId);
-    closeClearDataModal();
-    switchView('auth');
-    showToast('Local app data cleared');
-}
-
 /* ==========================================================================
-   TAB: SETTINGS
+   TAB: SETTINGS (LEGACY REMOVED - SEE SERVER-BACKED SECTION BELOW)
    ========================================================================== */
-function setupSettings() {
-    document.querySelectorAll('.swatch').forEach(sw => {
-        sw.addEventListener('click', () => {
-            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-            sw.classList.add('active');
-            changeMascotColor(sw.dataset.color || sw.dataset.val);
-        });
-    });
 
-    document.querySelectorAll('.pill-group .pill[data-theme]').forEach((pill) => {
-        pill.addEventListener('click', () => {
-            const targetTheme = pill.dataset.theme;
-            if (targetTheme && targetTheme !== state.theme) toggleTheme();
-        });
-    });
-
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            clearSession();
-            switchView('auth');
-        });
-    }
-
-    const remindersRaw = getScopedStorage('sc-reminders');
-    if (remindersRaw) {
-        try {
-            const reminders = JSON.parse(remindersRaw);
-            const toggle = document.getElementById('settings-reminder-toggle');
-            const amActive = document.getElementById('am-reminder-active');
-            const amTime = document.getElementById('am-reminder-time');
-            const pmActive = document.getElementById('pm-reminder-active');
-            const pmTime = document.getElementById('pm-reminder-time');
-            if (toggle) toggle.checked = Boolean(reminders.enabled);
-            if (amActive) amActive.checked = Boolean(reminders.amActive);
-            if (amTime) amTime.value = reminders.amTime || amTime.value;
-            if (pmActive) pmActive.checked = Boolean(reminders.pmActive);
-            if (pmTime) pmTime.value = reminders.pmTime || pmTime.value;
-        } catch (e) {
-            console.warn('Could not restore reminders', e);
-        }
-    }
-    toggleReminderScheduleItem();
-}
 
 function openEditProfile() {
     const overlay = document.getElementById('profile-editor-overlay');

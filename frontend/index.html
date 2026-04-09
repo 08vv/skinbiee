@@ -8,14 +8,14 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=17">
-    <link rel="stylesheet" href="skinbiee.css?v=17">
+    <link rel="stylesheet" href="style.css?v=18">
+    <link rel="stylesheet" href="skinbiee.css?v=18">
 
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- PWA Setup -->
-    <link rel="manifest" href="manifest.json?v=17">
+    <link rel="manifest" href="manifest.json?v=18">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/app-icon-32.png">
     <link rel="apple-touch-icon" href="assets/app-icon-180.png">
     <meta name="theme-color" content="#ffffff">
@@ -679,12 +679,12 @@
                 <div class="settings-list">
                     <div class="settings-group-title">PROFILE</div>
                     <div class="settings-section">
-                        <div class="set-item" data-page-id="account-details">
+                        <div class="set-item" onclick="openSettingsSubPage('account-details')">
                             <i class="fa-regular fa-user icon"></i>
                             <span>Account Details</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
                         </div>
-                        <div class="set-item" data-page-id="skin-profile">
+                        <div class="set-item" onclick="openSettingsSubPage('skin-profile')">
                             <i class="fa-solid fa-face-smile icon"></i>
                             <span>Skin Profile</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -693,7 +693,7 @@
 
                     <div class="settings-group-title">PERSONALIZATION</div>
                     <div class="settings-section">
-                        <div class="set-item" data-page-id="onboarding">
+                        <div class="set-item" onclick="openSettingsToOnboarding()">
                             <i class="fa-solid fa-clipboard-list icon"></i>
                             <span>Get to Know Me Better</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -710,7 +710,7 @@
                                 <span class="slider round"></span>
                             </label>
                         </div>
-                        <div class="set-item" id="reminder-schedule-item" style="display: none;" data-page-id="routine-reminders">
+                        <div class="set-item" id="reminder-schedule-item" style="display: none;" onclick="openSettingsSubPage('settings-routine-reminders')">
                             <i class="fa-solid fa-clock icon"></i>
                             <span>Schedule Reminders</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -731,7 +731,7 @@
 
                     <div class="settings-group-title">DATA & PRIVACY</div>
                     <div class="settings-section">
-                        <div class="set-item" data-page-id="export-data">
+                        <div class="set-item" onclick="openSettingsSubPage('export-data')">
                             <i class="fa-solid fa-download icon"></i>
                             <span>Export Data</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -1051,7 +1051,7 @@
     <!-- TOASTS -->
     <div id="toast-container"></div>
 
-    <script src="skinbiee.js?v=17"></script>
+    <script src="skinbiee.js?v=18"></script>
 </body>
 
 </html>
