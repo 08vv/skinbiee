@@ -92,6 +92,8 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
     overflow-x: hidden;
     overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
 }
 
 h1,
@@ -138,6 +140,8 @@ a {
     overflow-y: auto;
     overflow-x: hidden;
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
     position: relative;
 }
 
@@ -3205,3 +3209,78 @@ input:checked+.slider:before {
     from { opacity: 0; transform: scale(0.8) translateY(20px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* ==========================================================================
+   MOBILE PERFORMANCE & MICRO-INTERACTIONS
+   ========================================================================== */
+
+/* Smooth momentum scrolling for all scrollable containers */
+.chat-history,
+.chat-fs-history,
+.sub-page-overlay,
+.planner-calendar-grid {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Subtle press feedback on interactive settings items */
+.set-item {
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.set-item:active {
+    background-color: var(--bg-app);
+    transform: scale(0.98);
+}
+
+/* Smooth sub-page overlay entrance */
+.sub-page-overlay {
+    transition: opacity 0.2s ease;
+}
+
+/* Gentle card hover lift (desktop) / press (mobile) */
+.card-glass,
+.gradient-card,
+.verdict-card {
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.card-glass:active,
+.gradient-card:active {
+    transform: translateY(1px);
+}
+
+/* Pill press micro-animation */
+.pill {
+    transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+/* Settings destructive button hover */
+.settings-destructive-btn {
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.settings-destructive-btn:active {
+    transform: scale(0.97);
+}
+
+/* Score bar fill animation */
+.score-bar-fill {
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s ease;
+}
+
+/* Toast entrance enhancement — already has animation, add exit */
+.toast.fade-out {
+    animation: toastFadeOut 0.25s ease forwards;
+}
+@keyframes toastFadeOut {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to { opacity: 0; transform: scale(0.9) translateY(10px); }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+

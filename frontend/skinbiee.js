@@ -712,16 +712,8 @@ function resetOnboarding(fromSettings = false) {
 }
 
 /* ==========================================================================
-   NAVIGATION
+   NAVIGATION (see setupBottomNav above in ROUTING section)
    ========================================================================== */
-function setupBottomNav() {
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const target = btn.dataset.target;
-            switchView(target);
-        });
-    });
-}
 
 /* ==========================================================================
    TAB: ANALYZER
@@ -2036,63 +2028,7 @@ function togglePasswordChange() {
     section.style.display = section.style.display === 'none' || !section.style.display ? 'flex' : 'none';
 }
 
-function saveAccountDetails() {
-    const profile = loadUserProfile() || {};
-    const input = byId('profile-edit-username', 'onboarding-profile-username');
-    if (input && input.value.trim()) {
-        profile.username = input.value.trim();
-        state.username = profile.username;
-        updateDisplayedUsername();
-        safeStorage.set('sc-username', state.username);
-    }
-    saveUserProfile(profile);
-    closeSettingsSubPage('account-details');
-    showToast('Account details saved');
-}
-
-function saveEditProfile() {
-    saveAccountDetails();
-    closeEditProfile();
-}
-
-function closeEditProfile() {
-    const overlay = document.getElementById('profile-editor-overlay');
-    if (overlay) overlay.style.display = 'none';
-}
-
-function saveSkinProfile() {
-    const profile = loadUserProfile() || {};
-    document.querySelectorAll('[data-profile-key]').forEach((group) => {
-        const key = group.dataset.profileKey;
-        if (!key) return;
-        if (group.classList.contains('color-swatches')) {
-            const active = group.querySelector('.swatch.active');
-            if (active) profile[key] = active.dataset.val || active.style.background;
-        } else if (group.classList.contains('pill-group') && group.classList.contains('single-select')) {
-            const active = group.querySelector('.pill.active');
-            if (active) profile[key] = active.dataset.val || active.textContent.trim();
-        } else if (group.classList.contains('pill-group') && group.classList.contains('multi-select')) {
-            profile[key] = Array.from(group.querySelectorAll('.pill.active')).map((pill) => pill.dataset.val || pill.textContent.trim());
-        }
-    });
-    saveUserProfile(profile);
-    applyUserProfile(profile);
-    closeSettingsSubPage('skin-profile');
-    showToast('Skin profile saved');
-}
-
-function saveReminders() {
-    const reminderSettings = {
-        enabled: Boolean(document.getElementById('settings-reminder-toggle')?.checked),
-        amActive: Boolean(document.getElementById('am-reminder-active')?.checked),
-        amTime: document.getElementById('am-reminder-time')?.value || '08:00',
-        pmActive: Boolean(document.getElementById('pm-reminder-active')?.checked),
-        pmTime: document.getElementById('pm-reminder-time')?.value || '21:30'
-    };
-    setScopedJson('sc-reminders', reminderSettings);
-    closeSettingsSubPage('settings-routine-reminders');
-    showToast('Reminder settings saved');
-}
+/* Legacy duplicates removed — server-backed versions below handle all saves */
 
 function performPasswordChange() {
     const oldPassword = document.getElementById('old-password')?.value || '';
@@ -2573,9 +2509,7 @@ function updateTimeValue(period) {
     }
 }
 
-function getGlowBotProfile() {
-    return state.userProfile || {};
-}
+/* getGlowBotProfile defined below in GlowBot section */
 
 /* ... */
 /* ==========================================================================
