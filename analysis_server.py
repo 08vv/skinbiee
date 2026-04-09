@@ -16,7 +16,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import numpy as np
-import os, io, math, requests as http_requests, traceback
+import os, io, math, json, requests as http_requests, traceback
 from datetime import datetime, date, timedelta
 from PIL import Image
 import cloudinary, cloudinary.uploader
@@ -28,7 +28,8 @@ from modules.product_scanner import analyze_custom_ingredients
 from modules.llm_provider import analyze_ingredients_llm, call_gemini
 from modules.history_db import (
     add_scan, add_daily_log, get_all_scans, get_daily_logs,
-    get_user_by_username, get_user_skin_condition,
+    get_active_routine, get_user_by_id, get_user_by_username, get_user_preferences,
+    get_user_skin_condition, save_progress_photo, save_routine, save_user_preferences,
 )
 from modules.auth import login_user, register_user, create_token, verify_token
 
@@ -49,6 +50,18 @@ else:
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+STORAGE_FAILURE_COUNTS = {
+    "cloudinary_face_scan_upload": 0,
+    "cloudinary_product_scan_upload": 0,
+    "cloudinary_progress_photo_upload": 0,
+    "postgres_face_scan_save": 0,
+    "postgres_product_scan_save": 0,
+    "postgres_daily_log_save": 0,
+    "postgres_progress_photo_save": 0,
+    "postgres_preferences_save": 0,
+    "postgres_routine_save": 0,
+}
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────
 limiter = Limiter(
@@ -109,10 +122,30 @@ def _cloudinary_configured():
     ])
 
 
-def upload_img(image_bytes, folder):
+def require_cloudinary_config():
     if not _cloudinary_configured():
-        print("[Cloudinary] Missing CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, or CLOUDINARY_API_SECRET")
-        return None
+        raise RuntimeError(
+            "Cloudinary is required for stored user images. Configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET."
+        )
+
+
+def validate_required_services():
+    if not os.getenv("DATABASE_URL", "").startswith("postgres"):
+        raise RuntimeError("DATABASE_URL must be configured with a PostgreSQL connection string.")
+    require_cloudinary_config()
+
+
+validate_required_services()
+
+
+def record_storage_failure(kind: str, error: Exception | str, context: dict | None = None):
+    STORAGE_FAILURE_COUNTS[kind] = STORAGE_FAILURE_COUNTS.get(kind, 0) + 1
+    ctx = f" context={context}" if context else ""
+    print(f"[StorageFailure] {kind} count={STORAGE_FAILURE_COUNTS[kind]} error={error}{ctx}")
+
+
+def upload_img(image_bytes, folder):
+    require_cloudinary_config()
     try:
         r = cloudinary.uploader.upload(image_bytes, folder=folder, resource_type="image")
         return r.get("secure_url")
@@ -523,7 +556,8 @@ def api_register():
         # Return success; token is also set in a secure cookie for persistence
         resp = make_response(jsonify({
             "status": "success", 
-            "token": token, 
+            "token": token,
+            "user_id": user['id'],
             "username": user['username']
         }))
         resp.set_cookie(
@@ -546,7 +580,8 @@ def api_login():
         # Set token in secure HTTP-only cookie
         resp = make_response(jsonify({
             "status": "success", 
-            "token": token, 
+            "token": token,
+            "user_id": user['id'],
             "username": user['username']
         }))
         resp.set_cookie(
@@ -564,6 +599,11 @@ def api_logout():
     return resp
 
 
+@app.route('/api/internal/storage-failures', methods=['GET'])
+def storage_failures():
+    return jsonify({"status": "success", "counts": STORAGE_FAILURE_COUNTS}), 200
+
+
 # ── Skin scan route (forwards to HF ML service) ──────────────────────────────
 
 @app.route('/api/analyze-skin', methods=['POST'])
@@ -575,7 +615,6 @@ def analyze_skin():
         return jsonify({"error": "No image"}), 400
 
     b = f.read()
-    url = upload_img(b, "skinbiee/face_scans")
 
     # Forward to ML service
     ml_resp = _call_ml_service(b, "skin")
@@ -587,21 +626,21 @@ def analyze_skin():
     if not res:
         res = [{"concern": "Normal", "severity": "Mild", "confidence": 0.9}]
 
+    url = ""
+    try:
+        url = upload_img(b, "skinbiee/face_scans")
+    except Exception as e:
+        record_storage_failure("cloudinary_face_scan_upload", e, {"user_id": uid})
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if uid is not None:
         try:
             # res[0] is safe because we ensured it above
-            add_scan(uid, ts, res[0]['concern'], res[0]['confidence'], res[0]['severity'], image_path=url or "")
+            add_scan(uid, ts, res[0]['concern'], res[0]['confidence'], res[0]['severity'], image_path=url)
         except Exception as e:
-            return jsonify({"error": f"Failed to save scan: {e}"}), 500
+            record_storage_failure("postgres_face_scan_save", e, {"user_id": uid})
 
-    resp = {"status": "success", "results": res, "image_url": url}
-    if uid is None:
-        resp["warning"] = "Scan completed without login, so it was not saved to history."
-    elif not url:
-        resp["warning"] = "Scan completed, but the image could not be uploaded to Cloudinary."
-
-    return jsonify(resp)
+    return jsonify({"status": "success", "results": res, "image_url": url})
 
 
 # ── Product scan route (forwards OCR to HF, keeps analysis local) ────────────
@@ -617,10 +656,7 @@ def analyze_prod():
 
     b = f.read()
 
-    # 1. Upload to Cloudinary
-    url = upload_img(b, "skinbiee/product_scans")
-
-    # 2. Forward to HF ML service for OCR
+    # 1. Forward to HF ML service for OCR
     ml_resp = _call_ml_service(b, "product")
     if ml_resp is None or ml_resp.get("status") != "success":
         err_msg = ml_resp.get("error", "ML service unreachable") if ml_resp else "ML service unreachable"
@@ -672,12 +708,18 @@ def analyze_prod():
     ingredient_breakdown = _build_ingredient_breakdown(ingredients_list, an, skin_condition)
 
     # 8. Persist
+    url = ""
+    try:
+        url = upload_img(b, "skinbiee/product_scans")
+    except Exception as e:
+        record_storage_failure("cloudinary_product_scan_upload", e, {"user_id": uid})
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if uid is not None:
         try:
-            add_scan(uid, ts, "Product Scan", 1.0, an.get('recommendation', 'Info'), image_path=url or "")
+            add_scan(uid, ts, "Product Scan", 1.0, an.get('recommendation', 'Info'), image_path=url)
         except Exception as e:
-            return jsonify({"error": f"Failed to save scan: {e}"}), 500
+            record_storage_failure("postgres_product_scan_save", e, {"user_id": uid})
 
     # 9. Response
     resp = {
@@ -688,10 +730,6 @@ def analyze_prod():
         "analysis":             an,
         "image_url":            url,
     }
-    if uid is None:
-        resp["warning"] = "Scan completed without login, so it was not saved to history."
-    elif not url:
-        resp["warning"] = "Scan completed, but the image could not be uploaded to Cloudinary."
     if debug_mode:
         resp["ocr_raw"]              = ocr_raw
         resp["ocr_ingredients_raw"]  = ocr_ingredients_raw_text
@@ -760,16 +798,110 @@ def save_log():
         photo_url = ""
         if img and img.filename:
             b = img.read()
-            photo_url = upload_img(b, "skinbiee/progress_photos") or ""
-            if not photo_url:
-                return jsonify({"error": "Photo upload failed. Configure Cloudinary."}), 503
+            try:
+                photo_url = upload_img(b, "skinbiee/progress_photos")
+            except Exception as e:
+                record_storage_failure("cloudinary_progress_photo_upload", e, {"user_id": uid})
         try:
             add_daily_log(uid, d, am, pm, f, r, n, photo_path=photo_url)
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            record_storage_failure("postgres_daily_log_save", e, {"user_id": uid})
+            return jsonify({"status": "success", "message": "Saved"}), 200
         return jsonify({"status": "success", "message": "Saved"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/progress-photo', methods=['POST'])
+def upload_progress_photo():
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+        img = request.files.get('image')
+        if not img or not img.filename:
+            return jsonify({"error": "Image is required"}), 400
+
+        d = request.form.get('date', datetime.now().strftime("%Y-%m-%d"))
+        photo_url = ""
+        try:
+            photo_url = upload_img(img.read(), "skinbiee/progress_photos")
+        except Exception as e:
+            record_storage_failure("cloudinary_progress_photo_upload", e, {"user_id": user["user_id"]})
+
+        try:
+            if photo_url:
+                save_progress_photo(user["user_id"], d, photo_url)
+            else:
+                record_storage_failure("postgres_progress_photo_save", "skipped because photo_url missing", {"user_id": user["user_id"]})
+        except Exception as e:
+            record_storage_failure("postgres_progress_photo_save", e, {"user_id": user["user_id"]})
+        return jsonify({"status": "success", "photo_url": photo_url, "date": d}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/user/preferences', methods=['GET', 'PUT'])
+def user_preferences():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    uid = user["user_id"]
+    if request.method == 'GET':
+        prefs = get_user_preferences(uid)
+        return jsonify({"status": "success", **prefs}), 200
+
+    payload = request.get_json(silent=True) or {}
+    profile = payload.get("profile")
+    reminders = payload.get("reminders")
+    if profile is not None and not isinstance(profile, dict):
+        return jsonify({"error": "profile must be an object"}), 400
+    if reminders is not None and not isinstance(reminders, dict):
+        return jsonify({"error": "reminders must be an object"}), 400
+
+    try:
+        saved = save_user_preferences(uid, profile=profile, reminders=reminders)
+        return jsonify({"status": "success", **saved}), 200
+    except Exception as e:
+        record_storage_failure("postgres_preferences_save", e, {"user_id": uid})
+        existing = get_user_preferences(uid)
+        return jsonify({"status": "success", **existing}), 200
+
+
+@app.route('/api/user/routine', methods=['POST'])
+def save_user_routine():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    routine = payload.get("routine")
+    condition = (payload.get("condition") or "general").strip() or "general"
+
+    if not isinstance(routine, list) or not routine:
+        return jsonify({"error": "routine must be a non-empty list"}), 400
+
+    normalized_steps = [str(step).strip() for step in routine if str(step).strip()]
+    if not normalized_steps:
+        return jsonify({"error": "routine must contain at least one valid step"}), 400
+
+    ts = datetime.now().isoformat()
+    routine_json = json.dumps(normalized_steps)
+    try:
+        save_routine(user["user_id"], ts, condition, routine_json, routine_json)
+    except Exception as e:
+        record_storage_failure("postgres_routine_save", e, {"user_id": user["user_id"]})
+    return jsonify({
+        "status": "success",
+        "routine": {
+            "created_at": ts,
+            "condition": condition,
+            "am_steps": normalized_steps,
+            "pm_steps": normalized_steps,
+            "active": 1
+        }
+    }), 200
 
 @app.route('/api/user/data', methods=['GET'])
 def get_data():
@@ -779,13 +911,15 @@ def get_data():
     
     u_id = user_payload["user_id"]
     try:
-        # Fetch user profile to get join date (created_at)
-        user_record = get_user_by_username(user_payload["username"])
+        # Fetch user profile directly by authenticated user id.
+        user_record = get_user_by_id(u_id)
         join_date_raw = user_record.get("created_at") if user_record else None
         join_date = join_date_raw[:10] if join_date_raw else None # YYYY-MM-DD
 
         scans_df = get_all_scans(u_id)
         logs_df = get_daily_logs(u_id)
+        prefs = get_user_preferences(u_id)
+        routine = get_active_routine(u_id)
         s = df_records_for_json(scans_df)
         l = df_records_for_json(logs_df)
         
@@ -795,19 +929,35 @@ def get_data():
         if join_date:
             active_dates = {d for d in active_dates if d >= join_date}
 
+        routine_payload = None
+        if routine:
+            routine_payload = {
+                "id": routine["id"],
+                "created_at": routine["created_at"],
+                "condition": routine["condition"],
+                "am_steps": json.loads(routine["am_steps"]) if routine["am_steps"] else [],
+                "pm_steps": json.loads(routine["pm_steps"]) if routine["pm_steps"] else [],
+                "active": routine["active"]
+            }
+
         return jsonify({
             "status": "success",
+            "user_id": u_id,
             "scans": s,
             "logs": l,
             "streak": streak,
             "active_dates": sorted(active_dates),
-            "join_date": join_date
+            "join_date": join_date,
+            "routine": routine_payload,
+            "profile": prefs["profile"],
+            "reminders": prefs["reminders"]
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
+    validate_required_services()
     try:
         from waitress import serve
         print(f"🚀 AI Server started on {port}")

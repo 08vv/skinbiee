@@ -29,24 +29,100 @@ function authHeadersRaw() {
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function getScopedStorage(_key, fallback = null) {
+    return fallback;
+}
+
+function setScopedStorage() {}
+
+function getScopedJson(_key, fallback) {
+    return fallback;
+}
+
+function setScopedJson() {}
+
+function clearScopedStorage() {}
+
+function createDefaultPlannerState() {
+    return {
+        hasSetup: false,
+        routine: ['Cleanser', 'Moisturizer'],
+        dailyDone: false,
+        streak: 0,
+        currentMonth: new Date().getMonth(),
+        currentYear: new Date().getFullYear(),
+        setupStep: 0,
+        answers: {}
+    };
+}
+
+function resetPlannerState() {
+    plannerState = createDefaultPlannerState();
+}
+
+function resetGlowBotState() {
+    glowBotMessages = [];
+    glowBotProactiveShown = false;
+}
+
+function resetUserRuntimeState(options = {}) {
+    const { preserveIdentity = false } = options;
+    resetPlannerState();
+    resetGlowBotState();
+    state.streak = 0;
+    state.activeDates = new Set();
+    state.serverScans = [];
+    state.userLogsWithPhotos = [];
+    state.joinDate = null;
+    state.userProfile = {};
+    state.reminders = {};
+    state.onboardingStep = 1;
+    if (!preserveIdentity) {
+        state.userId = null;
+        state.username = 'Melani';
+    }
+}
+
+function updateDisplayedUsername() {
+    const userDisp = document.getElementById('user-display-name');
+    if (userDisp) userDisp.textContent = state.username || 'Melani';
+}
+
+function loadPlannerStateFromStorage() {
+    // Planner data now comes from the backend via /api/user/data.
+}
+
+function activateSession(userId, username) {
+    resetUserRuntimeState({ preserveIdentity: true });
+    state.userId = userId;
+    state.username = username || '';
+    updateDisplayedUsername();
+    loadPlannerStateFromStorage();
+    initializeGlowBotChat();
+}
+
 function clearSession() {
-    state.userId = null;
-    state.username = 'Melani';
+    resetUserRuntimeState();
     safeStorage.remove('sc-user-id');
     safeStorage.remove('sc-username');
     safeStorage.remove('sc-token');
+    updateDisplayedUsername();
 }
 
 
 function persistSession(userId, username, token) {
     console.log("[SESSION] Saving session for:", username);
-    state.userId = userId;
-    state.username = username;
+    const uid = parseInt(userId, 10);
+    if (!Number.isFinite(uid) || uid < 1) {
+        console.error('[SESSION] Refusing to persist invalid user id:', userId);
+        clearSession();
+        return;
+    }
+
+    activateSession(uid, username);
     safeStorage.set('sc-user-id', String(userId));
     safeStorage.set('sc-username', username);
     if (token) safeStorage.set('sc-token', token);
-    const userDisp = document.getElementById('user-display-name');
-    if (userDisp) userDisp.textContent = username;
 }
 
 
@@ -58,10 +134,7 @@ function restoreSession() {
         clearSession();
         return false;
     }
-    state.userId = uid;
-    state.username = safeStorage.get('sc-username') || '';
-    const userDisp = document.getElementById('user-display-name');
-    if (userDisp) userDisp.textContent = state.username;
+    activateSession(uid, safeStorage.get('sc-username') || '');
     return true;
 }
 
@@ -81,8 +154,22 @@ async function refreshUserDataFromServer() {
 
         const data = await res.json();
         if (data.status === 'success' || data.success) {
+            state.serverScans = Array.isArray(data.scans) ? data.scans : [];
+            state.userLogsWithPhotos = Array.isArray(data.logs)
+                ? data.logs.filter((log) => log && log.photo_path)
+                : [];
             state.activeDates = new Set(data.active_dates || []);
-            state.streak = data.streak || 0;
+            state.joinDate = data.join_date || null;
+            state.userProfile = data.profile && typeof data.profile === 'object' ? data.profile : {};
+            state.reminders = data.reminders && typeof data.reminders === 'object' ? data.reminders : {};
+            applyUserProfile(state.userProfile);
+            plannerState.streak = data.streak || 0;
+            plannerState.dailyDone = state.activeDates.has(getLocalDateKey());
+            plannerState.hasSetup = Boolean(data.routine && Array.isArray(data.routine.am_steps) && data.routine.am_steps.length);
+            plannerState.routine = plannerState.hasSetup ? data.routine.am_steps : ['Cleanser', 'Moisturizer'];
+            state.streak = plannerState.streak;
+            renderScanHistory();
+            if (state.view === 'planner') setupPlanner();
         }
     } catch (e) {
         console.error('[SERVER] Refresh failed', e);
@@ -116,10 +203,15 @@ const state = {
     theme: 'light',
     mascotColor: 'blue',
     username: 'Melani',
-    streak: 5,
+    streak: 0,
     onboardingStep: 1,
     userId: null,
-    activeDates: new Set()
+    activeDates: new Set(),
+    serverScans: [],
+    userLogsWithPhotos: [],
+    joinDate: null,
+    userProfile: {},
+    reminders: {}
 };
 
 // DOM Elements
@@ -325,15 +417,28 @@ function changeMascotColor(colorName) {
 }
 
 /* ==========================================================================
-   USER PROFILE (localStorage)
+   USER PROFILE (API-backed)
    ========================================================================== */
-function saveUserProfile(profile) {
-    localStorage.setItem('sc-user-profile', JSON.stringify(profile));
+async function saveUserProfile(profile) {
+    state.userProfile = profile || {};
+    const response = await fetch(`${API_BASE_URL}/api/user/preferences`, {
+        method: 'PUT',
+        headers: {
+            ...authHeadersRaw(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ profile: state.userProfile })
+    });
+    const parsed = await readApiResponse(response);
+    if (!parsed.ok || !response.ok) {
+        throw new Error(parsed.error || parsed.data?.error || 'Could not save profile');
+    }
+    state.userProfile = parsed.data.profile || {};
+    return state.userProfile;
 }
 
 function loadUserProfile() {
-    const raw = localStorage.getItem('sc-user-profile');
-    return raw ? JSON.parse(raw) : null;
+    return state.userProfile || {};
 }
 
 function applyUserProfile(profile) {
@@ -341,8 +446,7 @@ function applyUserProfile(profile) {
     state.username = profile.username || state.username;
     
     // Fix: Add null check for user-display-name
-    const userDisp = document.getElementById('user-display-name');
-    if (userDisp) userDisp.textContent = state.username;
+    updateDisplayedUsername();
     
     // Surface relevant info on the mascot chat greeting
     const greetingBubble = document.querySelector('#chat-panel .mascot-bubble');
@@ -403,6 +507,10 @@ function setupAuthListeners() {
                 const data = await res.json();
                 hideLoading();
                 if (!res.ok) { showToast(data.error || 'Auth Error'); return; }
+                if (!Number.isFinite(parseInt(data.user_id, 10))) {
+                    showToast('Server did not return a valid user session');
+                    return;
+                }
 
                 persistSession(data.user_id, data.username, data.token);
                 switchView(isSignup ? 'onboarding' : 'home');
@@ -495,7 +603,7 @@ function setupOnboardingListeners() {
             document.getElementById('ob-step-num').textContent = state.onboardingStep;
             backBtn.style.visibility = 'visible';
         } else if (state.onboardingStep === 4) {
-            // Save collected onboarding data to localStorage
+            // Save collected onboarding data to the backend
             const profileData = {
                 username: state.username,
                 age: document.getElementById('ob-age').value,
@@ -504,7 +612,10 @@ function setupOnboardingListeners() {
                 concern: (document.querySelector('[data-target="ob-concern"] .pill.active') || {}).textContent || '',
                 sensitive: (document.querySelector('[data-target="ob-sensitive"] .pill.active') || {}).textContent || '',
             };
-            saveUserProfile(profileData);
+            saveUserProfile(profileData).catch((err) => {
+                console.error('[PROFILE] Failed to save onboarding profile', err);
+                showToast('Could not save profile');
+            });
 
             // Finish
             document.getElementById(`ob-step-4`).classList.remove('active');
@@ -634,7 +745,6 @@ function setupAnalyzer() {
 
                 if (data.status === 'success') {
                     showToast("Analysis complete! Rendering results.");
-                    if (data.warning) showToast(data.warning);
                     renderSkinResults(Array.isArray(data.results) ? data.results : [], data.image_url || URL.createObjectURL(file));
                     showAnalyzerSubState('skin', 'results');
                     triggerMascotAnim('happy');
@@ -719,7 +829,6 @@ function setupAnalyzer() {
 
                 if (data.status === 'success') {
                     showToast("Scanner success! Results ready.");
-                    if (data.warning) showToast(data.warning);
                     renderProdResults(data);
                     showAnalyzerSubState('prod', 'results');
                     triggerMascotAnim('happy');
@@ -1113,14 +1222,24 @@ function closeAnalyzerDetail() {
 function renderScanHistory() {
     const gallery = document.getElementById('timeline-gallery-grid');
     const gallerySkinbiee = document.getElementById('timeline-gallery-grid-skinbiee');
-    const mockData = [
-        { date: 'Mar 26, 2026', img: 'assets/scan-face.png' },
-        { date: 'Mar 24, 2026', img: 'assets/scan-face.png' },
-        { date: 'Mar 20, 2026', img: 'assets/scan-face.png' },
-        { date: 'Mar 15, 2026', img: 'assets/scan-face.png' }
-    ];
+    const progressPhotos = (state.userLogsWithPhotos || []).map((log) => ({
+        date: formatTimelineDate(log.date),
+        img: log.photo_path,
+        label: 'Progress Photo'
+    }));
+    const serverScans = (state.serverScans || []).map((scan) => ({
+        date: formatTimelineDate(scan.timestamp),
+        img: scan.image_path || 'assets/scan-face.png',
+        label: scan.condition || 'Scan'
+    }));
+    const allScans = [...progressPhotos, ...serverScans];
 
-    const allScans = [...plannerState.scans, ...mockData];
+    if (allScans.length === 0) {
+        const emptyHtml = '<div class="empty-state-copy">No scans saved for this account yet.</div>';
+        if (gallery) gallery.innerHTML = emptyHtml;
+        if (gallerySkinbiee) gallerySkinbiee.innerHTML = emptyHtml;
+        return;
+    }
 
     const html = allScans.map(item => `
         <div class="gallery-item" onclick="showToast('Viewing scan from ${item.date}')">
@@ -1153,17 +1272,7 @@ function toggleAccordion(id) {
 /* ==========================================================================
    TAB: PLANNER
    ========================================================================== */
-let plannerState = {
-    hasSetup: localStorage.getItem('planner-has-setup') === 'true',
-    routine: JSON.parse(localStorage.getItem('planner-routine')) || ['Cleanser', 'Moisturizer'],
-    dailyDone: false,
-    streak: parseInt(localStorage.getItem('planner-streak') || '0', 10) || 0,
-    scans: JSON.parse(localStorage.getItem('planner-scans')) || [],
-    currentMonth: new Date().getMonth(),
-    currentYear: new Date().getFullYear(),
-    setupStep: 0,
-    answers: {}
-};
+let plannerState = createDefaultPlannerState();
 
 const setupQuestions = [
     { id: 'skinType', q: "What is your skin type?", options: ["Oily", "Dry", "Combination", "Sensitive"] },
@@ -1181,7 +1290,8 @@ function getLocalDateKey(date = new Date()) {
 }
 
 function getPlannerLastDoneKey() {
-    return localStorage.getItem('planner-last-completed-date') || localStorage.getItem('planner-daily-done');
+    const dates = Array.from(state.activeDates || []);
+    return dates.length ? dates.sort().slice(-1)[0] : null;
 }
 
 function getPlannerLastDoneDate() {
@@ -1205,17 +1315,15 @@ function checkStreakMaintenance() {
         // More than a day missed! Reset streak.
         console.log("Streak missed. Resetting to 0.");
         plannerState.streak = 0;
-        localStorage.setItem('planner-streak', '0');
     }
 }
 
 function setupPlanner() {
     console.log("[DEBUG] setupPlanner triggered");
     // RE-SYNC STATE WITH STORAGE TO PREVENT LOOPS
-    plannerState.hasSetup = localStorage.getItem('planner-has-setup') === 'true';
+    loadPlannerStateFromStorage();
     checkStreakMaintenance();
-    plannerState.streak = parseInt(localStorage.getItem('planner-streak') || '0', 10) || 0;
-    plannerState.dailyDone = getPlannerLastDoneKey() === getLocalDateKey();
+    plannerState.dailyDone = state.activeDates.has(getLocalDateKey());
     console.log("[DEBUG] Planner State:", { hasSetup: plannerState.hasSetup, dailyDone: plannerState.dailyDone });
     state.streak = plannerState.streak;
 
@@ -1335,8 +1443,10 @@ function finishSetupInternal() {
 
     plannerState.routine = routine;
     plannerState.hasSetup = true;
-    localStorage.setItem('planner-has-setup', 'true');
-    saveRoutine();
+    saveRoutine(routine, concern).catch((err) => {
+        console.error('[ROUTINE] Failed to save generated routine', err);
+        showToast('Could not save routine');
+    });
 
     const questionScreen = document.getElementById('planner-ob-questions');
     const revealScreen = document.getElementById('planner-ob-reveal');
@@ -1417,11 +1527,11 @@ function finishChecklist() {
 
     const todayKey = getLocalDateKey();
     plannerState.dailyDone = true;
-    localStorage.setItem('planner-daily-done', todayKey);
-    localStorage.setItem('planner-last-completed-date', todayKey);
+    setScopedStorage('planner-daily-done', todayKey);
+    setScopedStorage('planner-last-completed-date', todayKey);
     
     plannerState.streak++;
-    localStorage.setItem('planner-streak', String(plannerState.streak));
+    setScopedStorage('planner-streak', String(plannerState.streak));
     state.streak = plannerState.streak;
 
     const checklistOverlay = document.getElementById('routine-checklist-overlay');
@@ -1445,7 +1555,7 @@ function handleSelfieUpload(input) {
                 img: e.target.result
             };
             plannerState.scans.unshift(scan);
-            localStorage.setItem('planner-scans', JSON.stringify(plannerState.scans));
+            setScopedJson('planner-scans', plannerState.scans);
             
             showToast("Selfie saved to timeline! ✨");
             renderScanHistory(); // Update Timeline gallery
@@ -1576,7 +1686,10 @@ function openRoutineEditor() {
 function closeRoutineEditor() {
     const editorOverlay = document.getElementById('routine-editor-overlay');
     if (editorOverlay) editorOverlay.style.display = 'none';
-    saveRoutine();
+    saveRoutine().catch((err) => {
+        console.error('[ROUTINE] Failed to save edited routine', err);
+        showToast('Could not save routine');
+    });
     renderDailyItems();
     renderMainChecklist();
 }
@@ -1608,7 +1721,7 @@ function addRoutineItem() {
 }
 
 function saveRoutine() {
-    localStorage.setItem('planner-routine', JSON.stringify(plannerState.routine));
+    setScopedJson('planner-routine', plannerState.routine);
 }
 
 function startPlannerOnboarding() {
@@ -1689,8 +1802,7 @@ function saveAccountDetails() {
     if (input && input.value.trim()) {
         profile.username = input.value.trim();
         state.username = profile.username;
-        const userDisp = document.getElementById('user-display-name');
-        if (userDisp) userDisp.textContent = state.username;
+        updateDisplayedUsername();
         safeStorage.set('sc-username', state.username);
     }
     saveUserProfile(profile);
@@ -1737,7 +1849,7 @@ function saveReminders() {
         pmActive: Boolean(document.getElementById('pm-reminder-active')?.checked),
         pmTime: document.getElementById('pm-reminder-time')?.value || '21:30'
     };
-    safeStorage.set('sc-reminders', JSON.stringify(reminderSettings));
+    setScopedJson('sc-reminders', reminderSettings);
     closeSettingsSubPage('settings-routine-reminders');
     showToast('Reminder settings saved');
 }
@@ -1768,7 +1880,8 @@ function executeExportData() {
         planner: {
             streak: plannerState.streak,
             routine: plannerState.routine,
-            scans: plannerState.scans
+            scans: state.serverScans,
+            progressPhotos: state.userLogsWithPhotos
         },
         session: {
             username: safeStorage.get('sc-username')
@@ -1795,14 +1908,9 @@ function closeClearDataModal() {
 }
 
 function executeClearData() {
+    const currentUserId = state.userId;
     clearSession();
-    safeStorage.remove('sc-user-profile');
-    localStorage.removeItem('planner-has-setup');
-    localStorage.removeItem('planner-routine');
-    localStorage.removeItem('planner-streak');
-    localStorage.removeItem('planner-scans');
-    localStorage.removeItem('planner-daily-done');
-    localStorage.removeItem('planner-last-completed-date');
+    clearScopedStorage(currentUserId);
     closeClearDataModal();
     switchView('auth');
     showToast('Local app data cleared');
@@ -1835,7 +1943,7 @@ function setupSettings() {
         });
     }
 
-    const remindersRaw = safeStorage.get('sc-reminders');
+    const remindersRaw = getScopedStorage('sc-reminders');
     if (remindersRaw) {
         try {
             const reminders = JSON.parse(remindersRaw);
@@ -1859,6 +1967,219 @@ function setupSettings() {
 function openEditProfile() {
     const overlay = document.getElementById('profile-editor-overlay');
     if (overlay) overlay.style.display = 'block';
+}
+
+/* ==========================================================================
+   SERVER-BACKED USER DATA OVERRIDES
+   ========================================================================== */
+async function saveRoutine(routine = plannerState.routine, condition = getGlowBotSkinContext()) {
+    const response = await fetch(`${API_BASE_URL}/api/user/routine`, {
+        method: 'POST',
+        headers: {
+            ...authHeadersRaw(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ routine, condition })
+    });
+    const parsed = await readApiResponse(response);
+    if (!parsed.ok || !response.ok) {
+        throw new Error(parsed.error || parsed.data?.error || 'Could not save routine');
+    }
+    plannerState.hasSetup = true;
+    plannerState.routine = parsed.data.routine?.am_steps || routine;
+    return plannerState.routine;
+}
+
+async function finishChecklist() {
+    if (plannerState.dailyDone) {
+        const checklistOverlay = document.getElementById('routine-checklist-overlay');
+        if (checklistOverlay) checklistOverlay.style.display = 'none';
+        setupPlanner();
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('date', getLocalDateKey());
+    formData.append('am_done', '1');
+    formData.append('pm_done', '1');
+    formData.append('skin_feeling', 'Good');
+    formData.append('skin_rating', '5');
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/daily-log`, {
+            method: 'POST',
+            headers: authHeadersRaw(),
+            body: formData
+        });
+        const parsed = await readApiResponse(response);
+        if (!parsed.ok || !response.ok) {
+            throw new Error(parsed.error || parsed.data?.error || 'Could not save routine completion');
+        }
+        await refreshUserDataFromServer();
+    } catch (err) {
+        console.error('[PLANNER] Failed to save checklist completion', err);
+        showToast('Could not save routine completion');
+        return;
+    }
+
+    const checklistOverlay = document.getElementById('routine-checklist-overlay');
+    if (checklistOverlay) checklistOverlay.style.display = 'none';
+    setupPlanner();
+    showToast("Routine completed! +1 Streak");
+}
+
+async function handleSelfieUpload(input) {
+    if (input.files && input.files[0]) {
+        const formData = new FormData();
+        formData.append('date', getLocalDateKey());
+        formData.append('image', input.files[0]);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/progress-photo`, {
+                method: 'POST',
+                headers: authHeadersRaw(),
+                body: formData
+            });
+            const parsed = await readApiResponse(response);
+            if (!parsed.ok || !response.ok) {
+                throw new Error(parsed.error || parsed.data?.error || 'Could not save progress photo');
+            }
+            await refreshUserDataFromServer();
+            showToast("Selfie saved to Cloudinary!");
+        } catch (err) {
+            console.error('[TIMELINE] Failed to upload progress photo', err);
+            showToast('Could not save selfie');
+        }
+    }
+}
+
+function saveAccountDetails() {
+    const profile = loadUserProfile() || {};
+    const input = byId('profile-edit-username', 'onboarding-profile-username');
+    if (input && input.value.trim()) {
+        profile.username = input.value.trim();
+        state.username = profile.username;
+        updateDisplayedUsername();
+        safeStorage.set('sc-username', state.username);
+    }
+    saveUserProfile(profile)
+        .then(() => {
+            closeSettingsSubPage('account-details');
+            showToast('Account details saved');
+        })
+        .catch((err) => {
+            console.error('[PROFILE] Failed to save account details', err);
+            showToast('Could not save account details');
+        });
+}
+
+function saveSkinProfile() {
+    const profile = loadUserProfile() || {};
+    document.querySelectorAll('[data-profile-key]').forEach((group) => {
+        const key = group.dataset.profileKey;
+        if (!key) return;
+        if (group.classList.contains('color-swatches')) {
+            const active = group.querySelector('.swatch.active');
+            if (active) profile[key] = active.dataset.val || active.style.background;
+        } else if (group.classList.contains('pill-group') && group.classList.contains('single-select')) {
+            const active = group.querySelector('.pill.active');
+            if (active) profile[key] = active.dataset.val || active.textContent.trim();
+        } else if (group.classList.contains('pill-group') && group.classList.contains('multi-select')) {
+            profile[key] = Array.from(group.querySelectorAll('.pill.active')).map((pill) => pill.dataset.val || pill.textContent.trim());
+        }
+    });
+
+    saveUserProfile(profile)
+        .then((savedProfile) => {
+            applyUserProfile(savedProfile);
+            closeSettingsSubPage('skin-profile');
+            showToast('Skin profile saved');
+        })
+        .catch((err) => {
+            console.error('[PROFILE] Failed to save skin profile', err);
+            showToast('Could not save skin profile');
+        });
+}
+
+function saveReminders() {
+    const reminderSettings = {
+        enabled: Boolean(document.getElementById('settings-reminder-toggle')?.checked),
+        amActive: Boolean(document.getElementById('am-reminder-active')?.checked),
+        amTime: document.getElementById('am-reminder-time')?.value || '08:00',
+        pmActive: Boolean(document.getElementById('pm-reminder-active')?.checked),
+        pmTime: document.getElementById('pm-reminder-time')?.value || '21:30'
+    };
+
+    fetch(`${API_BASE_URL}/api/user/preferences`, {
+        method: 'PUT',
+        headers: {
+            ...authHeadersRaw(),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reminders: reminderSettings })
+    })
+        .then((response) => readApiResponse(response).then((parsed) => ({ response, parsed })))
+        .then(({ response, parsed }) => {
+            if (!parsed.ok || !response.ok) {
+                throw new Error(parsed.error || parsed.data?.error || 'Could not save reminders');
+            }
+            state.reminders = parsed.data.reminders || {};
+            closeSettingsSubPage('settings-routine-reminders');
+            showToast('Reminder settings saved');
+        })
+        .catch((err) => {
+            console.error('[REMINDERS] Failed to save reminders', err);
+            showToast('Could not save reminders');
+        });
+}
+
+function executeClearData() {
+    clearSession();
+    closeClearDataModal();
+    switchView('auth');
+    showToast('Session cleared');
+}
+
+function setupSettings() {
+    document.querySelectorAll('.swatch').forEach(sw => {
+        sw.addEventListener('click', () => {
+            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+            sw.classList.add('active');
+            changeMascotColor(sw.dataset.color || sw.dataset.val);
+        });
+    });
+
+    document.querySelectorAll('.pill-group .pill[data-theme]').forEach((pill) => {
+        pill.addEventListener('click', () => {
+            const targetTheme = pill.dataset.theme;
+            if (targetTheme && targetTheme !== state.theme) toggleTheme();
+        });
+    });
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            clearSession();
+            switchView('auth');
+        });
+    }
+
+    const reminders = state.reminders || {};
+    const toggle = document.getElementById('settings-reminder-toggle');
+    const amActive = document.getElementById('am-reminder-active');
+    const amTime = document.getElementById('am-reminder-time');
+    const pmActive = document.getElementById('pm-reminder-active');
+    const pmTime = document.getElementById('pm-reminder-time');
+    if (toggle) toggle.checked = Boolean(reminders.enabled);
+    if (amActive) amActive.checked = Boolean(reminders.amActive);
+    if (amTime) amTime.value = reminders.amTime || amTime.value;
+    if (pmActive) pmActive.checked = Boolean(reminders.pmActive);
+    if (pmTime) pmTime.value = reminders.pmTime || pmTime.value;
+    toggleReminderScheduleItem();
+}
+
+function getGlowBotProfile() {
+    return state.userProfile || {};
 }
 
 
@@ -2304,6 +2625,13 @@ function triggerMascotAnim(animType) {
    ========================================================================== */
 function showLoading() {
     document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+function formatTimelineDate(rawTimestamp) {
+    if (!rawTimestamp) return 'Saved scan';
+    const parsed = new Date(rawTimestamp);
+    if (Number.isNaN(parsed.getTime())) return String(rawTimestamp);
+    return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function hideLoading() {

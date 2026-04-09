@@ -1,7 +1,7 @@
-import sqlite3
 import psycopg2
 import os
 import pandas as pd
+import json
 from dotenv import load_dotenv
 
 # Load env vars
@@ -9,28 +9,22 @@ load_dotenv()
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'skin_history.db')
+
+
+def _require_postgres_url():
+    if not DATABASE_URL or not DATABASE_URL.startswith("postgres"):
+        raise RuntimeError("DATABASE_URL must be configured with a PostgreSQL connection string.")
 
 def get_connection():
-    """Returns a connection based on DATABASE_URL availability (PostgreSQL or SQLite)."""
-    if DATABASE_URL and DATABASE_URL.startswith("postgres"):
-        # Use PostgreSQL (Neon, Render, etc.)
-        try:
-            return psycopg2.connect(DATABASE_URL, sslmode='require')
-        except Exception as e:
-            print(f"PostgreSQL connection failed: {e}. Falling back to SQLite.")
-            
-    # Default to SQLite
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    """Return a PostgreSQL connection. Local SQLite fallback is intentionally disabled."""
+    _require_postgres_url()
+    return psycopg2.connect(DATABASE_URL, sslmode='require')
 
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
     
-    # Check if we are using PostgreSQL or SQLite for specific syntax (id generation)
-    is_postgres = hasattr(conn, 'get_dsn_parameters')
-    id_type = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    id_type = "SERIAL PRIMARY KEY"
 
     cursor.execute(f'''
     CREATE TABLE IF NOT EXISTS users (
@@ -45,7 +39,7 @@ def init_db():
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN created_at TEXT")
     except Exception:
-        # Column likely already exists or other error (e.g. SQLite doesn't support IF NOT EXISTS in ALTER)
+        # Column likely already exists
         pass
     
     cursor.execute(f'''
@@ -88,6 +82,17 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
     ''')
+
+    cursor.execute(f'''
+    CREATE TABLE IF NOT EXISTS user_preferences (
+        id {id_type},
+        user_id INTEGER UNIQUE NOT NULL,
+        profile_json TEXT,
+        reminders_json TEXT,
+        updated_at TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+    ''')
     
     conn.commit()
     conn.close()
@@ -100,10 +105,7 @@ def create_db_user(username, password_hash):
     c = conn.cursor()
     created_at = datetime.now().isoformat()
     try:
-        if hasattr(conn, 'get_dsn_parameters'):
-            c.execute('INSERT INTO users (username, password_hash, created_at) VALUES (%s, %s, %s)', (username, password_hash, created_at))
-        else:
-            c.execute('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)', (username, password_hash, created_at))
+        c.execute('INSERT INTO users (username, password_hash, created_at) VALUES (%s, %s, %s)', (username, password_hash, created_at))
         conn.commit()
     except Exception as e:
         print(f"Error creating user: {e}")
@@ -115,8 +117,7 @@ def create_db_user(username, password_hash):
 def get_user_by_username(username):
     conn = get_connection()
     c = conn.cursor()
-    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
-    c.execute(f'SELECT id, username, password_hash, created_at FROM users WHERE username = {placeholder}', (username,))
+    c.execute('SELECT id, username, password_hash, created_at FROM users WHERE username = %s', (username,))
     row = c.fetchone()
     conn.close()
     if row:
@@ -128,12 +129,26 @@ def get_user_by_username(username):
         }
     return None
 
+def get_user_by_id(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, username, password_hash, created_at FROM users WHERE id = %s', (int(user_id),))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return {
+            "id": row[0],
+            "username": row[1],
+            "password_hash": row[2],
+            "created_at": row[3]
+        }
+    return None
+
 def update_user_password_hash(user_id: int, new_hash: str):
     """Update the password_hash for a user (used for SHA-256→bcrypt migration)."""
     conn = get_connection()
     c = conn.cursor()
-    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
-    c.execute(f'UPDATE users SET password_hash = {placeholder} WHERE id = {placeholder}', (new_hash, int(user_id)))
+    c.execute('UPDATE users SET password_hash = %s WHERE id = %s', (new_hash, int(user_id)))
     conn.commit()
     conn.close()
 
@@ -141,9 +156,8 @@ def update_user_password_hash(user_id: int, new_hash: str):
 def add_scan(user_id, timestamp, condition, confidence, severity, image_path=""):
     conn = get_connection()
     c = conn.cursor()
-    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
     uid = int(user_id)
-    c.execute(f'INSERT INTO scans (user_id, timestamp, condition, confidence, severity, image_path) VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})',
+    c.execute('INSERT INTO scans (user_id, timestamp, condition, confidence, severity, image_path) VALUES (%s, %s, %s, %s, %s, %s)',
               (uid, timestamp, condition, confidence, severity, image_path))
     conn.commit()
     conn.close()
@@ -151,7 +165,7 @@ def add_scan(user_id, timestamp, condition, confidence, severity, image_path="")
 def get_all_scans(user_id):
     conn = get_connection()
     uid = int(user_id)
-    df = pd.read_sql_query("SELECT * FROM scans WHERE user_id = %s ORDER BY timestamp DESC" if hasattr(conn, 'get_dsn_parameters') else "SELECT * FROM scans WHERE user_id = ? ORDER BY timestamp DESC", conn, params=(uid,))
+    df = pd.read_sql_query("SELECT * FROM scans WHERE user_id = %s ORDER BY timestamp DESC", conn, params=(uid,))
     conn.close()
     return df
 
@@ -159,20 +173,19 @@ def get_all_scans(user_id):
 def add_daily_log(user_id, date, am_done, pm_done, skin_feeling, skin_rating, notes="", photo_path=""):
     conn = get_connection()
     c = conn.cursor()
-    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
     uid = int(user_id)
     
-    c.execute(f'SELECT id FROM daily_logs WHERE user_id = {placeholder} AND date = {placeholder}', (uid, date))
+    c.execute('SELECT id FROM daily_logs WHERE user_id = %s AND date = %s', (uid, date))
     row = c.fetchone()
     
     if row:
-        c.execute(f'''UPDATE daily_logs 
-                     SET am_done={placeholder}, pm_done={placeholder}, skin_feeling={placeholder}, skin_rating={placeholder}, notes={placeholder}, photo_path={placeholder} 
-                     WHERE user_id={placeholder} AND date={placeholder}''',
+        c.execute('''UPDATE daily_logs 
+                     SET am_done=%s, pm_done=%s, skin_feeling=%s, skin_rating=%s, notes=%s, photo_path=%s 
+                     WHERE user_id=%s AND date=%s''',
                   (am_done, pm_done, skin_feeling, skin_rating, notes, photo_path, uid, date))
     else:
-        c.execute(f'''INSERT INTO daily_logs (user_id, date, am_done, pm_done, skin_feeling, skin_rating, notes, photo_path)
-                     VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})''',
+        c.execute('''INSERT INTO daily_logs (user_id, date, am_done, pm_done, skin_feeling, skin_rating, notes, photo_path)
+                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
                   (uid, date, am_done, pm_done, skin_feeling, skin_rating, notes, photo_path))
     conn.commit()
     conn.close()
@@ -180,19 +193,42 @@ def add_daily_log(user_id, date, am_done, pm_done, skin_feeling, skin_rating, no
 def get_daily_logs(user_id):
     conn = get_connection()
     uid = int(user_id)
-    df = pd.read_sql_query("SELECT * FROM daily_logs WHERE user_id = %s ORDER BY date ASC" if hasattr(conn, 'get_dsn_parameters') else "SELECT * FROM daily_logs WHERE user_id = ? ORDER BY date ASC", conn, params=(uid,))
+    df = pd.read_sql_query("SELECT * FROM daily_logs WHERE user_id = %s ORDER BY date ASC", conn, params=(uid,))
     conn.close()
     return df
+
+def save_progress_photo(user_id, date, photo_path):
+    conn = get_connection()
+    c = conn.cursor()
+    uid = int(user_id)
+    c.execute(
+        'SELECT am_done, pm_done, skin_feeling, skin_rating, notes FROM daily_logs WHERE user_id = %s AND date = %s',
+        (uid, date)
+    )
+    row = c.fetchone()
+
+    if row:
+        c.execute(
+            'UPDATE daily_logs SET photo_path = %s WHERE user_id = %s AND date = %s',
+            (photo_path, uid, date)
+        )
+    else:
+        c.execute(
+            '''INSERT INTO daily_logs (user_id, date, am_done, pm_done, skin_feeling, skin_rating, notes, photo_path)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
+            (uid, date, 0, 0, 'Good', 5, '', photo_path)
+        )
+    conn.commit()
+    conn.close()
 
 # CRUD for Routines
 def save_routine(user_id, created_at, condition, am_steps_json, pm_steps_json):
     conn = get_connection()
     c = conn.cursor()
-    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
     uid = int(user_id)
-    c.execute(f"UPDATE routines SET active = 0 WHERE user_id = {placeholder}", (uid,))
-    c.execute(f'''INSERT INTO routines (user_id, created_at, condition, am_steps, pm_steps, active) 
-                 VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, 1)''',
+    c.execute("UPDATE routines SET active = 0 WHERE user_id = %s", (uid,))
+    c.execute('''INSERT INTO routines (user_id, created_at, condition, am_steps, pm_steps, active) 
+                 VALUES (%s, %s, %s, %s, %s, 1)''',
               (uid, created_at, condition, am_steps_json, pm_steps_json))
     conn.commit()
     conn.close()
@@ -200,9 +236,8 @@ def save_routine(user_id, created_at, condition, am_steps_json, pm_steps_json):
 def get_active_routine(user_id):
     conn = get_connection()
     c = conn.cursor()
-    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
     uid = int(user_id)
-    c.execute(f"SELECT * FROM routines WHERE user_id = {placeholder} AND active = 1 ORDER BY id DESC LIMIT 1", (uid,))
+    c.execute("SELECT * FROM routines WHERE user_id = %s AND active = 1 ORDER BY id DESC LIMIT 1", (uid,))
     row = c.fetchone()
     conn.close()
     if row:
@@ -211,6 +246,47 @@ def get_active_routine(user_id):
             "am_steps": row[4], "pm_steps": row[5], "active": row[6]
         }
     return None
+
+def get_user_preferences(user_id):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        'SELECT profile_json, reminders_json, updated_at FROM user_preferences WHERE user_id = %s',
+        (int(user_id),)
+    )
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return {"profile": {}, "reminders": {}, "updated_at": None}
+    return {
+        "profile": json.loads(row[0]) if row[0] else {},
+        "reminders": json.loads(row[1]) if row[1] else {},
+        "updated_at": row[2]
+    }
+
+def save_user_preferences(user_id, profile=None, reminders=None):
+    current = get_user_preferences(user_id)
+    merged_profile = current["profile"] if profile is None else profile
+    merged_reminders = current["reminders"] if reminders is None else reminders
+    updated_at = datetime.now().isoformat()
+
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        '''
+        INSERT INTO user_preferences (user_id, profile_json, reminders_json, updated_at)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+            profile_json = EXCLUDED.profile_json,
+            reminders_json = EXCLUDED.reminders_json,
+            updated_at = EXCLUDED.updated_at
+        ''',
+        (int(user_id), json.dumps(merged_profile), json.dumps(merged_reminders), updated_at)
+    )
+    conn.commit()
+    conn.close()
+    return {"profile": merged_profile, "reminders": merged_reminders, "updated_at": updated_at}
 
 def get_user_skin_condition(user_id: int) -> str:
     """
@@ -232,14 +308,13 @@ def get_user_skin_condition(user_id: int) -> str:
 
     conn = get_connection()
     c = conn.cursor()
-    placeholder = '%s' if hasattr(conn, 'get_dsn_parameters') else '?'
     uid = int(user_id)
 
     # Exclude product-scan rows; they are stored with condition='Product Scan'.
     c.execute(
-        f"SELECT condition FROM scans WHERE user_id = {placeholder} "
-        f"AND condition != 'Product Scan' "
-        f"ORDER BY timestamp DESC LIMIT 1",
+        "SELECT condition FROM scans WHERE user_id = %s "
+        "AND condition != 'Product Scan' "
+        "ORDER BY timestamp DESC LIMIT 1",
         (uid,)
     )
     row = c.fetchone()
