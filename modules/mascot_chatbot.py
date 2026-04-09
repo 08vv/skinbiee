@@ -11,11 +11,11 @@ from modules.llm_provider import call_gemini
 def init_mascot_memory():
     if "user_id" in st.session_state and st.session_state["user_id"] is not None:
         user_id = st.session_state["user_id"]
-        scans_df = get_all_scans(user_id)
-        if not scans_df.empty:
-            last_scan = scans_df.iloc[0]
-            condition = last_scan['condition']
-            severity = last_scan['severity']
+        scans = get_all_scans(user_id)
+        if scans:
+            last_scan = scans[0]
+            condition = last_scan.get('condition', 'Unknown')
+            severity = last_scan.get('severity', 'Unknown')
         else:
             condition = "Unknown"
             severity = "Unknown"

@@ -1,6 +1,8 @@
 import os
 import requests
 import json
+import time
+from functools import lru_cache
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,47 +10,61 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL_ID = "google/gemma-3-27b-it:free"
 
-def call_gemini(prompt, system_instruction="You are an expert dermatological assistant."):
+def call_gemini(prompt, system_instruction="You are an expert dermatological assistant.", retries=3):
     """
-    Calls OpenRouter chat completions using the configured model.
+    Calls OpenRouter chat completions using the configured model with exponential backoff.
     Returns the text response.
     """
     if not OPENROUTER_API_KEY:
         print("[LLM Provider] OPENROUTER_API_KEY missing in .env")
         return None
 
-    try:
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            data=json.dumps({
-                "model": MODEL_ID,
-                "messages": [
-                    {"role": "system", "content": system_instruction},
-                    {"role": "user", "content": prompt}
-                ]
-            }),
-            timeout=15
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            return result['choices'][0]['message']['content']
-        else:
-            print(f"[LLM Provider] Error: {response.status_code} - {response.text}")
-            return None
+    last_error = None
+    for attempt in range(retries):
+        try:
+            response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                data=json.dumps({
+                    "model": MODEL_ID,
+                    "messages": [
+                        {"role": "system", "content": system_instruction},
+                        {"role": "user", "content": prompt}
+                    ]
+                }),
+                timeout=15
+            )
             
-    except Exception as e:
-        print(f"[LLM Provider] Exception: {e}")
-        return None
+            if response.status_code == 200:
+                result = response.json()
+                return result['choices'][0]['message']['content']
+            elif response.status_code == 429:
+                # Rate limited - exponential backoff
+                wait_time = (2 ** attempt) + 1
+                print(f"[LLM Provider] Rate limited (429). Retrying in {wait_time}s... (Attempt {attempt+1}/{retries})")
+                time.sleep(wait_time)
+                continue
+            else:
+                print(f"[LLM Provider] Error: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            last_error = e
+            wait_time = (2 ** attempt) + 1
+            print(f"[LLM Provider] Exception: {e}. Retrying in {wait_time}s... (Attempt {attempt+1}/{retries})")
+            time.sleep(wait_time)
 
+    print(f"[LLM Provider] Max retries reached. Last error: {last_error}")
+    return None
+
+@lru_cache(maxsize=100)
 def analyze_ingredients_llm(ingredients_text, skin_condition):
     """
     Specifically analyzes skin ingredients for a given condition.
-    Returns structured JSON if possible, or a well-formatted string.
+    Uses caching to avoid duplicate expensive LLM calls.
     """
     prompt = f"""
     Analyze these skincare ingredients for someone with {skin_condition} skin:

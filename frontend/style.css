@@ -2273,9 +2273,83 @@ input:checked+.slider:before {
     flex-shrink: 0;
 }
 
+
+/* ==========================================================================
+   PLANNER MOBILE RESPONSIVENESS FIXES
+   ========================================================================== */
+@media (max-width: 480px) {
+    #view-planner {
+        padding: 20px 16px 120px 16px;
+        min-height: 100dvh;
+    }
+
+    .planner-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
+
+    /* Onboarding Overlays */
+    .overlay-screen {
+        height: 100dvh;
+    }
+
+    .overlay-content {
+        justify-content: flex-start !important;
+        padding: 60px 24px 40px 24px !important;
+    }
+
+    .char-container {
+        width: 180px !important;
+        height: 180px !important;
+        margin-bottom: 10px;
+    }
+
+    #planner-ob-question-area h2 {
+        font-size: 1.3rem !important;
+    }
+
+    .option-pill {
+        padding: 14px 20px;
+        font-size: 0.95rem;
+    }
+
+    /* Calendar Mobile Scaling */
+    .calendar-days-header {
+        font-size: 0.65rem !important;
+        gap: 2px;
+    }
+
+    .calendar-grid {
+        gap: 2px;
+    }
+
+    .cal-day {
+        font-size: 0.8rem !important;
+    }
+
+    .streak-badge {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+    }
+
+    /* Reveal Screen */
+    .planner-reveal-card {
+        padding: 16px;
+    }
+    
+    .reveal-steps-list li {
+        font-size: 0.85rem;
+    }
+    
+    #planner-ob-reveal h2 {
+        font-size: 1.4rem;
+    }
+}
+
 /* ==========================================================================
    TAB 4: SETTINGS
    ========================================================================== */
+
 .settings-header {
     margin-bottom: 24px;
 }
@@ -3218,7 +3292,9 @@ input:checked+.slider:before {
 .chat-history,
 .chat-fs-history,
 .sub-page-overlay,
-.planner-calendar-grid {
+.planner-calendar-grid,
+.overlay-screen,
+.view {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
 }

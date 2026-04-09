@@ -164,30 +164,26 @@ def parse_user_id(raw):
 
 
 def _json_scalar(val):
-    """Convert pandas/numpy/NaT values to JSON-serializable Python types."""
+    """Convert numpy/NaT values to JSON-serializable Python types."""
     if val is None:
         return None
-    try:
-        import pandas as pd
-        if pd.api.types.is_scalar(val) and pd.isna(val):
+    
+    # Handle basic types explicitly first
+    if isinstance(val, (bool, str, int)):
+        return val
+        
+    if isinstance(val, float):
+        if math.isnan(val) or math.isinf(val):
             return None
-    except Exception:
-        pass
+        return float(val)
+        
+    # Handle numpy types if present
     if isinstance(val, np.generic):
         try:
             return _json_scalar(val.item())
         except Exception:
             return str(val)
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, int):
-        return int(val)
-    if isinstance(val, float):
-        if math.isnan(val) or math.isinf(val):
-            return None
-        return float(val)
-    if isinstance(val, str):
-        return val
+            
     if hasattr(val, "isoformat"):
         try:
             return val.isoformat()
@@ -196,12 +192,16 @@ def _json_scalar(val):
     return val
 
 
-def df_records_for_json(df):
-    """Avoid jsonify failures on numpy.int64 / Timestamp from pandas."""
-    rows = df.to_dict("records")
+def list_to_json_serializable(data_list):
+    """Clean up a list of dicts for JSON serialization."""
+    if not isinstance(data_list, list):
+        return []
     out = []
-    for row in rows:
-        out.append({k: _json_scalar(v) for k, v in row.items()})
+    for row in data_list:
+        if isinstance(row, dict):
+            out.append({k: _json_scalar(v) for k, v in row.items()})
+        else:
+            out.append(_json_scalar(row))
     return out
 
 
@@ -934,12 +934,12 @@ def get_data():
         join_date_raw = user_record.get("created_at") if user_record else None
         join_date = join_date_raw[:10] if join_date_raw else None # YYYY-MM-DD
 
-        scans_df = get_all_scans(u_id)
-        logs_df = get_daily_logs(u_id)
+        scans = get_all_scans(u_id)
+        logs = get_daily_logs(u_id)
         prefs = get_user_preferences(u_id)
         routine = get_active_routine(u_id)
-        s = df_records_for_json(scans_df)
-        l = df_records_for_json(logs_df)
+        s = list_to_json_serializable(scans)
+        l = list_to_json_serializable(logs)
         planner_prefs = normalize_planner_preferences(prefs.get("planner"), join_date)
         planner_start_date = planner_prefs.get("planner_start_date")
 

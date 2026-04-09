@@ -1,4 +1,4 @@
-import pandas as pd
+import csv
 import os
 from .recommendations import get_recommendations_for_condition
 
@@ -6,13 +6,14 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'products.csv')
 
 def load_products_db():
     if not os.path.exists(DB_PATH):
-        return pd.DataFrame()
-    return pd.read_csv(DB_PATH)
+        return []
+    with open(DB_PATH, mode='r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        return [row for row in reader]
 
 def get_all_products():
     """Returns a list of dicts for available products."""
-    df = load_products_db()
-    return df.to_dict('records')
+    return load_products_db()
 
 def score_ingredients(ingredient_list: str, condition: str):
     """
@@ -50,15 +51,16 @@ def score_ingredients(ingredient_list: str, condition: str):
 
 def analyze_product(product_id: int, condition: str):
     """Analyzes a known product from DB by ID."""
-    df = load_products_db()
-    if df.empty or product_id not in df['product_id'].values:
+    products = load_products_db()
+    product = next((p for p in products if int(p.get('product_id', 0)) == int(product_id)), None)
+    if not product:
         return None
         
-    product = df[df['product_id'] == product_id].iloc[0]
-    base_score, good, bad = score_ingredients(product['ingredients'], condition)
+    base_score, good, bad = score_ingredients(product.get('ingredients', ''), condition)
     
     # Bonus if tagged for detected condition
-    if pd.notna(product['target_condition']) and condition in product['target_condition']:
+    target_condition = product.get('target_condition', '')
+    if target_condition and condition in target_condition:
         base_score += 5
         
     # Normalize

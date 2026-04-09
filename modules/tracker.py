@@ -1,34 +1,38 @@
 from .history_db import get_daily_logs
-import pandas as pd
+from datetime import datetime, timedelta
 
 def calculate_streak_and_consistency(user_id):
-    df = get_daily_logs(user_id)
-    if df.empty:
+    logs = get_daily_logs(user_id)
+    if not logs:
         return 0, 0.0
         
-    df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values(by='date', ascending=False)
+    logs.sort(key=lambda x: x['date'], reverse=True)
     
     streak = 0
-    today = pd.Timestamp.now().normalize()
+    today = datetime.now().date()
     
     current_check = today
     
     # simple consecutive day tracker
-    for _, row in df.iterrows():
-        row_date = row['date'].normalize()
-        if row_date == current_check or row_date == current_check - pd.Timedelta(days=1):
+    for row in logs:
+        # DB date format is usually YYYY-MM-DD
+        try:
+            row_date = datetime.strptime(row['date'], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            continue
+            
+        if row_date == current_check or row_date == current_check - timedelta(days=1):
             if row['am_done'] == 1 or row['pm_done'] == 1:
                 streak += 1
-                current_check = row_date - pd.Timedelta(days=1)
+                current_check = row_date - timedelta(days=1)
             else:
                 break
-        elif row_date < current_check - pd.Timedelta(days=1):
+        elif row_date < current_check - timedelta(days=1):
             break
             
     # Completion Percentage
-    total_days = len(df)
-    completed_events = df['am_done'].sum() + df['pm_done'].sum()
+    total_days = len(logs)
+    completed_events = sum(1 for r in logs if r['am_done'] == 1) + sum(1 for r in logs if r['pm_done'] == 1)
     total_possible_events = total_days * 2
     
     consistency = (completed_events / total_possible_events) * 100 if total_possible_events > 0 else 0.0

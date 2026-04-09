@@ -1,7 +1,7 @@
 import psycopg2
 from psycopg2 import errors
+from psycopg2.extras import DictCursor
 import os
-import pandas as pd
 import json
 from dotenv import load_dotenv
 
@@ -21,6 +21,13 @@ def get_connection():
     _require_postgres_url()
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
+def _execute_and_fetch_dicts(query, params=None):
+    conn = get_connection()
+    c = conn.cursor(cursor_factory=DictCursor)
+    c.execute(query, params)
+    rows = c.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 def _safe_add_column(cursor, table_name, column_sql):
     try:
@@ -191,11 +198,8 @@ def add_scan(user_id, timestamp, condition, confidence, severity, image_path="")
     conn.close()
 
 def get_all_scans(user_id):
-    conn = get_connection()
     uid = int(user_id)
-    df = pd.read_sql_query("SELECT * FROM scans WHERE user_id = %s ORDER BY timestamp DESC", conn, params=(uid,))
-    conn.close()
-    return df
+    return _execute_and_fetch_dicts("SELECT * FROM scans WHERE user_id = %s ORDER BY timestamp DESC", (uid,))
 
 # CRUD for Daily Logs
 def add_daily_log(user_id, date, am_done, pm_done, skin_feeling, skin_rating, notes="", photo_path=""):
@@ -248,11 +252,8 @@ def add_daily_log(user_id, date, am_done, pm_done, skin_feeling, skin_rating, no
     conn.close()
 
 def get_daily_logs(user_id):
-    conn = get_connection()
     uid = int(user_id)
-    df = pd.read_sql_query("SELECT * FROM daily_logs WHERE user_id = %s ORDER BY date ASC", conn, params=(uid,))
-    conn.close()
-    return df
+    return _execute_and_fetch_dicts("SELECT * FROM daily_logs WHERE user_id = %s ORDER BY date ASC", (uid,))
 
 def save_progress_photo(user_id, date, photo_path):
     conn = get_connection()
