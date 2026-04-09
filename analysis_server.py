@@ -248,6 +248,18 @@ def compute_streak_and_active_dates(log_records):
     return active_dates, best
 
 
+def normalize_planner_preferences(planner: dict | None, join_date: str | None = None) -> dict:
+    base = planner if isinstance(planner, dict) else {}
+    onboarding_completed = bool(base.get("onboarding_completed"))
+    onboarding_completed_at = str(base.get("onboarding_completed_at") or "").strip()[:10] or None
+    planner_start_date = onboarding_completed_at or join_date
+    return {
+        "onboarding_completed": onboarding_completed,
+        "onboarding_completed_at": onboarding_completed_at,
+        "planner_start_date": planner_start_date
+    }
+
+
 # ── ML Inference bridge helper ────────────────────────────────────────────────
 
 def _call_ml_service(image_bytes: bytes, predict_type: str) -> dict | None:
@@ -792,9 +804,15 @@ def save_log():
             return jsonify({"error": "Authentication required"}), 401
         uid = user["user_id"]
         d = request.form.get('date', datetime.now().strftime("%Y-%m-%d"))
-        am = int(request.form.get('am_done', 0)); pm = int(request.form.get('pm_done', 0))
-        f = request.form.get('skin_feeling', 'Good'); r = int(request.form.get('skin_rating', 5))
-        n = request.form.get('notes', ''); img = request.files.get('image')
+        am_raw = request.form.get('am_done')
+        pm_raw = request.form.get('pm_done')
+        am = int(am_raw) if am_raw is not None and am_raw != "" else None
+        pm = int(pm_raw) if pm_raw is not None and pm_raw != "" else None
+        f = request.form.get('skin_feeling')
+        r_raw = request.form.get('skin_rating')
+        r = int(r_raw) if r_raw is not None and r_raw != "" else None
+        n = request.form.get('notes')
+        img = request.files.get('image')
         photo_url = ""
         if img and img.filename:
             b = img.read()
@@ -802,6 +820,8 @@ def save_log():
                 photo_url = upload_img(b, "skinbiee/progress_photos")
             except Exception as e:
                 record_storage_failure("cloudinary_progress_photo_upload", e, {"user_id": uid})
+        elif img is None:
+            photo_url = None
         try:
             add_daily_log(uid, d, am, pm, f, r, n, photo_path=photo_url)
         except Exception as e:
@@ -854,14 +874,17 @@ def user_preferences():
 
     payload = request.get_json(silent=True) or {}
     profile = payload.get("profile")
+    planner = payload.get("planner")
     reminders = payload.get("reminders")
     if profile is not None and not isinstance(profile, dict):
         return jsonify({"error": "profile must be an object"}), 400
+    if planner is not None and not isinstance(planner, dict):
+        return jsonify({"error": "planner must be an object"}), 400
     if reminders is not None and not isinstance(reminders, dict):
         return jsonify({"error": "reminders must be an object"}), 400
 
     try:
-        saved = save_user_preferences(uid, profile=profile, reminders=reminders)
+        saved = save_user_preferences(uid, profile=profile, planner=planner, reminders=reminders)
         return jsonify({"status": "success", **saved}), 200
     except Exception as e:
         record_storage_failure("postgres_preferences_save", e, {"user_id": uid})
@@ -888,10 +911,20 @@ def save_user_routine():
 
     ts = datetime.now().isoformat()
     routine_json = json.dumps(normalized_steps)
+    planner_meta = payload.get("planner")
     try:
         save_routine(user["user_id"], ts, condition, routine_json, routine_json)
+        if isinstance(planner_meta, dict):
+            existing = get_user_preferences(user["user_id"])
+            current_planner = normalize_planner_preferences(existing.get("planner"), None)
+            next_planner = {**current_planner, **planner_meta}
+            save_user_preferences(user["user_id"], planner=next_planner)
     except Exception as e:
         record_storage_failure("postgres_routine_save", e, {"user_id": user["user_id"]})
+    planner_payload = normalize_planner_preferences(
+        planner_meta if isinstance(planner_meta, dict) else get_user_preferences(user["user_id"]).get("planner"),
+        None
+    )
     return jsonify({
         "status": "success",
         "routine": {
@@ -900,7 +933,8 @@ def save_user_routine():
             "am_steps": normalized_steps,
             "pm_steps": normalized_steps,
             "active": 1
-        }
+        },
+        "planner": planner_payload
     }), 200
 
 @app.route('/api/user/data', methods=['GET'])
@@ -922,12 +956,20 @@ def get_data():
         routine = get_active_routine(u_id)
         s = df_records_for_json(scans_df)
         l = df_records_for_json(logs_df)
-        
-        active_dates, streak = compute_streak_and_active_dates(l)
+        planner_prefs = normalize_planner_preferences(prefs.get("planner"), join_date)
+        planner_start_date = planner_prefs.get("planner_start_date")
+
+        filtered_logs = l
+        if planner_start_date:
+            filtered_logs = [row for row in l if _log_date_key(row) >= planner_start_date]
+
+        active_dates, streak = compute_streak_and_active_dates(filtered_logs)
         
         # Filter active dates to ensure they are on or after join date (sanity check)
         if join_date:
             active_dates = {d for d in active_dates if d >= join_date}
+        if planner_start_date:
+            active_dates = {d for d in active_dates if d >= planner_start_date}
 
         routine_payload = None
         if routine:
@@ -940,6 +982,18 @@ def get_data():
                 "active": routine["active"]
             }
 
+        if routine_payload and not planner_prefs.get("onboarding_completed"):
+            fallback_completed_at = (routine_payload.get("created_at") or "")[:10] or join_date
+            planner_prefs = normalize_planner_preferences({
+                **planner_prefs,
+                "onboarding_completed": True,
+                "onboarding_completed_at": fallback_completed_at
+            }, join_date)
+            try:
+                save_user_preferences(u_id, planner=planner_prefs)
+            except Exception as e:
+                record_storage_failure("postgres_preferences_save", e, {"user_id": u_id})
+
         return jsonify({
             "status": "success",
             "user_id": u_id,
@@ -948,6 +1002,7 @@ def get_data():
             "streak": streak,
             "active_dates": sorted(active_dates),
             "join_date": join_date,
+            "planner": planner_prefs,
             "routine": routine_payload,
             "profile": prefs["profile"],
             "reminders": prefs["reminders"]

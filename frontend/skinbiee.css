@@ -162,6 +162,10 @@ a {
     padding-top: 10px;
 }
 
+#planner-main-dashboard {
+    width: 100%;
+}
+
 /* ==========================================================================
    PERSISTENT COMPONENTS (Top / Bottom)
    ========================================================================== */
@@ -1704,13 +1708,17 @@ input:checked+.slider:before {
 .calendar-grid {
     display: grid !important;
     grid-template-columns: repeat(7, 1fr) !important;
-    min-height: 250px;
+    grid-auto-rows: 48px;
+    min-height: auto;
     width: 100%;
     gap: 0;
+    align-items: center;
 }
 
 .cal-day {
-    aspect-ratio: 1;
+    width: 100%;
+    max-width: 44px;
+    height: 44px;
     display: flex !important;
     flex-direction: column;
     justify-content: center;
@@ -1724,6 +1732,7 @@ input:checked+.slider:before {
     background: transparent;
     position: relative;
     user-select: none;
+    justify-self: center;
 }
 
 .cal-day.today {
@@ -1741,13 +1750,15 @@ input:checked+.slider:before {
 }
 
 .calendar-flame {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1;
+    flex: 0 0 auto;
+    margin-top: 2px;
     display: block;
 }
 
 .calendar-flame.active-day {
-    color: var(--primary);
+    color: #74c0fc;
     opacity: 1;
 }
 
@@ -1756,12 +1767,12 @@ input:checked+.slider:before {
 }
 
 .calendar-flame.active-day.current {
-    filter: drop-shadow(0 0 2px rgba(116, 192, 252, 0.9));
+    color: #3da9fc;
 }
 
 .calendar-flame.inactive-day {
-    color: var(--text-muted);
-    opacity: 0.4;
+    color: #c4cedd;
+    opacity: 1;
 }
 
 .cal-header {

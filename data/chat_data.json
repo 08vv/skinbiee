@@ -160,6 +160,29 @@
       "Tinted SPF doubles as light coverage and protects from visible light too — great for {condition} ✨"
     ]
   },
+  "child_sunscreen": {
+    "keywords": [
+      "8 year old sunscreen",
+      "7 year old sunscreen",
+      "kid sunscreen",
+      "child sunscreen",
+      "baby sunscreen"
+    ],
+    "responses": [
+      "Yes, kids can usually use sunscreen. Choose a gentle broad-spectrum sunscreen, preferably one made for children, and avoid getting it in the eyes. For babies under 6 months, ask a pediatrician first."
+    ]
+  },
+  "child_salicylic": {
+    "keywords": [
+      "8 year old salicylic acid",
+      "7 year old salicylic acid",
+      "kid salicylic acid",
+      "child salicylic acid"
+    ],
+    "responses": [
+      "Be careful with salicylic acid for children. It is better not to use strong acne actives on a young child unless a doctor or pediatric dermatologist recommends it."
+    ]
+  },
   "routine": {
     "keywords": ["routine", "steps", "morning", "night", "pm", "am", "order", "layering", "what order"],
     "responses": [

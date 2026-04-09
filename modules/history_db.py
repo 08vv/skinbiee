@@ -1,4 +1,5 @@
 import psycopg2
+from psycopg2 import errors
 import os
 import pandas as pd
 import json
@@ -20,6 +21,34 @@ def get_connection():
     _require_postgres_url()
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
+
+def _safe_add_column(cursor, table_name, column_sql):
+    try:
+        cursor.execute("SAVEPOINT schema_migration")
+        cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_sql}")
+        cursor.execute("RELEASE SAVEPOINT schema_migration")
+    except Exception:
+        # Keep startup resilient on older Postgres variants.
+        cursor.execute("ROLLBACK TO SAVEPOINT schema_migration")
+        cursor.execute("RELEASE SAVEPOINT schema_migration")
+        fallback_conn = get_connection()
+        try:
+            fallback_cursor = fallback_conn.cursor()
+            fallback_cursor.execute(
+                """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = %s AND column_name = %s
+                """,
+                (table_name, column_sql.split()[0])
+            )
+            exists = fallback_cursor.fetchone() is not None
+            if not exists:
+                fallback_cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}")
+                fallback_conn.commit()
+        finally:
+            fallback_conn.close()
+
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
@@ -36,11 +65,7 @@ def init_db():
     ''')
     
     # Migration for existing users table
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN created_at TEXT")
-    except Exception:
-        # Column likely already exists
-        pass
+    _safe_add_column(cursor, "users", "created_at TEXT")
     
     cursor.execute(f'''
     CREATE TABLE IF NOT EXISTS scans (
@@ -88,11 +113,14 @@ def init_db():
         id {id_type},
         user_id INTEGER UNIQUE NOT NULL,
         profile_json TEXT,
+        planner_json TEXT,
         reminders_json TEXT,
         updated_at TEXT,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )
     ''')
+
+    _safe_add_column(cursor, "user_preferences", "planner_json TEXT")
     
     conn.commit()
     conn.close()
@@ -179,14 +207,43 @@ def add_daily_log(user_id, date, am_done, pm_done, skin_feeling, skin_rating, no
     row = c.fetchone()
     
     if row:
+        c.execute(
+            'SELECT am_done, pm_done, skin_feeling, skin_rating, notes, photo_path FROM daily_logs WHERE user_id = %s AND date = %s',
+            (uid, date)
+        )
+        existing = c.fetchone()
+        merged_am_done = existing[0] if am_done is None else am_done
+        merged_pm_done = existing[1] if pm_done is None else pm_done
+        merged_skin_feeling = existing[2] if skin_feeling is None else skin_feeling
+        merged_skin_rating = existing[3] if skin_rating is None else skin_rating
+        merged_notes = existing[4] if notes is None else notes
+        merged_photo_path = existing[5] if photo_path is None else photo_path
         c.execute('''UPDATE daily_logs 
                      SET am_done=%s, pm_done=%s, skin_feeling=%s, skin_rating=%s, notes=%s, photo_path=%s 
                      WHERE user_id=%s AND date=%s''',
-                  (am_done, pm_done, skin_feeling, skin_rating, notes, photo_path, uid, date))
+                  (
+                      merged_am_done,
+                      merged_pm_done,
+                      merged_skin_feeling,
+                      merged_skin_rating,
+                      merged_notes,
+                      merged_photo_path,
+                      uid,
+                      date
+                  ))
     else:
         c.execute('''INSERT INTO daily_logs (user_id, date, am_done, pm_done, skin_feeling, skin_rating, notes, photo_path)
                      VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
-                  (uid, date, am_done, pm_done, skin_feeling, skin_rating, notes, photo_path))
+                  (
+                      uid,
+                      date,
+                      0 if am_done is None else am_done,
+                      0 if pm_done is None else pm_done,
+                      'Good' if skin_feeling is None else skin_feeling,
+                      5 if skin_rating is None else skin_rating,
+                      '' if notes is None else notes,
+                      '' if photo_path is None else photo_path
+                  ))
     conn.commit()
     conn.close()
 
@@ -250,23 +307,45 @@ def get_active_routine(user_id):
 def get_user_preferences(user_id):
     conn = get_connection()
     c = conn.cursor()
-    c.execute(
-        'SELECT profile_json, reminders_json, updated_at FROM user_preferences WHERE user_id = %s',
-        (int(user_id),)
-    )
+    try:
+        c.execute(
+            'SELECT profile_json, planner_json, reminders_json, updated_at FROM user_preferences WHERE user_id = %s',
+            (int(user_id),)
+        )
+    except Exception as e:
+        conn.rollback()
+        if getattr(e, 'pgcode', None) == getattr(errors.UndefinedColumn, 'sqlstate', None) or 'planner_json' in str(e):
+            c.execute(
+                'SELECT profile_json, reminders_json, updated_at FROM user_preferences WHERE user_id = %s',
+                (int(user_id),)
+            )
+            row = c.fetchone()
+            conn.close()
+            if not row:
+                return {"profile": {}, "planner": {}, "reminders": {}, "updated_at": None}
+            return {
+                "profile": json.loads(row[0]) if row[0] else {},
+                "planner": {},
+                "reminders": json.loads(row[1]) if row[1] else {},
+                "updated_at": row[2]
+            }
+        conn.close()
+        raise
     row = c.fetchone()
     conn.close()
     if not row:
-        return {"profile": {}, "reminders": {}, "updated_at": None}
+        return {"profile": {}, "planner": {}, "reminders": {}, "updated_at": None}
     return {
         "profile": json.loads(row[0]) if row[0] else {},
-        "reminders": json.loads(row[1]) if row[1] else {},
-        "updated_at": row[2]
+        "planner": json.loads(row[1]) if row[1] else {},
+        "reminders": json.loads(row[2]) if row[2] else {},
+        "updated_at": row[3]
     }
 
-def save_user_preferences(user_id, profile=None, reminders=None):
+def save_user_preferences(user_id, profile=None, planner=None, reminders=None):
     current = get_user_preferences(user_id)
     merged_profile = current["profile"] if profile is None else profile
+    merged_planner = current["planner"] if planner is None else planner
     merged_reminders = current["reminders"] if reminders is None else reminders
     updated_at = datetime.now().isoformat()
 
@@ -274,19 +353,31 @@ def save_user_preferences(user_id, profile=None, reminders=None):
     c = conn.cursor()
     c.execute(
         '''
-        INSERT INTO user_preferences (user_id, profile_json, reminders_json, updated_at)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO user_preferences (user_id, profile_json, planner_json, reminders_json, updated_at)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (user_id)
         DO UPDATE SET
             profile_json = EXCLUDED.profile_json,
+            planner_json = EXCLUDED.planner_json,
             reminders_json = EXCLUDED.reminders_json,
             updated_at = EXCLUDED.updated_at
         ''',
-        (int(user_id), json.dumps(merged_profile), json.dumps(merged_reminders), updated_at)
+        (
+            int(user_id),
+            json.dumps(merged_profile),
+            json.dumps(merged_planner),
+            json.dumps(merged_reminders),
+            updated_at
+        )
     )
     conn.commit()
     conn.close()
-    return {"profile": merged_profile, "reminders": merged_reminders, "updated_at": updated_at}
+    return {
+        "profile": merged_profile,
+        "planner": merged_planner,
+        "reminders": merged_reminders,
+        "updated_at": updated_at
+    }
 
 def get_user_skin_condition(user_id: int) -> str:
     """

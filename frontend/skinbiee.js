@@ -48,11 +48,16 @@ function createDefaultPlannerState() {
         hasSetup: false,
         routine: ['Cleanser', 'Moisturizer'],
         dailyDone: false,
+        amDone: false,
+        pmDone: false,
         streak: 0,
         currentMonth: new Date().getMonth(),
         currentYear: new Date().getFullYear(),
         setupStep: 0,
-        answers: {}
+        answers: {},
+        currentChecklistPeriod: 'morning',
+        plannerStartDate: null,
+        onboardingCompletedAt: null
     };
 }
 
@@ -72,10 +77,14 @@ function resetUserRuntimeState(options = {}) {
     state.streak = 0;
     state.activeDates = new Set();
     state.serverScans = [];
+    state.dailyLogs = [];
     state.userLogsWithPhotos = [];
     state.joinDate = null;
     state.userProfile = {};
     state.reminders = {};
+    state.plannerMeta = {};
+    state.userDataLoaded = false;
+    state.userDataLoading = false;
     state.onboardingStep = 1;
     if (!preserveIdentity) {
         state.userId = null;
@@ -141,6 +150,7 @@ function restoreSession() {
 
 async function refreshUserDataFromServer() {
     if (state.userId == null) return;
+    state.userDataLoading = true;
     try {
         const res = await fetch(`${API_BASE_URL}/api/user/data`, { headers: authHeadersRaw() });
         if (res.status === 401) { clearSession(); switchView('auth'); return; }
@@ -155,6 +165,7 @@ async function refreshUserDataFromServer() {
         const data = await res.json();
         if (data.status === 'success' || data.success) {
             state.serverScans = Array.isArray(data.scans) ? data.scans : [];
+            state.dailyLogs = Array.isArray(data.logs) ? data.logs : [];
             state.userLogsWithPhotos = Array.isArray(data.logs)
                 ? data.logs.filter((log) => log && log.photo_path)
                 : [];
@@ -162,17 +173,31 @@ async function refreshUserDataFromServer() {
             state.joinDate = data.join_date || null;
             state.userProfile = data.profile && typeof data.profile === 'object' ? data.profile : {};
             state.reminders = data.reminders && typeof data.reminders === 'object' ? data.reminders : {};
+            state.plannerMeta = data.planner && typeof data.planner === 'object' ? data.planner : {};
             applyUserProfile(state.userProfile);
             plannerState.streak = data.streak || 0;
-            plannerState.dailyDone = state.activeDates.has(getLocalDateKey());
-            plannerState.hasSetup = Boolean(data.routine && Array.isArray(data.routine.am_steps) && data.routine.am_steps.length);
-            plannerState.routine = plannerState.hasSetup ? data.routine.am_steps : ['Cleanser', 'Moisturizer'];
+            plannerState.hasSetup = Boolean(
+                state.plannerMeta.onboarding_completed
+                || (data.routine && Array.isArray(data.routine.am_steps) && data.routine.am_steps.length)
+            );
+            plannerState.routine = data.routine && Array.isArray(data.routine.am_steps) && data.routine.am_steps.length
+                ? data.routine.am_steps
+                : ['Cleanser', 'Moisturizer'];
+            plannerState.plannerStartDate = state.plannerMeta.planner_start_date || state.joinDate || null;
+            plannerState.onboardingCompletedAt = state.plannerMeta.onboarding_completed_at || null;
+            const todaysLog = getPlannerLogForDate(getLocalDateKey(), state.dailyLogs);
+            plannerState.amDone = Boolean(todaysLog?.am_done);
+            plannerState.pmDone = Boolean(todaysLog?.pm_done);
+            plannerState.dailyDone = plannerState.amDone || plannerState.pmDone;
             state.streak = plannerState.streak;
+            state.userDataLoaded = true;
             renderScanHistory();
             if (state.view === 'planner') setupPlanner();
         }
     } catch (e) {
         console.error('[SERVER] Refresh failed', e);
+    } finally {
+        state.userDataLoading = false;
     }
 }
 
@@ -208,10 +233,14 @@ const state = {
     userId: null,
     activeDates: new Set(),
     serverScans: [],
+    dailyLogs: [],
     userLogsWithPhotos: [],
     joinDate: null,
     userProfile: {},
-    reminders: {}
+    reminders: {},
+    plannerMeta: {},
+    userDataLoaded: false,
+    userDataLoading: false
 };
 
 // DOM Elements
@@ -228,7 +257,19 @@ function registerServiceWorker() {
     console.log('[PWA] Checking PWA criteria...');
     console.log('[PWA] HTTPS:', location.protocol === 'https:' || location.hostname === 'localhost');
     console.log('[PWA] Service Worker supported:', 'serviceWorker' in navigator);
-    
+
+    if (isLocalFrontend && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations()
+            .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+            .then(() => {
+                console.log('[SW] Local dev mode: unregistered existing service workers');
+            })
+            .catch((error) => {
+                console.log('[SW] Local dev unregister failed:', error);
+            });
+        return;
+    }
+
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             console.log('[PWA] Page loaded, attempting service worker registration...');
@@ -298,12 +339,11 @@ async function init() {
 
         // Feature specific listeners
         setupAnalyzer();
-        setupPlanner();
         setupSettings();
         
         if (hadSession) {
+            await refreshUserDataFromServer();
             switchView("home");
-            refreshUserDataFromServer();
         }
         console.log("[DEBUG] init completed successfully");
     } catch (err) {
@@ -513,8 +553,8 @@ function setupAuthListeners() {
                 }
 
                 persistSession(data.user_id, data.username, data.token);
+                await refreshUserDataFromServer();
                 switchView(isSignup ? 'onboarding' : 'home');
-                refreshUserDataFromServer();
             } catch (err) {
                 hideLoading();
                 showToast('Server connection error 🌿');
@@ -746,6 +786,7 @@ function setupAnalyzer() {
                 if (data.status === 'success') {
                     showToast("Analysis complete! Rendering results.");
                     renderSkinResults(Array.isArray(data.results) ? data.results : [], data.image_url || URL.createObjectURL(file));
+                    await refreshUserDataFromServer();
                     showAnalyzerSubState('skin', 'results');
                     triggerMascotAnim('happy');
                 } else {
@@ -830,6 +871,7 @@ function setupAnalyzer() {
                 if (data.status === 'success') {
                     showToast("Scanner success! Results ready.");
                     renderProdResults(data);
+                    await refreshUserDataFromServer();
                     showAnalyzerSubState('prod', 'results');
                     triggerMascotAnim('happy');
                 } else {
@@ -1294,6 +1336,20 @@ function getPlannerLastDoneKey() {
     return dates.length ? dates.sort().slice(-1)[0] : null;
 }
 
+function getPlannerLogForDate(dateKey, logs = state.dailyLogs) {
+    if (!dateKey || !Array.isArray(logs)) return null;
+    return logs.find((log) => log && String(log.date || '').slice(0, 10) === dateKey) || null;
+}
+
+function getPlannerStartDateKey() {
+    return plannerState.plannerStartDate || state.plannerMeta?.planner_start_date || state.joinDate || null;
+}
+
+function isPlannerDateStarted(dateKey) {
+    const startDateKey = getPlannerStartDateKey();
+    return Boolean(startDateKey && dateKey >= startDateKey);
+}
+
 function getPlannerLastDoneDate() {
     const lastDone = getPlannerLastDoneKey();
     if (!lastDone) return null;
@@ -1322,15 +1378,33 @@ function setupPlanner() {
     console.log("[DEBUG] setupPlanner triggered");
     // RE-SYNC STATE WITH STORAGE TO PREVENT LOOPS
     loadPlannerStateFromStorage();
-    checkStreakMaintenance();
-    plannerState.dailyDone = state.activeDates.has(getLocalDateKey());
-    console.log("[DEBUG] Planner State:", { hasSetup: plannerState.hasSetup, dailyDone: plannerState.dailyDone });
-    state.streak = plannerState.streak;
-
     const overlayContainer = document.getElementById('planner-onboarding-overlay');
     const mainDashboard = document.getElementById('planner-main-dashboard');
     const editorOverlay = document.getElementById('routine-editor-overlay');
-    
+
+    if (state.userId && !state.userDataLoaded) {
+        if (overlayContainer) overlayContainer.style.display = 'none';
+        if (mainDashboard) mainDashboard.style.display = 'none';
+        if (editorOverlay) editorOverlay.style.display = 'none';
+        if (!state.userDataLoading) {
+            refreshUserDataFromServer();
+        }
+        return;
+    }
+
+    checkStreakMaintenance();
+    const todaysLog = getPlannerLogForDate(getLocalDateKey());
+    plannerState.amDone = Boolean(todaysLog?.am_done);
+    plannerState.pmDone = Boolean(todaysLog?.pm_done);
+    plannerState.dailyDone = plannerState.amDone || plannerState.pmDone;
+    console.log("[DEBUG] Planner State:", {
+        hasSetup: plannerState.hasSetup,
+        amDone: plannerState.amDone,
+        pmDone: plannerState.pmDone,
+        plannerStartDate: plannerState.plannerStartDate
+    });
+    state.streak = plannerState.streak;
+
     // Safety: Ensure we hide overlays by default
     if (overlayContainer) overlayContainer.style.display = 'none';
     if (editorOverlay) editorOverlay.style.display = 'none';
@@ -1339,9 +1413,13 @@ function setupPlanner() {
     if (!plannerState.hasSetup) {
         if (overlayContainer) {
             overlayContainer.style.display = 'block';
-            document.querySelectorAll('.overlay-screen').forEach(s => s.style.display = 'none');
-            const welcome = document.getElementById('planner-ob-welcome');
-            if (welcome) welcome.style.display = 'flex';
+            const welcomeScreen = document.getElementById('planner-ob-welcome');
+            const questions = document.getElementById('planner-ob-questions');
+            const reveal = document.getElementById('planner-ob-reveal');
+            if (welcomeScreen) welcomeScreen.style.display = 'none';
+            if (questions) questions.style.display = 'none';
+            if (reveal) reveal.style.display = 'none';
+            if (welcomeScreen) welcomeScreen.style.display = 'flex';
         }
         if (mainDashboard) mainDashboard.style.display = 'none';
     } else {
@@ -1424,7 +1502,7 @@ function nextSetupStep() {
     }
 }
 
-function finishSetupInternal() {
+async function finishSetupInternal() {
     // Generate routine based on answers
     const routine = [];
     const type = plannerState.answers.skinType || 'Normal';
@@ -1442,11 +1520,17 @@ function finishSetupInternal() {
     else routine.push("Moisturizer");
 
     plannerState.routine = routine;
-    plannerState.hasSetup = true;
-    saveRoutine(routine, concern).catch((err) => {
+
+    try {
+        await saveRoutine(routine, concern, {
+            onboarding_completed: true,
+            onboarding_completed_at: getLocalDateKey()
+        });
+    } catch (err) {
         console.error('[ROUTINE] Failed to save generated routine', err);
         showToast('Could not save routine');
-    });
+        return;
+    }
 
     const questionScreen = document.getElementById('planner-ob-questions');
     const revealScreen = document.getElementById('planner-ob-reveal');
@@ -1464,12 +1548,23 @@ function finishSetupInternal() {
     }
 }
 
-function finishPlannerOnboarding() {
+async function finishPlannerOnboarding() {
     const overlay = document.getElementById('planner-onboarding-overlay');
+    const welcome = document.getElementById('planner-ob-welcome');
+    const questions = document.getElementById('planner-ob-questions');
     const reveal = document.getElementById('planner-ob-reveal');
+    const dashboard = document.getElementById('planner-main-dashboard');
+    if (welcome) welcome.style.display = 'none';
+    if (questions) questions.style.display = 'none';
     if (reveal) reveal.style.display = 'none';
     if (overlay) overlay.style.display = 'none';
+    if (dashboard) dashboard.style.display = 'block';
+    await refreshUserDataFromServer();
     setupPlanner();
+    requestAnimationFrame(() => {
+        if (dashboard) dashboard.style.display = 'block';
+        renderPlannerDashboard();
+    });
 }
 
 
@@ -1517,7 +1612,7 @@ function checkAllDone() {
     }
 }
 
-function finishChecklist() {
+function finishChecklistLegacy() {
     if (plannerState.dailyDone) {
         const checklistOverlay = document.getElementById('routine-checklist-overlay');
         if (checklistOverlay) checklistOverlay.style.display = 'none';
@@ -1569,21 +1664,21 @@ function renderPlannerDashboard() {
     const sCount = `${plannerState.streak} Day Streak`;
     const streakEl = document.getElementById('streak-count');
     const homeStreakEl = document.getElementById('home-streak-count');
+    const morningStatus = document.querySelector('#morning-completion-card .completion-status');
+    const nightStatus = document.querySelector('#night-completion-card .completion-status');
     
     if (streakEl) streakEl.textContent = sCount;
     if (homeStreakEl) homeStreakEl.textContent = plannerState.streak;
     
-    // Toggle Dashboard Selfie Area
-    document.querySelectorAll('.completion-status').forEach((el) => {
-        el.style.display = plannerState.dailyDone ? 'block' : 'none';
-    });
-
     const morningBlur = document.getElementById('morning-blur-overlay');
     const nightBlur = document.getElementById('night-blur-overlay');
-    if (morningBlur) morningBlur.style.display = plannerState.dailyDone ? 'none' : 'flex';
-    if (nightBlur) nightBlur.style.display = plannerState.dailyDone ? 'none' : 'flex';
+    if (morningStatus) morningStatus.style.display = plannerState.amDone ? 'block' : 'none';
+    if (nightStatus) nightStatus.style.display = plannerState.pmDone ? 'block' : 'none';
+    if (morningBlur) morningBlur.style.display = plannerState.amDone ? 'none' : 'flex';
+    if (nightBlur) nightBlur.style.display = plannerState.pmDone ? 'none' : 'flex';
 
     renderPlannerCalendar();
+    requestAnimationFrame(() => renderPlannerCalendar());
     renderMainChecklist();
 }
 
@@ -1604,18 +1699,22 @@ function renderPlannerCalendar() {
     console.log("[CALENDAR] Rendering grid...");
     const grid = document.getElementById('planner-calendar-grid');
     const monthLabel = document.getElementById('calendar-month-year');
+    if (!grid) return;
     
     try {
-        const d = new Date(plannerState.currentYear, plannerState.currentMonth, 1);
+        const currentMonth = Number.isInteger(plannerState.currentMonth) ? plannerState.currentMonth : new Date().getMonth();
+        const currentYear = Number.isInteger(plannerState.currentYear) ? plannerState.currentYear : new Date().getFullYear();
+        const d = new Date(currentYear, currentMonth, 1);
         if (monthLabel) monthLabel.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
         
         const firstDay = d.getDay();
-        const daysInMonth = new Date(plannerState.currentYear, plannerState.currentMonth + 1, 0).getDate();
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
         const today = new Date();
+        const todayKey = getLocalDateKey(today);
         const lastDoneDate = getPlannerLastDoneDate();
         const streakDates = new Map();
+        const startDateKey = getPlannerStartDateKey();
 
-        let html = '';
         if (lastDoneDate && plannerState.streak > 0) {
             for (let offset = 0; offset < plannerState.streak; offset++) {
                 const streakDate = new Date(lastDoneDate);
@@ -1624,40 +1723,57 @@ function renderPlannerCalendar() {
             }
         }
 
+        grid.innerHTML = '';
+
         // 1. Dummies for previous month days
         for (let i = 0; i < firstDay; i++) {
-            html += '<div class="cal-day empty"></div>';
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'cal-day empty';
+            emptyDay.setAttribute('aria-hidden', 'true');
+            grid.appendChild(emptyDay);
         }
         
         // 2. Real days for current month
         for (let i = 1; i <= daysInMonth; i++) {
-            const curDate = new Date(plannerState.currentYear, plannerState.currentMonth, i);
+            const curDate = new Date(currentYear, currentMonth, i);
             const dateKey = getLocalDateKey(curDate);
-            let cls = 'cal-day';
+            const dayEl = document.createElement('div');
+            dayEl.className = 'cal-day';
             
             // Check if today
-            if (i === today.getDate() && plannerState.currentMonth === today.getMonth() && plannerState.currentYear === today.getFullYear()) {
-                cls += ' today';
-            }
-            
-            const streakType = streakDates.get(dateKey);
-            let flameHtml = '';
-            if (streakType) {
-                cls += ' has-streak';
-                flameHtml = `<img src="assets/blue-flame.png" alt="" class="calendar-flame ${streakType}" onerror="this.style.display='none'">`;
+            if (i === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()) {
+                dayEl.classList.add('today');
             }
 
-            html += `
-                <div class="${cls}">
-                    <span class="cal-day-num">${i}</span>
-                    ${flameHtml}
-                </div>`;
+            const dayNum = document.createElement('span');
+            dayNum.className = 'cal-day-num';
+            dayNum.textContent = String(i);
+            dayEl.appendChild(dayNum);
+            
+            const isStartedDay = Boolean(startDateKey && dateKey >= startDateKey && dateKey <= todayKey);
+            const streakType = streakDates.get(dateKey);
+            if (streakType || isStartedDay) {
+                dayEl.classList.add('has-streak');
+                const flame = document.createElement('i');
+                flame.className = streakType
+                    ? `fa-solid fa-fire calendar-flame active-day ${streakType}`
+                    : 'fa-solid fa-fire calendar-flame inactive-day';
+                flame.setAttribute('aria-hidden', 'true');
+                dayEl.appendChild(flame);
+            }
+
+            grid.appendChild(dayEl);
         }
-        
-        if (grid) {
-            grid.innerHTML = html;
-            console.log("[CALENDAR] Successfully injected " + daysInMonth + " days.");
+
+        const trailingCells = (7 - (grid.children.length % 7)) % 7;
+        for (let i = 0; i < trailingCells; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'cal-day empty';
+            emptyDay.setAttribute('aria-hidden', 'true');
+            grid.appendChild(emptyDay);
         }
+
+        console.log("[CALENDAR] Successfully injected " + daysInMonth + " days.");
     } catch (e) {
         console.error("[CALENDAR] Render error:", e);
         if (grid) grid.innerHTML = '<div class="p-3 text-danger">Rendering Error</div>';
@@ -1720,11 +1836,11 @@ function addRoutineItem() {
     renderEditorItems();
 }
 
-function saveRoutine() {
+function saveRoutineDraftLocally() {
     setScopedJson('planner-routine', plannerState.routine);
 }
 
-function startPlannerOnboarding() {
+function startPlannerOnboardingLegacy() {
     const welcome = document.getElementById('planner-ob-welcome');
     const questions = document.getElementById('planner-ob-questions');
     if (welcome) welcome.style.display = 'none';
@@ -1740,8 +1856,9 @@ function startRoutineChecklist(period = 'morning') {
     const overlay = document.getElementById('routine-checklist-overlay');
     const title = document.getElementById('checklist-title');
     const subtitle = document.getElementById('checklist-subtitle');
+    plannerState.currentChecklistPeriod = period === 'night' ? 'night' : 'morning';
     if (title) title.textContent = "Today's Routine";
-    if (subtitle) subtitle.textContent = `${period[0].toUpperCase()}${period.slice(1)} Routine`;
+    if (subtitle) subtitle.textContent = `${plannerState.currentChecklistPeriod[0].toUpperCase()}${plannerState.currentChecklistPeriod.slice(1)} Routine`;
     if (overlay) overlay.style.display = 'block';
     renderDailyItems();
     checkAllDone();
@@ -1972,36 +2089,45 @@ function openEditProfile() {
 /* ==========================================================================
    SERVER-BACKED USER DATA OVERRIDES
    ========================================================================== */
-async function saveRoutine(routine = plannerState.routine, condition = getGlowBotSkinContext()) {
+async function saveRoutine(routine = plannerState.routine, condition = getGlowBotSkinContext(), plannerMeta = null) {
     const response = await fetch(`${API_BASE_URL}/api/user/routine`, {
         method: 'POST',
         headers: {
             ...authHeadersRaw(),
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ routine, condition })
+        body: JSON.stringify({ routine, condition, planner: plannerMeta })
     });
     const parsed = await readApiResponse(response);
     if (!parsed.ok || !response.ok) {
         throw new Error(parsed.error || parsed.data?.error || 'Could not save routine');
     }
-    plannerState.hasSetup = true;
+    const savedPlanner = parsed.data.planner && typeof parsed.data.planner === 'object' ? parsed.data.planner : {};
+    state.plannerMeta = { ...state.plannerMeta, ...savedPlanner };
+    plannerState.hasSetup = Boolean(
+        savedPlanner.onboarding_completed
+        || (parsed.data.routine?.am_steps && parsed.data.routine.am_steps.length)
+    );
     plannerState.routine = parsed.data.routine?.am_steps || routine;
+    plannerState.plannerStartDate = savedPlanner.planner_start_date || plannerState.plannerStartDate || getLocalDateKey();
+    plannerState.onboardingCompletedAt = savedPlanner.onboarding_completed_at || plannerState.onboardingCompletedAt;
     return plannerState.routine;
 }
 
 async function finishChecklist() {
-    if (plannerState.dailyDone) {
+    const period = plannerState.currentChecklistPeriod === 'night' ? 'night' : 'morning';
+    const alreadyDone = period === 'night' ? plannerState.pmDone : plannerState.amDone;
+    if (alreadyDone) {
         const checklistOverlay = document.getElementById('routine-checklist-overlay');
         if (checklistOverlay) checklistOverlay.style.display = 'none';
-        setupPlanner();
+        renderPlannerDashboard();
         return;
     }
 
     const formData = new FormData();
-    formData.append('date', getLocalDateKey());
-    formData.append('am_done', '1');
-    formData.append('pm_done', '1');
+    const todayKey = getLocalDateKey();
+    formData.append('date', todayKey);
+    formData.append(period === 'morning' ? 'am_done' : 'pm_done', '1');
     formData.append('skin_feeling', 'Good');
     formData.append('skin_rating', '5');
 
@@ -2024,7 +2150,7 @@ async function finishChecklist() {
 
     const checklistOverlay = document.getElementById('routine-checklist-overlay');
     if (checklistOverlay) checklistOverlay.style.display = 'none';
-    setupPlanner();
+    renderPlannerDashboard();
     showToast("Routine completed! +1 Streak");
 }
 
@@ -2278,6 +2404,15 @@ function getGlowBotContext() {
 function normalizeGlowBotText(text) {
     return String(text || '')
         .toLowerCase()
+        .replace(/\bcan u\b/g, 'can you')
+        .replace(/\bu\b/g, 'you')
+        .replace(/\bsomtign\b/g, 'something')
+        .replace(/\bsomthin\b/g, 'something')
+        .replace(/\bsugget\b/g, 'suggest')
+        .replace(/\bsugest\b/g, 'suggest')
+        .replace(/\bbalckheads\b/g, 'blackheads')
+        .replace(/\bblack head(s)?\b/g, 'blackheads')
+        .replace(/\byears?\s*old\b/g, 'year old')
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -2326,6 +2461,10 @@ function getGlowBotJsonResponse(input) {
     if (!glowBotChatData) return null;
 
     const normalizedInput = normalizeGlowBotText(input);
+    const directReply = getGlowBotDirectReply(normalizedInput);
+    if (directReply) return directReply;
+    const childSafetyReply = getGlowBotChildSafetyReply(normalizedInput);
+    if (childSafetyReply) return childSafetyReply;
     const context = getGlowBotContext();
     let fallbackIntent = null;
 
@@ -2435,6 +2574,7 @@ async function handleChatSend(inputId) {
     const inputEl = document.getElementById(inputId);
     const text = inputEl.value.trim();
     if (!text) return;
+    const normalizedText = normalizeGlowBotText(text);
 
     // Clear both inputs
     document.getElementById('chat-input-compact').value = '';
@@ -2444,6 +2584,24 @@ async function handleChatSend(inputId) {
     
     // Mascot "Thinking"
     triggerMascotAnim('thinking');
+
+    const directReply = getGlowBotDirectReply(normalizedText);
+    if (directReply) {
+        setTimeout(() => {
+            appendChatMessage('mascot', directReply);
+            triggerMascotAnim('happy');
+        }, 250);
+        return;
+    }
+
+    const childSafetyReply = getGlowBotChildSafetyReply(normalizedText);
+    if (childSafetyReply) {
+        setTimeout(() => {
+            appendChatMessage('mascot', childSafetyReply);
+            triggerMascotAnim('happy');
+        }, 250);
+        return;
+    }
     
     setTimeout(async () => {
         const response = await getMascotAIResponse(text);
@@ -2477,7 +2635,8 @@ function checkProactiveGreetingLegacy() {
 
 function checkProactiveGreeting() {
     const hasUserMessages = glowBotMessages.some(msg => msg.sender === 'user');
-    if (!glowBotProactiveShown && !hasUserMessages) {
+    const mascotMessageCount = glowBotMessages.filter(msg => msg.sender === 'mascot').length;
+    if (!glowBotProactiveShown && !hasUserMessages && mascotMessageCount === 0) {
         glowBotProactiveShown = true;
         let msg = `Hey ${state.username}, I'm here with a quick check-in. `;
 
@@ -2522,6 +2681,8 @@ function getMascotLegacyFallbackResponseOld(input) {
 
 function getMascotEmergencyFallbackResponse(input) {
     const low = normalizeGlowBotText(input);
+    const directReply = getGlowBotDirectReply(low);
+    if (directReply) return directReply;
     const skinContext = getGlowBotSkinContext();
     const streak = state.streak || plannerState.streak || 0;
 
@@ -2592,7 +2753,59 @@ function getMascotEmergencyFallbackResponse(input) {
     return `I can help with routines, ingredients, scan results, or daily skincare habits. Tell me what is going on with your ${skinContext} and we'll figure it out.`;
 }
 
+function getGlowBotDirectReply(input) {
+    const low = normalizeGlowBotText(input);
+
+    if (getGlowBotChildSafetyReply(low)) {
+        return getGlowBotChildSafetyReply(low);
+    }
+
+    if (/(blackheads|clogged pores|sebaceous filaments|whiteheads?)/.test(low)) {
+        return 'For blackheads, salicylic acid is usually the best starting point. Use a gentle BHA 2 to 3 times a week, avoid squeezing, and pair it with a simple moisturizer and daily sunscreen.';
+    }
+
+    return null;
+}
+
+function getGlowBotChildSafetyReply(input) {
+    const low = normalizeGlowBotText(input);
+    const mentionsChild = /(child|kid|kids|baby|toddler|year old|yr old|\b[0-9]{1,2}\s*(year old|yo)\b)/.test(low);
+    if (!mentionsChild) return null;
+
+    if (low.includes('sunscreen') || low.includes('spf')) {
+        return 'Yes, an 8 year old can usually use sunscreen. Choose a gentle broad-spectrum sunscreen, preferably one made for kids, and avoid getting it in the eyes. For babies under 6 months, ask a pediatrician first.';
+    }
+
+    if (low.includes('salicylic acid') || low.includes('bha')) {
+        return 'Usually be careful with salicylic acid for a child. It is better not to use strong acne actives on an 8 year old unless a doctor or pediatric dermatologist recommends it.';
+    }
+
+    if (low.includes('azelaic acid')) {
+        return 'Be careful with azelaic acid for a child. Even though it can be gentler than some acne actives, it is better to use it for an 8 year old only if a doctor or pediatric dermatologist recommends it.';
+    }
+
+    if (low.includes('retinol') || low.includes('retinoid') || low.includes('tretinoin')) {
+        return 'Retinol and similar vitamin A actives are usually not a good first choice for a child unless a doctor specifically recommends them.';
+    }
+
+    if (low.includes('glycolic acid') || low.includes('aha') || low.includes('lactic acid') || low.includes('mandelic acid')) {
+        return 'Be careful with exfoliating acids for a child. It is usually best not to use strong acids on young skin unless a doctor recommends them.';
+    }
+
+    if (low.includes('acid') || low.includes('active') || low.includes('serum') || low.includes('treatment')) {
+        return 'For a child, it is usually best to keep skincare simple and gentle. Strong treatment actives should only be used if a doctor or pediatric dermatologist recommends them.';
+    }
+
+    return null;
+}
+
 async function getMascotAIResponse(input) {
+    const directReply = getGlowBotDirectReply(input);
+    if (directReply) return directReply;
+
+    const childSafetyReply = getGlowBotChildSafetyReply(input);
+    if (childSafetyReply) return childSafetyReply;
+
     const aiReply = await getGlowBotOpenRouterResponse(input);
     if (aiReply) return aiReply;
 

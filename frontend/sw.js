@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skinbiee-cache-v9';
+const CACHE_NAME = 'skinbiee-cache-v20';
 const ASSETS_TO_CACHE = [
     '/',
     'skinbiee.html',
