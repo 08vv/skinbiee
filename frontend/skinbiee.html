@@ -8,14 +8,14 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Poppins:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=15">
-    <link rel="stylesheet" href="skinbiee.css?v=15">
+    <link rel="stylesheet" href="style.css?v=16">
+    <link rel="stylesheet" href="skinbiee.css?v=16">
 
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- PWA Setup -->
-    <link rel="manifest" href="manifest.json?v=15">
+    <link rel="manifest" href="manifest.json?v=16">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/app-icon-32.png">
     <link rel="apple-touch-icon" href="assets/app-icon-180.png">
     <meta name="theme-color" content="#ffffff">
@@ -896,7 +896,27 @@
                                     <span class="slider round"></span>
                                 </label>
                             </div>
-                            <input type="time" id="am-reminder-time" class="sub-page-input" value="08:00">
+                            <div class="reminder-time-input-wrap">
+                                <span class="reminder-time-chip">AM</span>
+                                <div class="simple-time-picker">
+                                    <select id="am-hour" class="time-select">
+                                        <option value="06">06</option>
+                                        <option value="07">07</option>
+                                        <option value="08" selected>08</option>
+                                        <option value="09">09</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                    </select>
+                                    <span class="time-separator">:</span>
+                                    <select id="am-minute" class="time-select">
+                                        <option value="00" selected>00</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="am-reminder-time" value="08:00">
+                            </div>
                         </div>
 
                         <div class="reminder-time-row">
@@ -907,10 +927,30 @@
                                     <span class="slider round"></span>
                                 </label>
                             </div>
-                            <input type="time" id="pm-reminder-time" class="sub-page-input" value="21:30">
+                            <div class="reminder-time-input-wrap">
+                                <span class="reminder-time-chip">PM</span>
+                                <div class="simple-time-picker">
+                                    <select id="pm-hour" class="time-select">
+                                        <option value="18">06</option>
+                                        <option value="19">07</option>
+                                        <option value="20">08</option>
+                                        <option value="21" selected>09</option>
+                                        <option value="22">10</option>
+                                        <option value="23">11</option>
+                                    </select>
+                                    <span class="time-separator">:</span>
+                                    <select id="pm-minute" class="time-select">
+                                        <option value="00">00</option>
+                                        <option value="15">15</option>
+                                        <option value="30" selected>30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="pm-reminder-time" value="21:30">
+                            </div>
                         </div>
                     </div>
-                    <p class="micro-text text-center mt-3 px-4" style="color: var(--text-secondary);">Notifications will appear on this device even if the app is closed. Enable browser notifications when prompted!</p>
+                    <p class="micro-text text-center mt-3 px-4 reminder-note" style="color: var(--text-secondary);">Allow browser notifications so your morning and night reminders can pop up on this device.</p>
                     <button class="primary-btn mt-4 full-width" onclick="saveReminders()">Save Reminders 🔔</button>
                 </div>
 
@@ -1087,7 +1127,7 @@
     </div>
 
 
-    <script src="skinbiee.js?v=15"></script>
+    <script src="skinbiee.js?v=16"></script>
 </body>
 
 </html>

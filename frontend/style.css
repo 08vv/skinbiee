@@ -3035,27 +3035,120 @@ input:checked+.slider:before {
 }
 
 .reminder-time-row {
-    background: var(--bg-app);
+    background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(244,250,255,0.98));
     padding: 18px 20px;
-    border-radius: 16px;
+    border-radius: 18px;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid rgba(0,0,0,0.02);
+    border: 1px solid rgba(116, 192, 252, 0.16);
+    box-shadow: 0 10px 24px rgba(116, 192, 252, 0.12);
 }
 
 .reminder-time-row:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    box-shadow: 0 12px 28px rgba(116, 192, 252, 0.16);
 }
 
 .switch-sm {
     transform: scale(0.8);
 }
 
-.sub-page-input[type="time"] {
-    margin-top: 8px;
-    font-weight: 700;
+.reminder-time-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    background: #ffffff;
+    border: 1px solid rgba(116, 192, 252, 0.18);
+    border-radius: 16px;
+    padding: 10px 12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.95);
+}
+
+.reminder-time-chip {
+    min-width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #dff0ff 0%, #cae6ff 100%);
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+}
+
+.reminder-time-input {
+    margin-top: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 8px 6px;
+    font-weight: 800;
+    font-size: 1.35rem;
     text-align: center;
-    letter-spacing: 1px;
+    letter-spacing: 0.06em;
+}
+
+.reminder-time-input:focus {
+    border: none;
+    box-shadow: none;
+}
+
+/* Simple Time Picker Styles */
+.simple-time-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+}
+
+.time-select {
+    background: var(--bg-surface);
+    border: 2px solid var(--accent-blue);
+    border-radius: var(--border-radius-sm);
+    padding: 8px 12px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 60px;
+    text-align: center;
+}
+
+.time-select:hover {
+    border-color: var(--primary);
+    background: var(--bg-app);
+}
+
+.time-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(116, 192, 252, 0.2);
+}
+
+.time-separator {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary);
+    font-family: var(--font-heading);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .time-select {
+        min-width: 50px;
+        font-size: 0.9rem;
+        padding: 6px 8px;
+    }
+}
+
+.reminder-note {
+    line-height: 1.5;
 }
 
 

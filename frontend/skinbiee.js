@@ -70,6 +70,8 @@ function resetGlowBotState() {
     glowBotProactiveShown = false;
 }
 
+let reminderSchedulerId = null;
+
 function resetUserRuntimeState(options = {}) {
     const { preserveIdentity = false } = options;
     resetPlannerState();
@@ -111,6 +113,7 @@ function activateSession(userId, username) {
 }
 
 function clearSession() {
+    stopReminderScheduler();
     resetUserRuntimeState();
     safeStorage.remove('sc-user-id');
     safeStorage.remove('sc-username');
@@ -191,6 +194,7 @@ async function refreshUserDataFromServer() {
             plannerState.dailyDone = plannerState.amDone || plannerState.pmDone;
             state.streak = plannerState.streak;
             state.userDataLoaded = true;
+            startReminderScheduler();
             renderScanHistory();
             if (state.view === 'planner') setupPlanner();
         }
@@ -391,7 +395,7 @@ function switchView(viewName) {
     }
 
     if (viewName === 'onboarding') {
-        resetOnboarding();
+        resetOnboarding(Boolean(state.fromSettings));
     }
 
     // Update Bottom Nav active state
@@ -665,11 +669,16 @@ function setupOnboardingListeners() {
             document.querySelector('.ob-progress').style.display = 'none';
             backBtn.style.visibility = 'hidden';
 
-            nextBtn.textContent = 'Go to Home';
+            nextBtn.textContent = state.fromSettings ? 'Back to Settings' : 'Go to Home';
             state.onboardingStep = 5;
         } else {
             applyUserProfile(loadUserProfile());
-            switchView('home');
+            if (state.fromSettings) {
+                state.fromSettings = false;
+                switchView('settings');
+            } else {
+                switchView('home');
+            }
         }
     });
 
@@ -680,18 +689,23 @@ function setupOnboardingListeners() {
             document.getElementById(`ob-step-${state.onboardingStep}`).classList.add('active');
             document.getElementById('ob-step-num').textContent = state.onboardingStep;
 
-            if (state.onboardingStep === 1) backBtn.style.visibility = 'hidden';
+            if (state.onboardingStep === 1) {
+                backBtn.style.visibility = state.fromSettings ? 'visible' : 'hidden';
+            }
+        } else if (state.onboardingStep === 1 && state.fromSettings) {
+            state.fromSettings = false;
+            switchView('settings');
         }
     });
 }
 
-function resetOnboarding() {
+function resetOnboarding(fromSettings = false) {
     state.onboardingStep = 1;
     document.querySelectorAll('.ob-step').forEach(s => s.classList.remove('active'));
     document.getElementById('ob-step-1').classList.add('active');
     document.getElementById('ob-next-btn').textContent = 'Continue';
     document.getElementById('ob-step-num').textContent = '1';
-    document.getElementById('ob-back').style.visibility = 'hidden';
+    document.getElementById('ob-back').style.visibility = fromSettings ? 'visible' : 'hidden';
     document.querySelector('.ob-progress').style.display = 'block';
     document.getElementById('ob-mascot').classList.remove('happy');
     document.getElementById('ob-mascot').classList.add('idle');
@@ -1887,7 +1901,8 @@ function toggleIngredientsCollapse() {
 }
 
 function openSettingsSubPage(pageId) {
-    const overlay = document.getElementById(`settings-${pageId}`);
+    const normalized = String(pageId || '').startsWith('settings-') ? pageId : `settings-${pageId}`;
+    const overlay = document.getElementById(normalized);
     if (overlay) overlay.style.display = 'block';
 }
 
@@ -1898,6 +1913,8 @@ function closeSettingsSubPage(pageId) {
 }
 
 function openSettingsToOnboarding() {
+    state.fromSettings = true;
+    resetOnboarding(true);
     switchView('onboarding');
 }
 
@@ -1905,6 +1922,112 @@ function toggleReminderScheduleItem() {
     const toggle = document.getElementById('settings-reminder-toggle');
     const scheduleItem = document.getElementById('reminder-schedule-item');
     if (scheduleItem) scheduleItem.style.display = toggle && toggle.checked ? 'flex' : 'none';
+}
+
+function getReminderStorageKey(period, dateKey, timeValue) {
+    return `sc-reminder-fired-${state.userId || 'guest'}-${period}-${dateKey}-${timeValue}`;
+}
+
+function shouldFireReminder(period, timeValue, now = new Date()) {
+    if (!timeValue || !/^\d{2}:\d{2}$/.test(timeValue)) return false;
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    if (now.getHours() !== hours || now.getMinutes() !== minutes) return false;
+    const dateKey = getLocalDateKey(now);
+    return safeStorage.get(getReminderStorageKey(period, dateKey, timeValue)) !== '1';
+}
+
+function markReminderFired(period, timeValue, now = new Date()) {
+    safeStorage.set(getReminderStorageKey(period, getLocalDateKey(now), timeValue), '1');
+}
+
+async function ensureReminderPermission() {
+    if (!('Notification' in window)) {
+        showToast('This browser does not support notifications');
+        return false;
+    }
+
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') {
+        showToast('Notifications are blocked in this browser');
+        return false;
+    }
+
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            showToast('Allow notifications so reminders can reach you');
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('[REMINDERS] Notification permission failed', error);
+        showToast('Could not enable notifications');
+        return false;
+    }
+}
+
+async function showReminderNotification(period) {
+    const title = period === 'am' ? 'Morning Sunshine' : 'Night Glow';
+    const body = period === 'am'
+        ? 'Time for your routine. Keep your Skinbiee streak glowing today.'
+        : 'Your evening routine is ready. A quick check-in keeps the streak alive.';
+    const options = {
+        body,
+        icon: 'assets/app-icon-192.png',
+        badge: 'assets/app-icon-32.png',
+        tag: `skinbiee-reminder-${period}`,
+        renotify: true
+    };
+
+    try {
+        if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+                await registration.showNotification(title, options);
+                return;
+            }
+        }
+        new Notification(title, options);
+    } catch (error) {
+        console.error('[REMINDERS] Failed to show notification', error);
+    }
+}
+
+async function runReminderSchedulerTick() {
+    const reminders = state.reminders || {};
+    if (!state.userId || !reminders.enabled) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    const now = new Date();
+    if (reminders.amActive && shouldFireReminder('am', reminders.amTime, now)) {
+        await showReminderNotification('am');
+        markReminderFired('am', reminders.amTime, now);
+    }
+    if (reminders.pmActive && shouldFireReminder('pm', reminders.pmTime, now)) {
+        await showReminderNotification('pm');
+        markReminderFired('pm', reminders.pmTime, now);
+    }
+}
+
+function stopReminderScheduler() {
+    if (reminderSchedulerId) {
+        clearInterval(reminderSchedulerId);
+        reminderSchedulerId = null;
+    }
+}
+
+function startReminderScheduler() {
+    stopReminderScheduler();
+    const reminders = state.reminders || {};
+    if (!state.userId || !reminders.enabled) return;
+    reminderSchedulerId = window.setInterval(() => {
+        runReminderSchedulerTick().catch((error) => {
+            console.error('[REMINDERS] Scheduler tick failed', error);
+        });
+    }, 30000);
+    runReminderSchedulerTick().catch((error) => {
+        console.error('[REMINDERS] Initial scheduler tick failed', error);
+    });
 }
 
 function togglePasswordChange() {
@@ -1992,26 +2115,162 @@ function performPasswordChange() {
 }
 
 function executeExportData() {
-    const payload = {
-        profile: loadUserProfile(),
-        planner: {
-            streak: plannerState.streak,
-            routine: plannerState.routine,
-            scans: state.serverScans,
-            progressPhotos: state.userLogsWithPhotos
-        },
-        session: {
-            username: safeStorage.get('sc-username')
-        }
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'skinbiee-export.json';
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast('Export ready');
+    // Get actual user data from state
+    const profile = state.userProfile || {};
+    const username = state.username || safeStorage.get('sc-username') || 'Guest';
+    const streak = state.streak || plannerState.streak || 0;
+    const routine = plannerState.routine || [];
+    const scans = state.serverScans || [];
+    const dailyLogs = state.dailyLogs || [];
+    const progressPhotos = state.userLogsWithPhotos || [];
+    const activeDates = Array.from(state.activeDates || []);
+    const joinDate = state.joinDate;
+    const reminders = state.reminders || {};
+    
+    // Create CSV content
+    let csvContent = '';
+    
+    // Header
+    csvContent += 'Skinbiee Data Export\n';
+    csvContent += `Username,"${username}"\n`;
+    csvContent += `Current Streak,${streak}\n`;
+    csvContent += `Join Date,"${joinDate || 'N/A'}"\n`;
+    csvContent += `Export Date,"${new Date().toLocaleDateString()}"\n\n`;
+    
+    // User Info Section
+    csvContent += 'USER INFO\n';
+    csvContent += 'Field,Value\n';
+    csvContent += `Username,"${username}"\n`;
+    if (profile.username) csvContent += `Display Name,"${profile.username}"\n`;
+    if (profile.skinType) csvContent += `Skin Type,"${profile.skinType}"\n`;
+    if (profile.skinTone) csvContent += `Skin Tone,"${profile.skinTone}"\n`;
+    if (profile.concern) csvContent += `Primary Concern,"${profile.concern}"\n`;
+    if (profile.age) csvContent += `Age,${profile.age}\n`;
+    if (profile.gender) csvContent += `Gender,"${profile.gender}"\n`;
+    if (profile.sensitive) csvContent += `Sensitive Skin,"${profile.sensitive}"\n`;
+    if (profile.routine) csvContent += `Routine Goal,"${profile.routine}"\n`;
+    csvContent += '\n';
+    
+    // Face Scans Section
+    if (scans.length > 0) {
+        csvContent += 'FACE SCANS\n';
+        csvContent += 'Date,Product Name,Brand,Category,Analysis Score,Analysis Result,Notes\n';
+        scans.forEach(scan => {
+            const date = scan.scan_date || scan.created_at || new Date().toLocaleDateString();
+            const productName = scan.product_name || scan.name || 'Unknown Product';
+            const brand = scan.brand || '';
+            const category = scan.category || scan.type || '';
+            const score = scan.analysis_score || scan.score || '';
+            const result = scan.analysis_result || scan.result || '';
+            const notes = scan.notes || scan.analysis || '';
+            csvContent += `"${date}","${productName}","${brand}","${category}","${score}","${result}","${notes}"\n`;
+        });
+        csvContent += '\n';
+    }
+    
+    // Product Scans Section (if different from face scans)
+    if (scans.length > 0) {
+        csvContent += 'PRODUCT SCANS\n';
+        csvContent += 'Date,Product Name,Brand,Category,Flag,Rating,Concerns Detected\n';
+        scans.forEach(scan => {
+            const date = scan.scan_date || scan.created_at || new Date().toLocaleDateString();
+            const productName = scan.product_name || scan.name || 'Unknown Product';
+            const brand = scan.brand || '';
+            const category = scan.category || scan.type || '';
+            const flag = scan.flag || scan.warning || '';
+            const rating = scan.rating || scan.score || '';
+            const concerns = scan.concerns_detected || scan.concerns || '';
+            csvContent += `"${date}","${productName}","${brand}","${category}","${flag}","${rating}","${concerns}"\n`;
+        });
+        csvContent += '\n';
+    }
+    
+    // Calendar/Routine Section
+    csvContent += 'CALENDAR\n';
+    csvContent += 'Date,AM Routine Complete,PM Routine Complete,Notes,Streak Impact\n';
+    dailyLogs.forEach(log => {
+        const date = log.date || log.log_date || new Date().toLocaleDateString();
+        const amComplete = log.am_done ? 'Yes' : 'No';
+        const pmComplete = log.pm_done ? 'Yes' : 'No';
+        const notes = log.notes || log.skin_feeling || '';
+        const streakImpact = log.streak_impact || '';
+        csvContent += `"${date}","${amComplete}","${pmComplete}","${notes}","${streakImpact}"\n`;
+    });
+    
+    // Add active dates summary
+    if (activeDates.length > 0) {
+        csvContent += '\nActive Routine Dates\n';
+        csvContent += 'Date\n';
+        activeDates.forEach(date => {
+            csvContent += `"${date}"\n`;
+        });
+        csvContent += '\n';
+    }
+    
+    // Progress Photos Section
+    if (progressPhotos.length > 0) {
+        csvContent += 'PROGRESS PHOTOS\n';
+        csvContent += 'Date,Notes,Photo Count,Photo Path\n';
+        progressPhotos.forEach(photo => {
+            const date = photo.date || photo.log_date || new Date().toLocaleDateString();
+            const notes = photo.notes || photo.skin_feeling || '';
+            const count = photo.photo_count || photo.photos?.length || 1;
+            const path = photo.photo_path || '';
+            csvContent += `"${date}","${notes}",${count},"${path}"\n`;
+        });
+        csvContent += '\n';
+    }
+    
+    // Routine Steps Section
+    if (routine.length > 0) {
+        csvContent += 'ROUTINE STEPS\n';
+        csvContent += 'Step Number,Product Name,Category,Instructions,Time of Day\n';
+        routine.forEach((step, index) => {
+            const stepNum = index + 1;
+            const productName = step.product_name || step.name || 'Unknown Product';
+            const category = step.category || step.type || 'General';
+            const instructions = step.instructions || step.how_to_use || '';
+            const timeOfDay = step.time_of_day || step.period || 'Morning';
+            csvContent += `${stepNum},"${productName}","${category}","${instructions}","${timeOfDay}"\n`;
+        });
+        csvContent += '\n';
+    }
+    
+    // Reminders Section
+    if (Object.keys(reminders).length > 0) {
+        csvContent += 'REMINDERS\n';
+        csvContent += 'Setting,Value\n';
+        csvContent += `Reminders Enabled,${reminders.enabled ? 'Yes' : 'No'}\n`;
+        csvContent += `AM Reminder Active,${reminders.amActive ? 'Yes' : 'No'}\n`;
+        csvContent += `AM Reminder Time,"${reminders.amTime || 'N/A'}"\n`;
+        csvContent += `PM Reminder Active,${reminders.pmActive ? 'Yes' : 'No'}\n`;
+        csvContent += `PM Reminder Time,"${reminders.pmTime || 'N/A'}"\n`;
+        csvContent += '\n';
+    }
+    
+    // Create blob and download
+    try {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `skinbiee-export-${username}-${new Date().toISOString().split('T')[0]}.csv`;
+        
+        // Append to body and click for better compatibility
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }, 100);
+        
+        showToast('Spreadsheet exported successfully!');
+    } catch (error) {
+        console.error('Export failed:', error);
+        showToast('Export failed. Please try again.');
+    }
 }
 
 function openClearDataModal() {
@@ -2236,26 +2495,33 @@ function saveReminders() {
         pmTime: document.getElementById('pm-reminder-time')?.value || '21:30'
     };
 
-    fetch(`${API_BASE_URL}/api/user/preferences`, {
-        method: 'PUT',
-        headers: {
-            ...authHeadersRaw(),
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reminders: reminderSettings })
-    })
+    Promise.resolve(reminderSettings.enabled ? ensureReminderPermission() : true)
+        .then((permissionGranted) => {
+            if (reminderSettings.enabled && !permissionGranted) {
+                throw new Error('Notifications not enabled');
+            }
+            return fetch(`${API_BASE_URL}/api/user/preferences`, {
+                method: 'PUT',
+                headers: {
+                    ...authHeadersRaw(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ reminders: reminderSettings })
+            });
+        })
         .then((response) => readApiResponse(response).then((parsed) => ({ response, parsed })))
         .then(({ response, parsed }) => {
             if (!parsed.ok || !response.ok) {
                 throw new Error(parsed.error || parsed.data?.error || 'Could not save reminders');
             }
             state.reminders = parsed.data.reminders || {};
+            startReminderScheduler();
             closeSettingsSubPage('settings-routine-reminders');
             showToast('Reminder settings saved');
         })
         .catch((err) => {
             console.error('[REMINDERS] Failed to save reminders', err);
-            showToast('Could not save reminders');
+            showToast(err.message === 'Notifications not enabled' ? 'Turn on browser notifications to use reminders' : 'Could not save reminders');
         });
 }
 
@@ -2302,13 +2568,68 @@ function setupSettings() {
     if (pmActive) pmActive.checked = Boolean(reminders.pmActive);
     if (pmTime) pmTime.value = reminders.pmTime || pmTime.value;
     toggleReminderScheduleItem();
+    
+    // Initialize simple time pickers
+    initializeSimpleTimePickers();
+}
+
+function initializeSimpleTimePickers() {
+    // AM Time Picker
+    const amHourSelect = document.getElementById('am-hour');
+    const amMinuteSelect = document.getElementById('am-minute');
+    const amHiddenInput = document.getElementById('am-reminder-time');
+    
+    if (amHourSelect && amMinuteSelect && amHiddenInput) {
+        // Set initial values from hidden input
+        const currentValue = amHiddenInput.value;
+        if (currentValue && /^\d{2}:\d{2}$/.test(currentValue)) {
+            const [hours, minutes] = currentValue.split(':');
+            amHourSelect.value = hours;
+            amMinuteSelect.value = minutes;
+        }
+        
+        // Add change handlers
+        amHourSelect.addEventListener('change', () => updateTimeValue('am'));
+        amMinuteSelect.addEventListener('change', () => updateTimeValue('am'));
+    }
+    
+    // PM Time Picker
+    const pmHourSelect = document.getElementById('pm-hour');
+    const pmMinuteSelect = document.getElementById('pm-minute');
+    const pmHiddenInput = document.getElementById('pm-reminder-time');
+    
+    if (pmHourSelect && pmMinuteSelect && pmHiddenInput) {
+        // Set initial values from hidden input
+        const currentValue = pmHiddenInput.value;
+        if (currentValue && /^\d{2}:\d{2}$/.test(currentValue)) {
+            const [hours, minutes] = currentValue.split(':');
+            pmHourSelect.value = hours;
+            pmMinuteSelect.value = minutes;
+        }
+        
+        // Add change handlers
+        pmHourSelect.addEventListener('change', () => updateTimeValue('pm'));
+        pmMinuteSelect.addEventListener('change', () => updateTimeValue('pm'));
+    }
+}
+
+function updateTimeValue(period) {
+    const hourSelect = document.getElementById(`${period}-hour`);
+    const minuteSelect = document.getElementById(`${period}-minute`);
+    const hiddenInput = document.getElementById(`${period}-reminder-time`);
+    
+    if (hourSelect && minuteSelect && hiddenInput) {
+        const hour = hourSelect.value.padStart(2, '0');
+        const minute = minuteSelect.value.padStart(2, '0');
+        hiddenInput.value = `${hour}:${minute}`;
+    }
 }
 
 function getGlowBotProfile() {
     return state.userProfile || {};
 }
 
-
+/* ... */
 /* ==========================================================================
    MASCOT & CHAT LOGIC
    ========================================================================== */

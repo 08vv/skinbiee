@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skinbiee-cache-v20';
+const CACHE_NAME = 'skinbiee-cache-v21';
 const ASSETS_TO_CACHE = [
     '/',
     'skinbiee.html',
@@ -47,5 +47,18 @@ self.addEventListener('fetch', (event) => {
 
     event.respondWith(
         caches.match(request).then(cached => cached || fetch(request))
+    );
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+            for (const client of windowClients) {
+                if ('focus' in client) return client.focus();
+            }
+            if (clients.openWindow) return clients.openWindow('/skinbiee.html');
+            return Promise.resolve();
+        })
     );
 });
