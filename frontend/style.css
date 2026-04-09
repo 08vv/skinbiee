@@ -1641,11 +1641,21 @@ input:checked+.slider:before {
 /* ==========================================================================
    HOME TAB ENHANCEMENTS & GRID (STRICT 2x2 FIX)
    ========================================================================== */
+.home-view-container {
+    background-color: #f0f7ff; /* Standard soft blue */
+    border-radius: 40px 40px 0 0;
+    margin-top: 10px;
+    padding: 24px 20px 40px 20px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
 .home-actions-clean {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 16px;
-    margin: 24px 0;
+    margin: 10px 0 0 0; /* Adjusted margin for container scaling */
     width: 100%;
     box-sizing: border-box;
     padding: 0;
@@ -1737,9 +1747,11 @@ input:checked+.slider:before {
    PLANNER TAB ENHANCEMENTS
    ========================================================================== */
 #view-planner {
-    background-color: #EEF4FB;
-    min-height: 100dvh;
-    padding: 24px 20px 120px 20px; /* Enhanced bottom padding for cards */
+    background-color: #f0f7ff; /* Matched to Analyzer reference */
+    border-radius: 40px 40px 0 0; /* Soft rounded top edges */
+    margin-top: 10px; /* Layered effect standard */
+    min-height: calc(100dvh - 100px);
+    padding: 24px 20px 120px 20px; /* Standardized spacing + Nav clearance */
     display: flex;
     flex-direction: column;
 }
@@ -2282,9 +2294,15 @@ input:checked+.slider:before {
    PLANNER MOBILE RESPONSIVENESS FIXES
    ========================================================================== */
 @media (max-width: 480px) {
+    #view-planner,
+    .analyzer-view-container,
+    .home-view-container {
+        padding: 20px 16px 40px 16px;
+        min-height: calc(100dvh - 100px);
+    }
+
     #view-planner {
-        padding: 20px 16px 120px 16px;
-        min-height: 100dvh;
+        padding-bottom: 120px; /* Specific clearance for planner cards */
     }
 
     .planner-card {
