@@ -83,6 +83,15 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevent body-level scrolling to fix two-finger issue */
+    position: fixed; /* Lock body position on mobile */
+    width: 100%;
+}
+
 body {
     background-color: var(--bg-app);
     color: var(--text-primary);
@@ -90,8 +99,6 @@ body {
     font-size: 16px;
     line-height: 1.5;
     transition: background-color 0.3s ease, color 0.3s ease;
-    overflow-x: hidden;
-    overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
 }
@@ -144,7 +151,9 @@ a {
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    touch-action: pan-y; /* Explicitly allow single-finger vertical scroll */
     position: relative;
+    height: 100%;
 }
 
 .view {
@@ -1641,6 +1650,17 @@ input:checked+.slider:before {
 /* ==========================================================================
    HOME TAB ENHANCEMENTS & GRID (STRICT 2x2 FIX)
    ========================================================================== */
+#view-home {
+    overflow: hidden !important; /* Disable Home page scrolling globally */
+    height: calc(100vh - 100px);
+    display: none;
+}
+
+#view-home.active {
+    display: flex;
+    flex-direction: column;
+}
+
 .home-view-container {
     background-color: #f0f7ff; /* Standard soft blue */
     border-radius: 40px 40px 0 0;
@@ -1649,6 +1669,7 @@ input:checked+.slider:before {
     display: flex;
     flex-direction: column;
     flex: 1;
+    overflow: hidden !important; /* Secondary lock for Home container */
 }
 
 .home-actions-clean {
