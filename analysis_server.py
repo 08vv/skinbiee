@@ -502,22 +502,9 @@ def _build_ingredient_breakdown(
 
 # ── HTTP routes ───────────────────────────────────────────────────────────────
 
-@app.route('/')
-def home():
-    return send_from_directory(FRONTEND_DIR, 'skinbiee.html')
-
-@app.route('/<path:path>')
-def serve_static(path):
-    response = send_from_directory(FRONTEND_DIR, path)
-    if path.endswith('.js'):
-        response.headers['Content-Type'] = 'application/javascript'
-    elif path.endswith('.css'):
-        response.headers['Content-Type'] = 'text/css'
-    elif path.endswith('.png'):
-        response.headers['Content-Type'] = 'image/png'
-    elif path.endswith('.jpg') or path.endswith('.jpeg'):
-        response.headers['Content-Type'] = 'image/jpeg'
-    return response
+@app.route('/api/health')
+def health():
+    return jsonify({"status": "ok"}), 200
 
 @app.route('/ping')
 def ping():
@@ -542,9 +529,6 @@ def add_header(response):
     )
     return response
 
-@app.route('/health')
-def health():
-    return jsonify({"status": "ok"}), 200
 
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
