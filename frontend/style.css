@@ -3495,8 +3495,7 @@ input:checked+.slider:before {
     }
 
     #planner-main-dashboard {
-        width: calc(100vw - 12px) !important;
-        max-width: calc(100vw - 12px) !important; /* Ultimate lock against horizontal blowout */
+        width: 100% !important;
         box-sizing: border-box !important;
         background-color: #f0f7ff !important;
         border-radius: 36px !important;
@@ -3505,52 +3504,59 @@ input:checked+.slider:before {
         height: auto !important;
         min-height: 0 !important;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
-        overflow-x: hidden !important; /* Prevents mascot from leaking outside the blue card */
     }
 
-    /* Compact completion cards for mobile to avoid looking vertical */
+    /* Fixed Layout per Step 1 */
     .completion-card {
-        min-height: 140px !important;
+        flex-direction: row !important;
+        align-items: flex-start !important;
+        overflow: hidden !important;
+        min-height: auto !important;
     }
     
+    /* Fixed Layout per Step 2 */
     .completion-card .card-left {
-        padding: 12px 6px 12px 12px !important;
-        flex: 1.4 !important;
-    }
-
-    .completion-card .card-left h3 {
-        font-size: 1.1rem !important;
-        margin-bottom: 4px !important;
-    }
-
-    .completion-card .routine-step-list {
-        margin-bottom: 8px !important;
-    }
-    
-    .completion-card .routine-step-list li {
-        padding-bottom: 4px !important;
-        margin-bottom: 4px !important;
-    }
-    
-    .completion-mascot {
-        margin-right: -10px !important;
-        width: 130% !important; /* Scale down slightly to fit tighter card */
-    }
-
-    /* Settings Specific Scroll Relief */
-    #view-settings {
-        padding-bottom: 100px !important; /* Just enough for nav clearance */
-    }
-
-    .planner-card {
-        width: 100% !important;
-        max-width: 100% !important; /* Stop Mascot flex overflow from expanding card */
+        flex: 1 !important;
         min-width: 0 !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        margin-bottom: 12px !important; /* Tightened spacing */
+        overflow: hidden !important;
+        padding: 16px !important;
+    }
+
+    /* Fixed Layout per Step 3 */
+    .completion-card .card-right {
+        width: 90px !important;
+        flex-shrink: 0 !important;
+        overflow: hidden !important;
+        align-self: flex-end !important;
+        display: flex !important;
+        justify-content: flex-end !important;
+    }
+    
+    /* Fixed Layout per Step 4 */
+    .completion-mascot {
+        width: 90px !important;
+        height: auto !important;
+        display: block !important;
+        object-fit: contain !important;
+        margin: 0 !important;
+    }
+
+    /* Calendar Fix */
+    .planner-card.calendar-card {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+    
+    .calendar-grid {
+        width: 100% !important;
+    }
+
+    /* Base wrapper for cards */
+    .planner-card {
+        margin-bottom: 12px !important;
         background: #ffffff !important;
-        border-radius: 36px !important; /* Consistent with home tab */
+        border-radius: 36px !important; 
         box-sizing: border-box !important;
     }
 
