@@ -1896,7 +1896,6 @@ input:checked+.slider:before {
     display: flex;
     min-height: 240px;
     position: relative;
-    overflow: hidden;
 }
 
 .completion-blur-overlay {
@@ -1912,7 +1911,7 @@ input:checked+.slider:before {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 20px;
+    border-radius: inherit;
     transition: opacity 0.4s ease;
 }
 
@@ -3493,10 +3492,11 @@ input:checked+.slider:before {
     /* 3. Planner Tab: Visibility Restoration */
     #planner-main-dashboard {
         background-color: #f0f7ff !important;
-        border-radius: 0 !important; /* No rounded top — kills the gap */
+        border-radius: 0 !important;
         margin: 0 !important;
-        padding: 10px 15px 120px 15px !important;
-        min-height: 100% !important;
+        padding: 10px 15px 15px 15px !important; /* Removed massive bottom padding */
+        height: auto !important;
+        min-height: 0 !important;
     }
 
     /* Settings Specific Scroll Relief */
@@ -3506,9 +3506,9 @@ input:checked+.slider:before {
 
     .planner-card {
         width: 100% !important;
-        margin-bottom: 16px !important;
+        margin-bottom: 12px !important; /* Tightened spacing */
         background: #ffffff !important;
-        border-radius: 28px !important;
+        border-radius: 36px !important; /* Consistent with home tab */
         box-sizing: border-box !important;
     }
 
