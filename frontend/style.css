@@ -3431,6 +3431,8 @@ input:checked+.slider:before {
         overflow-y: auto !important; /* Allow scroll on mobile */
         overflow-x: hidden !important;
         background-color: #f0f7ff !important;
+        border-radius: 40px 40px 0 0 !important;
+        margin-top: 10px !important;
         box-shadow: none !important;
         border: none !important;
     }
