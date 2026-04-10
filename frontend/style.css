@@ -3406,18 +3406,30 @@ input:checked+.slider:before {
    Targeting: Layout Balance, Scrollbars, Sticky Buttons, and Momentum
    ========================================================================== */
 @media (max-width: 768px) {
-    /* 1. Home Tab: Jumble Fix & Responsive Scaling */
+    /* 1. Global Layout & Scroll Recovery */
     .app-container {
         height: 100dvh !important;
         overflow-x: hidden !important;
-        overflow-y: hidden !important; /* Lock body but content area must scroll */
+        overflow-y: visible !important; /* Restore shell accessibility */
     }
 
+    .content-area {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding-bottom: 180px !important; /* Ensure Logout is visible */
+    }
+
+    /* 2. Home Tab: Unified Unified Premium UI */
     #view-home {
         display: none;
         flex-direction: column;
-        height: calc(100dvh - 100px); /* Account for top bar and padding */
-        overflow-y: auto !important; /* Allow scroll if content is too tall */
+        height: calc(100dvh - 100px);
+        background-color: #f0f7ff !important; /* Unified Background */
+        overflow-y: auto !important;
+    }
+
+    #view-home::-webkit-scrollbar {
+        display: none !important;
     }
 
     #view-home.active {
@@ -3425,35 +3437,36 @@ input:checked+.slider:before {
     }
 
     .home-hero {
-        height: 28dvh !important; /* Significantly reduced to fit cards */
+        height: 35dvh !important; /* Premium scaling */
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         padding-top: 5px;
+        background-color: transparent !important;
     }
 
     .hero-mascot-large {
-        width: clamp(120px, 28dvh, 160px) !important;
-        height: clamp(120px, 28dvh, 160px) !important;
+        width: clamp(140px, 35dvh, 180px) !important;
+        height: clamp(140px, 35dvh, 180px) !important;
     }
 
     .home-view-container {
         flex: 1;
         display: flex;
         flex-direction: column;
-        padding: 15px 15px 25px 15px !important;
+        padding: 10px 15px 30px 15px !important;
         margin-top: 0 !important;
-        border-radius: 30px 30px 0 0 !important;
-        overflow-y: auto !important; /* Safe scroll for Home */
+        background-color: transparent !important; /* Flow with parent */
+        border-radius: 40px 40px 0 0 !important;
     }
 
     .home-actions-clean {
         flex: 1;
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
-        gap: 10px !important; /* Even tighter for accessibility */
+        gap: 15px !important; 
         align-content: center;
         margin: 0 !important;
     }
@@ -3461,8 +3474,8 @@ input:checked+.slider:before {
     .action-card.clean-card, 
     .home-streak-card.clean-card, 
     .home-settings-card.clean-card {
-        padding: 12px 10px !important;
-        min-height: 85px !important; /* Reduced to ensure all 4 fit */
+        padding: 15px 10px !important;
+        min-height: 110px !important; /* Premium size */
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -3470,29 +3483,42 @@ input:checked+.slider:before {
 
     .action-card.clean-card i, 
     .home-settings-card.clean-card i {
-        font-size: 1.2rem !important; /* Smaller icons for more room */
-        margin-bottom: 5px !important;
+        font-size: 1.5rem !important;
+        margin-bottom: 8px !important;
     }
 
-    /* 2. Hide Mobile Scrollbars (Settings & Global) */
+    /* 3. Planner Table: Consistency Fix */
+    #planner-main-dashboard {
+        background-color: #f0f7ff !important;
+        border-radius: 40px 40px 0 0 !important;
+        margin: 15px -20px 0 -20px !important; /* Bleed into edges */
+        padding: 24px 20px 60px 20px !important;
+        min-height: 100%;
+    }
+
+    .planner-card {
+        background: #ffffff !important;
+        border: none !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03) !important;
+    }
+
+    /* 4. Hide Mobile Scrollbars (Global) */
+    * {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+
+    ::-webkit-scrollbar {
+        display: none !important;
+    }
+
     .content-area,
     .sub-page-overlay,
     .overlay-screen,
     .settings-list,
     .routine-step-list {
-        scrollbar-width: none !important;
-        -ms-overflow-style: none !important;
         -webkit-overflow-scrolling: touch !important;
         scroll-behavior: smooth !important;
-        overflow-y: auto !important; /* FORCE AUTO SCROLL */
-    }
-
-    .content-area::-webkit-scrollbar,
-    .sub-page-overlay::-webkit-scrollbar,
-    .overlay-screen::-webkit-scrollbar,
-    .settings-list::-webkit-scrollbar,
-    .routine-step-list::-webkit-scrollbar {
-        display: none !important;
     }
 
     /* 3. Sticky Primary Buttons (Prevent cut-off) */
