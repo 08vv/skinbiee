@@ -3427,13 +3427,14 @@ input:checked+.slider:before {
     #view-home {
         display: none;
         flex-direction: column;
-        min-height: 100% !important;
-        overflow-y: auto !important; /* Allow scroll on mobile */
+        height: auto !important;
+        min-height: 0 !important;
+        overflow-y: hidden !important; /* No internal scroll */
         overflow-x: hidden !important;
         background-color: #f0f7ff !important;
-        border-radius: 40px 40px 0 0 !important;
-        margin-top: 10px !important;
-        box-shadow: none !important;
+        border-radius: 28px !important;
+        margin: 16px !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
         border: none !important;
     }
 
@@ -3445,7 +3446,7 @@ input:checked+.slider:before {
         height: auto !important;
         min-height: 28dvh !important;
         padding: 40px 20px 20px 20px !important;
-        background: #f0f7ff !important; /* Kill gradients/shadows */
+        background: transparent !important; /* Let #view-home background show */
         box-shadow: none !important;
         border: none !important;
         margin: 0 !important;
@@ -3459,10 +3460,10 @@ input:checked+.slider:before {
 
     .home-view-container {
         flex: none !important;
-        background: #f0f7ff !important;
-        padding: 10px 20px 80px 20px !important;
+        background: transparent !important;
+        padding: 10px 20px 30px 20px !important; /* Restored proper bottom padding */
         margin: 0 !important;
-        border-radius: 0 !important; /* Unified Sheet - No Rims */
+        border-radius: 0 !important; /* Handled by #view-home */
         box-shadow: none !important;
         border: none !important;
     }
