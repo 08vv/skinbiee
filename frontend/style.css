@@ -3490,13 +3490,19 @@ input:checked+.slider:before {
     }
 
     /* 3. Planner Tab: Visibility Restoration */
+    #view-planner {
+        background: transparent !important;
+    }
+
     #planner-main-dashboard {
         background-color: #f0f7ff !important;
-        border-radius: 0 !important;
-        margin: 0 !important;
-        padding: 10px 15px 15px 15px !important; /* Removed massive bottom padding */
+        border-radius: 36px !important;
+        margin: 6px 6px 16px 6px !important;
+        padding: 16px 12px 16px 12px !important;
         height: auto !important;
         min-height: 0 !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+        overflow-x: hidden !important; /* Prevents mascot from leaking outside the blue card */
     }
 
     /* Settings Specific Scroll Relief */
