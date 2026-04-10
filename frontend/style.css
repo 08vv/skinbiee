@@ -3432,8 +3432,8 @@ input:checked+.slider:before {
         overflow-y: hidden !important; /* No internal scroll */
         overflow-x: hidden !important;
         background-color: #f0f7ff !important;
-        border-radius: 28px !important;
-        margin: 16px !important;
+        border-radius: 36px !important;
+        margin: 8px 10px 16px 10px !important; /* Closer to top (8px), wider (10px sides) */
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
         border: none !important;
     }
