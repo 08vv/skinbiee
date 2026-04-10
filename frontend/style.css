@@ -3409,14 +3409,15 @@ input:checked+.slider:before {
     /* 1. Home Tab: Jumble Fix & Responsive Scaling */
     .app-container {
         height: 100dvh !important;
-        overflow: hidden !important;
+        overflow-x: hidden !important;
+        overflow-y: hidden !important; /* Lock body but content area must scroll */
     }
 
     #view-home {
         display: none;
         flex-direction: column;
         height: calc(100dvh - 100px); /* Account for top bar and padding */
-        overflow: hidden !important;
+        overflow-y: auto !important; /* Allow scroll if content is too tall */
     }
 
     #view-home.active {
@@ -3424,35 +3425,35 @@ input:checked+.slider:before {
     }
 
     .home-hero {
-        height: 38dvh !important; /* Flexible height for mascot area */
+        height: 28dvh !important; /* Significantly reduced to fit cards */
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        padding-top: 10px;
+        padding-top: 5px;
     }
 
     .hero-mascot-large {
-        width: clamp(140px, 35dvh, 180px) !important;
-        height: clamp(140px, 35dvh, 180px) !important;
+        width: clamp(120px, 28dvh, 160px) !important;
+        height: clamp(120px, 28dvh, 160px) !important;
     }
 
     .home-view-container {
         flex: 1;
         display: flex;
         flex-direction: column;
-        padding: 20px 20px 30px 20px !important;
-        margin-top: 5px !important;
+        padding: 15px 15px 25px 15px !important;
+        margin-top: 0 !important;
         border-radius: 30px 30px 0 0 !important;
-        overflow: hidden !important; /* Ensure no scroll on home */
+        overflow-y: auto !important; /* Safe scroll for Home */
     }
 
     .home-actions-clean {
         flex: 1;
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
-        gap: 12px !important; /* Slightly tighter for breathing room */
+        gap: 10px !important; /* Even tighter for accessibility */
         align-content: center;
         margin: 0 !important;
     }
@@ -3460,11 +3461,17 @@ input:checked+.slider:before {
     .action-card.clean-card, 
     .home-streak-card.clean-card, 
     .home-settings-card.clean-card {
-        padding: 15px !important;
-        min-height: 100px;
+        padding: 12px 10px !important;
+        min-height: 85px !important; /* Reduced to ensure all 4 fit */
         display: flex;
         flex-direction: column;
         justify-content: center;
+    }
+
+    .action-card.clean-card i, 
+    .home-settings-card.clean-card i {
+        font-size: 1.2rem !important; /* Smaller icons for more room */
+        margin-bottom: 5px !important;
     }
 
     /* 2. Hide Mobile Scrollbars (Settings & Global) */
@@ -3477,6 +3484,7 @@ input:checked+.slider:before {
         -ms-overflow-style: none !important;
         -webkit-overflow-scrolling: touch !important;
         scroll-behavior: smooth !important;
+        overflow-y: auto !important; /* FORCE AUTO SCROLL */
     }
 
     .content-area::-webkit-scrollbar,
