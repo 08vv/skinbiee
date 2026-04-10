@@ -2312,20 +2312,10 @@ input:checked+.slider:before {
    PLANNER MOBILE RESPONSIVENESS FIXES
    ========================================================================== */
 @media (max-width: 480px) {
-    #view-planner,
     .analyzer-view-container,
     .home-view-container {
         padding: 20px 16px 40px 16px;
         min-height: calc(100dvh - 100px);
-    }
-
-    #view-planner {
-        padding-bottom: 120px; /* Specific clearance for planner cards */
-    }
-
-    .planner-card {
-        padding: 16px;
-        border-radius: 16px;
     }
 
     /* Onboarding Overlays */
@@ -2354,19 +2344,6 @@ input:checked+.slider:before {
     }
 
     /* Calendar Mobile Scaling */
-    .calendar-days-header {
-        font-size: 0.65rem !important;
-        gap: 2px;
-    }
-
-    .calendar-grid {
-        gap: 2px;
-    }
-
-    .cal-day {
-        font-size: 0.8rem !important;
-    }
-
     .streak-badge {
         padding: 4px 10px;
         font-size: 0.75rem;
@@ -3489,94 +3466,7 @@ input:checked+.slider:before {
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04) !important;
     }
 
-    /* 3. Planner Tab: Visibility Restoration */
-    #view-planner {
-        background: transparent !important;
-    }
-
-    #planner-main-dashboard {
-        padding: 0 16px 100px 16px !important; /* Huge bottom padding to clear the floating chatbot bubble */
-        box-sizing: border-box !important;
-        overflow-x: hidden !important;
-        width: 100% !important;
-        background-color: transparent !important;
-        border-radius: 0 !important;
-        margin: 0 !important;
-        box-shadow: none !important;
-    }
-
-    /* Fix 2: Calendar Card */
-    .planner-card.calendar-card {
-        width: 100% !important;
-        box-sizing: border-box !important;
-        margin: 0 0 16px 0 !important;
-        overflow: hidden !important;
-    }
-    
-    .calendar-grid {
-        width: 100% !important;
-        table-layout: fixed !important;
-    }
-
-    /* Fix 3: Completion card structure */
-    .completion-card {
-        display: flex !important;
-        flex-direction: column !important;
-        position: relative !important;
-        overflow: hidden !important;
-        padding: 16px !important;
-        padding-right: 110px !important;
-        box-sizing: border-box !important;
-        min-height: auto !important;
-        margin-bottom: 16px !important;
-    }
-    
-    /* Fix 5: Card left content */
-    .completion-card .card-left {
-        flex: 1 !important;
-        min-width: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 6px !important;
-        padding: 0 !important;
-    }
-
-    /* Fix 6: All done section */
-    .completion-status {
-        margin-top: 10px !important;
-        padding-top: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 6px !important;
-    }
-
-    /* Fix 4: Mascot positioning */
-    .completion-card .card-right {
-        position: absolute !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 110px !important;
-        height: auto !important;
-        display: block !important;
-        align-self: auto !important;
-        justify-content: normal !important;
-    }
-    
-    .completion-mascot {
-        width: 110px !important;
-        height: auto !important;
-        display: block !important;
-        object-fit: contain !important;
-        margin: 0 !important;
-    }
-
-    /* Base wrapper for cards */
-    .planner-card {
-        background: #ffffff !important;
-        border-radius: 36px !important; 
-        box-sizing: border-box !important;
-    }
+    /* Planner layout overriden at bottom of file */
 
     /* 4. Hide Mobile Scrollbars (Global) */
     * {
@@ -3621,4 +3511,96 @@ input:checked+.slider:before {
         height: 100%;
         overflow-y: auto;
     }
+}
+
+/* ============================================
+   MOBILE PLANNER FIX — FINAL — DO NOT EDIT
+   ============================================ */
+@media screen and (max-width: 768px) {
+
+  #planner-main-dashboard {
+    padding: 0 12px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    background: transparent !important;
+  }
+
+  .planner-card.calendar-card,
+  .planner-card:has(#planner-calendar-grid) {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    margin: 0 0 16px 0 !important;
+    padding: 16px !important;
+  }
+
+  #planner-calendar-grid {
+    width: 100% !important;
+    table-layout: fixed !important;
+    box-sizing: border-box !important;
+    border-collapse: collapse !important;
+  }
+
+  #planner-calendar-grid th,
+  #planner-calendar-grid td {
+    width: 14.28% !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+    padding: 6px 2px !important;
+    overflow: hidden !important;
+  }
+
+  #morning-completion-card,
+  #night-completion-card {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding: 16px 120px 16px 16px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 180px !important;
+    margin: 0 0 16px 0 !important;
+  }
+
+  #morning-completion-card .card-left,
+  #night-completion-card .card-left {
+    position: relative !important;
+    z-index: 1 !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+
+  #morning-completion-card .card-right,
+  #night-completion-card .card-right {
+    position: absolute !important;
+    bottom: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    left: auto !important;
+    width: 110px !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    z-index: 0 !important;
+  }
+
+  #morning-completion-card .card-right img,
+  #night-completion-card .card-right img,
+  #morning-completion-card .completion-mascot,
+  #night-completion-card .completion-mascot {
+    width: 110px !important;
+    max-width: 110px !important;
+    height: auto !important;
+    display: block !important;
+    object-fit: contain !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }
