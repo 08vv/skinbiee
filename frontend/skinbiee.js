@@ -557,12 +557,17 @@ function applyUserProfile(profile) {
 
 function updateAvatarUI(url) {
     if (!url) return;
-    const preview = document.getElementById('profile-avatar-preview');
-    if (preview) {
-        preview.style.backgroundImage = `url('${url}')`;
-        const icon = preview.querySelector('i');
+    const avatars = document.querySelectorAll('.user-avatar-image');
+    avatars.forEach(avatar => {
+        avatar.style.backgroundImage = `url('${url}')`;
+        const icon = avatar.querySelector('i');
         if (icon) icon.style.display = 'none';
-    }
+        
+        // If it's the large preview, maybe we want to keep it looking polished
+        if (avatar.id === 'profile-avatar-preview') {
+            avatar.style.border = '2px solid var(--primary)';
+        }
+    });
 }
 
 function openProfilePicCamera() {

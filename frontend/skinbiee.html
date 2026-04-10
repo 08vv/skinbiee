@@ -32,9 +32,14 @@
                 <span class="app-name">Skinbiee</span>
                 <span id="user-display-name" style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 10px; font-weight: 500;"></span>
             </div>
-            <button class="icon-btn dark-mode-toggle" id="theme-toggle">
-                <i class="fa-solid fa-moon"></i>
-            </button>
+            <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
+                <div class="user-avatar-image" id="header-avatar" style="width: 32px; height: 32px; background: var(--bg-app); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--primary); background-size: cover; background-position: center; border: 1px solid var(--border-light); cursor: pointer;" onclick="openSettingsSubPage('account-details')">
+                    <i class="fa-regular fa-user"></i>
+                </div>
+                <button class="icon-btn dark-mode-toggle" id="theme-toggle" style="margin: 0;">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+            </div>
         </header>
 
         <!-- MAIN SCROLLABLE CONTENT AREA -->
@@ -776,9 +781,9 @@
                         <h2 class="sub-page-title">Account Details</h2>
                     </div>
                     <div class="sub-page-card">
-                        <div style="text-align: center;">
-                            <input type="file" id="profile-pic-input" accept="image/*" style="display:none" onchange="handleProfilePicUpload(this)">
-                            <div id="profile-avatar-preview" style="width: 80px; height: 80px; background: var(--bg-app); border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--primary); background-size: cover; background-position: center;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <input type="file" id="profile-pic-input" accept="image/*" style="opacity: 0; position: absolute; pointer-events: none; width: 0; height: 0;" onchange="handleProfilePicUpload(this)">
+                            <div class="user-avatar-image" id="profile-avatar-preview" style="width: 80px; height: 80px; background: var(--bg-app); border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--primary); background-size: cover; background-position: center; border: 2px solid var(--primary-light);">
                                 <i class="fa-regular fa-user"></i>
                             </div>
                             <button class="text-btn mt-2" style="color: var(--primary); font-size: 0.9rem;" onclick="openProfilePicCamera()">Change Photo</button>
