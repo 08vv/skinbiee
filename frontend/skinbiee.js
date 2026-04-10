@@ -543,10 +543,63 @@ function applyUserProfile(profile) {
     // Fix: Add null check for user-display-name
     updateDisplayedUsername();
     
+    // Update profile photo in UI
+    if (profile.photo_url) {
+        updateAvatarUI(profile.photo_url);
+    }
+    
     // Surface relevant info on the mascot chat greeting
     const greetingBubble = document.querySelector('#chat-panel .mascot-bubble');
     if (greetingBubble && profile.skinType) {
         greetingBubble.textContent = `Hey ${state.username}! Remember to focus on your ${profile.skinType} skin routine today! 🌿`;
+    }
+}
+
+function updateAvatarUI(url) {
+    if (!url) return;
+    const preview = document.getElementById('profile-avatar-preview');
+    if (preview) {
+        preview.style.backgroundImage = `url('${url}')`;
+        const icon = preview.querySelector('i');
+        if (icon) icon.style.display = 'none';
+    }
+}
+
+function openProfilePicCamera() {
+    const input = document.getElementById('profile-pic-input');
+    if (input) input.click();
+}
+
+async function handleProfilePicUpload(input) {
+    if (input.files && input.files[0]) {
+        showLoading('Updating profile photo...');
+        try {
+            const resizedBlob = await resizeImage(input.files[0], 512, 512, 0.8);
+            const formData = new FormData();
+            formData.append('image', resizedBlob, 'profile.jpg');
+
+            const response = await fetch(`${API_BASE_URL}/api/user/profile-photo`, {
+                method: 'POST',
+                headers: authHeadersRaw(),
+                body: formData
+            });
+
+            const parsed = await readApiResponse(response);
+            if (!parsed.ok) throw new Error(parsed.error || 'Upload failed');
+
+            const profile = loadUserProfile() || {};
+            profile.photo_url = parsed.data.photo_url;
+            state.userProfile = profile; 
+            
+            updateAvatarUI(profile.photo_url);
+            showToast('Profile photo updated! ✨');
+        } catch (err) {
+            console.error('[PROFILE] Upload failed', err);
+            showToast('Could not update profile photo');
+        } finally {
+            hideLoading();
+            input.value = ''; // Reset input
+        }
     }
 }
 

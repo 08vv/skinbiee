@@ -846,6 +846,35 @@ def upload_progress_photo():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/user/profile-photo', methods=['POST'])
+def upload_profile_photo():
+    try:
+        user = get_current_user()
+        if not user:
+            return jsonify({"error": "Authentication required"}), 401
+        img = request.files.get('image')
+        if not img or not img.filename:
+            return jsonify({"error": "Image is required"}), 400
+
+        try:
+            photo_url = upload_img(img.read(), "skinbiee/avatars")
+            if photo_url:
+                # Save just the photo_url into the user profile JSON
+                uid = user["user_id"]
+                current = get_user_preferences(uid)
+                profile = current.get("profile", {})
+                profile["photo_url"] = photo_url
+                save_user_preferences(uid, profile=profile)
+                return jsonify({"status": "success", "photo_url": photo_url}), 200
+            else:
+                return jsonify({"error": "Upload to Cloudinary failed"}), 500
+        except Exception as e:
+            record_storage_failure("cloudinary_profile_photo_upload", e, {"user_id": user["user_id"]})
+            return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/user/preferences', methods=['GET', 'PUT'])
 def user_preferences():
     user = get_current_user()
