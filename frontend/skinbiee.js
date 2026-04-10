@@ -1011,7 +1011,7 @@ function renderSkinResults(results, imgUrl) {
 
     results.forEach(res => {
         const severityColor = res.severity === 'Moderate' ? 'badge-yellow' : res.severity === 'Mild' ? 'badge-green' : 'badge-red';
-        const borderColor = res.severity === 'Moderate' ? '#ffd93d' : res.severity === 'Mild' ? '#6bcb77' : '#ff6b6b';
+        const borderColor = res.severity === 'Moderate' ? 'var(--severity-moderate)' : res.severity === 'Mild' ? 'var(--severity-mild)' : 'var(--severity-severe)';
 
         const badge = document.createElement('span');
         badge.className = `severity-badge ${severityColor}`;
@@ -1133,7 +1133,7 @@ function renderProdResults(data) {
 
         const isGood = score >= 7.0;
         const isWarn = score >= 4.0 && score < 7.0;
-        const barColor = isGood ? '#6bcb77' : isWarn ? '#ffd93d' : '#ff6b6b';
+        const barColor = isGood ? 'var(--severity-mild)' : isWarn ? 'var(--severity-moderate)' : 'var(--severity-severe)';
 
         // 2. Verdict Card
         const vTitle = document.getElementById('prod-verdict-title');
