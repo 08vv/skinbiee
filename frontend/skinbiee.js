@@ -1148,6 +1148,8 @@ function renderSkinResults(results, imgUrl) {
     });
 
     const existingBtn = document.getElementById('btn-go-products');
+    let recContainer = document.getElementById('product-rec-container');
+    
     if (!existingBtn) {
         const btn = document.createElement('button');
         btn.id = 'btn-go-products';
@@ -1155,17 +1157,23 @@ function renderSkinResults(results, imgUrl) {
         btn.textContent = 'See Recommended Products 🛍️';
         btn.onclick = () => renderSkinProductRecommendations(results);
         if (list) list.parentElement.appendChild(btn);
-
-        const recContainer = document.createElement('div');
-        recContainer.id = 'product-rec-container';
-        if (list) list.parentElement.appendChild(recContainer);
     } else {
         existingBtn.onclick = () => renderSkinProductRecommendations(results);
         existingBtn.textContent = 'See Recommended Products 🛍️';
-        const recContainer = document.getElementById('product-rec-container');
-        if (recContainer) {
-            recContainer.innerHTML = '';
+    }
+
+    // Ensure container always exists
+    if (!recContainer) {
+        recContainer = document.createElement('div');
+        recContainer.id = 'product-rec-container';
+        const target = existingBtn || (list ? list.parentElement : null);
+        if (target && target.parentElement) {
+            target.insertAdjacentElement('afterend', recContainer);
+        } else if (list) {
+            list.parentElement.appendChild(recContainer);
         }
+    } else {
+        recContainer.innerHTML = '';
     }
 }
 
