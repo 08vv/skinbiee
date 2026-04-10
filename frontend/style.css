@@ -3420,14 +3420,14 @@ input:checked+.slider:before {
         flex: 1 !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 240px !important; /* Base clearance */
+        padding-bottom: 90px !important; /* Proper bottom nav clearance */
     }
 
     /* 2. Home Tab: Absolute "Unified Sheet" UI (No Seams) */
     #view-home {
         display: none;
         flex-direction: column;
-        height: auto !important;
+        min-height: 100% !important;
         overflow-y: auto !important; /* Allow scroll on mobile */
         overflow-x: hidden !important;
         background-color: #f0f7ff !important;
@@ -3493,8 +3493,7 @@ input:checked+.slider:before {
         border-radius: 0 !important; /* No rounded top — kills the gap */
         margin: 0 !important;
         padding: 10px 15px 120px 15px !important;
-        height: auto !important;
-        min-height: 0 !important;
+        min-height: 100% !important;
     }
 
     /* Settings Specific Scroll Relief */
