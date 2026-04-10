@@ -3495,6 +3495,8 @@ input:checked+.slider:before {
     }
 
     #planner-main-dashboard {
+        width: auto !important; /* Fixes container bleeding off-screen */
+        box-sizing: border-box !important;
         background-color: #f0f7ff !important;
         border-radius: 36px !important;
         margin: 6px 6px 16px 6px !important;
@@ -3503,6 +3505,20 @@ input:checked+.slider:before {
         min-height: 0 !important;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
         overflow-x: hidden !important; /* Prevents mascot from leaking outside the blue card */
+    }
+
+    /* Compact completion cards for mobile to avoid looking vertical */
+    .completion-card {
+        min-height: 160px !important;
+    }
+    
+    .completion-card .card-left {
+        padding: 14px 8px 14px 14px !important;
+    }
+    
+    .completion-mascot {
+        margin-right: -15px !important;
+        width: 140% !important; /* Scale down slightly to fit tighter card */
     }
 
     /* Settings Specific Scroll Relief */
