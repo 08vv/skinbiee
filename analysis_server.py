@@ -22,6 +22,7 @@ from PIL import Image
 import cloudinary, cloudinary.uploader
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
+import concurrent.futures
 
 load_dotenv()
 from modules.product_scanner import analyze_custom_ingredients
@@ -612,8 +613,14 @@ def analyze_skin():
 
     b = f.read()
 
-    # Forward to ML service
-    ml_resp = _call_ml_service(b, "skin")
+    # Parallelize ML Service call and Cloudinary upload
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_ml = executor.submit(_call_ml_service, b, "skin")
+        future_upload = executor.submit(upload_img, b, "skinbiee/face_scans")
+        
+        ml_resp = future_ml.result()
+        url = future_upload.result()
+
     if ml_resp is None or ml_resp.get("status") != "success":
         err_msg = ml_resp.get("error", "ML service unreachable") if ml_resp else "ML service unreachable"
         return jsonify({"error": f"Skin analysis failed: {err_msg}"}), 503
@@ -621,12 +628,6 @@ def analyze_skin():
     res = ml_resp.get("results", [])
     if not res:
         res = [{"concern": "Normal", "severity": "Mild", "confidence": 0.9}]
-
-    url = ""
-    try:
-        url = upload_img(b, "skinbiee/face_scans")
-    except Exception as e:
-        record_storage_failure("cloudinary_face_scan_upload", e, {"user_id": uid})
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if uid is not None:
@@ -652,8 +653,14 @@ def analyze_prod():
 
     b = f.read()
 
-    # 1. Forward to HF ML service for OCR
-    ml_resp = _call_ml_service(b, "product")
+    # Parallelize ML Service call (OCR) and Cloudinary upload
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_ocr = executor.submit(_call_ml_service, b, "product")
+        future_upload = executor.submit(upload_img, b, "skinbiee/product_scans")
+        
+        ml_resp = future_ocr.result()
+        url = future_upload.result()
+
     if ml_resp is None or ml_resp.get("status") != "success":
         err_msg = ml_resp.get("error", "ML service unreachable") if ml_resp else "ML service unreachable"
         return jsonify({"error": f"OCR failed: {err_msg}"}), 503
@@ -703,13 +710,7 @@ def analyze_prod():
     # 7. Per-ingredient breakdown
     ingredient_breakdown = _build_ingredient_breakdown(ingredients_list, an, skin_condition)
 
-    # 8. Persist
-    url = ""
-    try:
-        url = upload_img(b, "skinbiee/product_scans")
-    except Exception as e:
-        record_storage_failure("cloudinary_product_scan_upload", e, {"user_id": uid})
-
+    # 8. Persist scan history
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if uid is not None:
         try:

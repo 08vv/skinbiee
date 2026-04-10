@@ -204,7 +204,6 @@ async function refreshUserDataFromServer() {
         state.userDataLoading = false;
     }
 }
-
 async function readApiResponse(response) {
     const raw = await response.text();
     if (!raw.trim()) {
@@ -221,6 +220,44 @@ async function readApiResponse(response) {
             raw
         };
     }
+}
+
+/**
+ * Resizes an image file if it exceeds target dimensions.
+ * Returns a Blob.
+ */
+async function resizeImage(file, maxWidth = 1200, maxHeight = 1200, quality = 0.8) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => resolve(blob || file), file.type || 'image/jpeg', quality);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 
@@ -464,21 +501,35 @@ function changeMascotColor(colorName) {
    USER PROFILE (API-backed)
    ========================================================================== */
 async function saveUserProfile(profile) {
-    state.userProfile = profile || {};
-    const response = await fetch(`${API_BASE_URL}/api/user/preferences`, {
-        method: 'PUT',
-        headers: {
-            ...authHeadersRaw(),
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ profile: state.userProfile })
-    });
-    const parsed = await readApiResponse(response);
-    if (!parsed.ok || !response.ok) {
-        throw new Error(parsed.error || parsed.data?.error || 'Could not save profile');
+    if (!profile) return;
+    
+    // Optimistic Update
+    const oldProfile = { ...state.userProfile };
+    state.userProfile = { ...state.userProfile, ...profile };
+    applyUserProfile(state.userProfile);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/user/preferences`, {
+            method: 'PUT',
+            headers: {
+                ...authHeadersRaw(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ profile: state.userProfile })
+        });
+        const parsed = await readApiResponse(response);
+        if (!parsed.ok || !response.ok) {
+            throw new Error(parsed.error || parsed.data?.error || 'Could not save profile');
+        }
+        state.userProfile = parsed.data.profile || profile;
+        applyUserProfile(state.userProfile);
+        return state.userProfile;
+    } catch (err) {
+        // Rollback on error
+        state.userProfile = oldProfile;
+        applyUserProfile(state.userProfile);
+        throw err;
     }
-    state.userProfile = parsed.data.profile || {};
-    return state.userProfile;
 }
 
 function loadUserProfile() {
@@ -542,7 +593,7 @@ function setupAuthListeners() {
                 const contentType = res.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                    const text = await res.text();
-                   console.error("[AUTH] Invalid response:", text);
+                   console.error("[AUTH] Invalid response format");
                    hideLoading();
                    showToast("Server error: Invalid response format");
                    return;
@@ -557,7 +608,8 @@ function setupAuthListeners() {
                 }
 
                 persistSession(data.user_id, data.username, data.token);
-                await refreshUserDataFromServer();
+                // Background refresh, don't block the switch
+                refreshUserDataFromServer().catch(e => console.error("Initial refresh failed", e));
                 switchView(isSignup ? 'onboarding' : 'home');
             } catch (err) {
                 hideLoading();
@@ -768,13 +820,14 @@ function setupAnalyzer() {
             if (!file) return;
 
             showAnalyzerSubState('skin', 'processing');
+            showLoading();
             triggerMascotAnim('thinking');
 
-            const formData = new FormData();
-            formData.append('image', file);
-
             try {
-                showToast("Sending scan to AI model...");
+                const resizedBlob = await resizeImage(file);
+                const formData = new FormData();
+                formData.append('image', resizedBlob, 'photo.jpg');
+
                 const response = await fetch(`${API_BASE_URL}/api/analyze-skin`, {
                     method: 'POST',
                     headers: authHeadersRaw(),
@@ -782,6 +835,7 @@ function setupAnalyzer() {
                 });
 
                 const parsed = await readApiResponse(response);
+                hideLoading();
                 if (!parsed.ok) {
                     showToast(parsed.error);
                     showAnalyzerSubState('skin', 'input');
@@ -792,14 +846,15 @@ function setupAnalyzer() {
                 if (data.status === 'success') {
                     showToast("Analysis complete! Rendering results.");
                     renderSkinResults(Array.isArray(data.results) ? data.results : [], data.image_url || URL.createObjectURL(file));
-                    await refreshUserDataFromServer();
                     showAnalyzerSubState('skin', 'results');
                     triggerMascotAnim('happy');
+                    refreshUserDataFromServer().catch(e => console.error("Background sync failed", e));
                 } else {
                     showToast("Analysis failed: " + (data.error || "Unknown error"));
                     showAnalyzerSubState('skin', 'input');
                 }
             } catch (err) {
+                hideLoading();
                 console.error("[NET] Skin analysis failed:", err);
                 showToast("Connection Error: " + (err.message || "Failed to reach AI Backend"));
                 showAnalyzerSubState('skin', 'input');
@@ -853,13 +908,14 @@ function setupAnalyzer() {
             if (!file) return;
 
             showAnalyzerSubState('prod', 'processing');
+            showLoading();
             triggerMascotAnim('thinking');
 
-            const formData = new FormData();
-            formData.append('image', file);
-
             try {
-                showToast("Processing product ingredients...");
+                const resizedBlob = await resizeImage(file);
+                const formData = new FormData();
+                formData.append('image', resizedBlob, 'product.jpg');
+
                 const response = await fetch(`${API_BASE_URL}/api/analyze-product`, {
                     method: 'POST',
                     headers: authHeadersRaw(),
@@ -867,6 +923,7 @@ function setupAnalyzer() {
                 });
 
                 const parsed = await readApiResponse(response);
+                hideLoading();
                 if (!parsed.ok) {
                     showToast(parsed.error);
                     showAnalyzerSubState('prod', 'input');
@@ -877,14 +934,15 @@ function setupAnalyzer() {
                 if (data.status === 'success') {
                     showToast("Scanner success! Results ready.");
                     renderProdResults(data);
-                    await refreshUserDataFromServer();
                     showAnalyzerSubState('prod', 'results');
                     triggerMascotAnim('happy');
+                    refreshUserDataFromServer().catch(e => console.error("Background sync failed", e));
                 } else {
                     showToast("Scan failed: " + (data.error || "Unknown error"));
                     showAnalyzerSubState('prod', 'input');
                 }
             } catch (err) {
+                hideLoading();
                 console.error("[NET] Product analysis failed:", err);
                 showToast("Connection Error: " + (err.message || "Failed to reach AI Backend"));
                 showAnalyzerSubState('prod', 'input');
@@ -1565,12 +1623,16 @@ async function finishPlannerOnboarding() {
     if (reveal) reveal.style.display = 'none';
     if (overlay) overlay.style.display = 'none';
     if (dashboard) dashboard.style.display = 'block';
-    await refreshUserDataFromServer();
+    
+    // Transition immediately, refresh in background
+    plannerState.hasSetup = true;
     setupPlanner();
     requestAnimationFrame(() => {
         if (dashboard) dashboard.style.display = 'block';
         renderPlannerDashboard();
     });
+
+    refreshUserDataFromServer().catch(e => console.error("Planner refresh failed", e));
 }
 
 
@@ -1618,27 +1680,64 @@ function checkAllDone() {
     }
 }
 
-function finishChecklistLegacy() {
-    if (plannerState.dailyDone) {
+function finishChecklist() {
+    const period = plannerState.currentChecklistPeriod === 'night' ? 'night' : 'morning';
+    const alreadyDone = period === 'night' ? plannerState.pmDone : plannerState.amDone;
+    if (alreadyDone) {
         const checklistOverlay = document.getElementById('routine-checklist-overlay');
         if (checklistOverlay) checklistOverlay.style.display = 'none';
-        setupPlanner();
+        renderPlannerDashboard();
         return;
     }
 
+    const formData = new FormData();
     const todayKey = getLocalDateKey();
-    plannerState.dailyDone = true;
-    setScopedStorage('planner-daily-done', todayKey);
-    setScopedStorage('planner-last-completed-date', todayKey);
-    
-    plannerState.streak++;
-    setScopedStorage('planner-streak', String(plannerState.streak));
-    state.streak = plannerState.streak;
+    formData.append('date', todayKey);
+    formData.append(period === 'morning' ? 'am_done' : 'pm_done', '1');
+    formData.append('skin_feeling', 'Good');
+    formData.append('skin_rating', '5');
 
-    const checklistOverlay = document.getElementById('routine-checklist-overlay');
-    if (checklistOverlay) checklistOverlay.style.display = 'none';
-    setupPlanner();
-    showToast("Routine completed! +1 Streak");
+    try {
+        // Optimistic Update
+        const oldState = { am: plannerState.amDone, pm: plannerState.pmDone, streak: plannerState.streak, dates: new Set(state.activeDates) };
+        if (period === 'morning') plannerState.amDone = true;
+        else plannerState.pmDone = true;
+        
+        const dateKey = getLocalDateKey();
+        if (!state.activeDates.has(dateKey)) {
+            state.activeDates.add(dateKey);
+            plannerState.streak++;
+            state.streak = plannerState.streak;
+        }
+        renderPlannerDashboard();
+
+        fetch(`${API_BASE_URL}/api/daily-log`, {
+            method: 'POST',
+            headers: authHeadersRaw(),
+            body: formData
+        }).then(response => readApiResponse(response)).then(parsed => {
+            if (!parsed.ok) {
+                throw new Error(parsed.error || 'Could not save routine completion');
+            }
+            const checklistOverlay = document.getElementById('routine-checklist-overlay');
+            if (checklistOverlay) checklistOverlay.style.display = 'none';
+            showToast("Routine completed! +1 Streak");
+            refreshUserDataFromServer().catch(e => console.error("Post-log sync failed", e));
+        }).catch(err => {
+            // Rollback on hard failure
+            plannerState.amDone = oldState.am;
+            plannerState.pmDone = oldState.pm;
+            plannerState.streak = oldState.streak;
+            state.streak = oldState.streak;
+            state.activeDates = oldState.dates;
+            renderPlannerDashboard();
+            console.error('[PLANNER] finishChecklist failed:', err);
+            showToast("Error saving progress 🌿");
+        });
+    } catch (err) {
+        console.error('[PLANNER] finishChecklist failed:', err);
+        showToast("Error saving progress 🌿");
+    }
 }
 
 // SELFIE FEATURE
@@ -1647,21 +1746,32 @@ function openCamera() {
     if (input) input.click();
 }
 
-function handleSelfieUpload(input) {
+async function handleSelfieUpload(input) {
     if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const scan = {
-                date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
-                img: e.target.result
-            };
-            plannerState.scans.unshift(scan);
-            setScopedJson('planner-scans', plannerState.scans);
-            
-            showToast("Selfie saved to timeline! ✨");
-            renderScanHistory(); // Update Timeline gallery
-        };
-        reader.readAsDataURL(input.files[0]);
+        showLoading();
+        try {
+            const resizedBlob = await resizeImage(input.files[0]);
+            const formData = new FormData();
+            formData.append('date', getLocalDateKey());
+            formData.append('image', resizedBlob, 'progress.jpg');
+
+            const response = await fetch(`${API_BASE_URL}/api/progress-photo`, {
+                method: 'POST',
+                headers: authHeadersRaw(),
+                body: formData
+            });
+            const parsed = await readApiResponse(response);
+            hideLoading();
+            if (!parsed.ok || !response.ok) {
+                throw new Error(parsed.error || parsed.data?.error || 'Could not save progress photo');
+            }
+            refreshUserDataFromServer().catch(e => console.error("Selfie sync failed", e));
+            showToast("Selfie saved to Cloudinary!");
+        } catch (err) {
+            hideLoading();
+            console.error('[TIMELINE] Failed to upload progress photo', err);
+            showToast('Could not save selfie');
+        }
     }
 }
 
@@ -2346,92 +2456,43 @@ function openEditProfile() {
    SERVER-BACKED USER DATA OVERRIDES
    ========================================================================== */
 async function saveRoutine(routine = plannerState.routine, condition = getGlowBotSkinContext(), plannerMeta = null) {
-    const response = await fetch(`${API_BASE_URL}/api/user/routine`, {
-        method: 'POST',
-        headers: {
-            ...authHeadersRaw(),
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ routine, condition, planner: plannerMeta })
-    });
-    const parsed = await readApiResponse(response);
-    if (!parsed.ok || !response.ok) {
-        throw new Error(parsed.error || parsed.data?.error || 'Could not save routine');
-    }
-    const savedPlanner = parsed.data.planner && typeof parsed.data.planner === 'object' ? parsed.data.planner : {};
-    state.plannerMeta = { ...state.plannerMeta, ...savedPlanner };
-    plannerState.hasSetup = Boolean(
-        savedPlanner.onboarding_completed
-        || (parsed.data.routine?.am_steps && parsed.data.routine.am_steps.length)
-    );
-    plannerState.routine = parsed.data.routine?.am_steps || routine;
-    plannerState.plannerStartDate = savedPlanner.planner_start_date || plannerState.plannerStartDate || getLocalDateKey();
-    plannerState.onboardingCompletedAt = savedPlanner.onboarding_completed_at || plannerState.onboardingCompletedAt;
-    return plannerState.routine;
-}
-
-async function finishChecklist() {
-    const period = plannerState.currentChecklistPeriod === 'night' ? 'night' : 'morning';
-    const alreadyDone = period === 'night' ? plannerState.pmDone : plannerState.amDone;
-    if (alreadyDone) {
-        const checklistOverlay = document.getElementById('routine-checklist-overlay');
-        if (checklistOverlay) checklistOverlay.style.display = 'none';
-        renderPlannerDashboard();
-        return;
-    }
-
-    const formData = new FormData();
-    const todayKey = getLocalDateKey();
-    formData.append('date', todayKey);
-    formData.append(period === 'morning' ? 'am_done' : 'pm_done', '1');
-    formData.append('skin_feeling', 'Good');
-    formData.append('skin_rating', '5');
+    // Optimistic Update
+    const oldRoutine = [...plannerState.routine];
+    plannerState.routine = routine;
+    plannerState.hasSetup = true;
+    renderPlannerDashboard();
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/daily-log`, {
+        const response = await fetch(`${API_BASE_URL}/api/user/routine`, {
             method: 'POST',
-            headers: authHeadersRaw(),
-            body: formData
+            headers: {
+                ...authHeadersRaw(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ routine, condition, planner: plannerMeta })
         });
         const parsed = await readApiResponse(response);
         if (!parsed.ok || !response.ok) {
-            throw new Error(parsed.error || parsed.data?.error || 'Could not save routine completion');
+            throw new Error(parsed.error || parsed.data?.error || 'Could not save routine');
         }
-        await refreshUserDataFromServer();
+        const savedPlanner = parsed.data.planner && typeof parsed.data.planner === 'object' ? parsed.data.planner : {};
+        state.plannerMeta = { ...state.plannerMeta, ...savedPlanner };
+        plannerState.hasSetup = Boolean(
+            savedPlanner.onboarding_completed
+            || (parsed.data.routine?.am_steps && parsed.data.routine.am_steps.length)
+        );
+        plannerState.routine = parsed.data.routine?.am_steps || routine;
+        plannerState.plannerStartDate = savedPlanner.planner_start_date || plannerState.plannerStartDate || getLocalDateKey();
+        plannerState.onboardingCompletedAt = savedPlanner.onboarding_completed_at || plannerState.onboardingCompletedAt;
+        
+        renderPlannerDashboard();
+        return plannerState.routine;
+        return plannerState.routine;
     } catch (err) {
-        console.error('[PLANNER] Failed to save checklist completion', err);
-        showToast('Could not save routine completion');
-        return;
-    }
-
-    const checklistOverlay = document.getElementById('routine-checklist-overlay');
-    if (checklistOverlay) checklistOverlay.style.display = 'none';
-    renderPlannerDashboard();
-    showToast("Routine completed! +1 Streak");
-}
-
-async function handleSelfieUpload(input) {
-    if (input.files && input.files[0]) {
-        const formData = new FormData();
-        formData.append('date', getLocalDateKey());
-        formData.append('image', input.files[0]);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/progress-photo`, {
-                method: 'POST',
-                headers: authHeadersRaw(),
-                body: formData
-            });
-            const parsed = await readApiResponse(response);
-            if (!parsed.ok || !response.ok) {
-                throw new Error(parsed.error || parsed.data?.error || 'Could not save progress photo');
-            }
-            await refreshUserDataFromServer();
-            showToast("Selfie saved to Cloudinary!");
-        } catch (err) {
-            console.error('[TIMELINE] Failed to upload progress photo', err);
-            showToast('Could not save selfie');
-        }
+        // Rollback
+        plannerState.routine = oldRoutine;
+        renderPlannerDashboard();
+        throw err;
     }
 }
 
