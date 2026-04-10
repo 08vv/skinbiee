@@ -3495,8 +3495,8 @@ input:checked+.slider:before {
     }
 
     #planner-main-dashboard {
-        width: 100% !important;
-        max-width: calc(100% - 12px) !important; /* STRICT width enforcement to stop off-screen overflow */
+        width: calc(100vw - 12px) !important;
+        max-width: calc(100vw - 12px) !important; /* Ultimate lock against horizontal blowout */
         box-sizing: border-box !important;
         background-color: #f0f7ff !important;
         border-radius: 36px !important;
@@ -3510,16 +3510,31 @@ input:checked+.slider:before {
 
     /* Compact completion cards for mobile to avoid looking vertical */
     .completion-card {
-        min-height: 160px !important;
+        min-height: 140px !important;
     }
     
     .completion-card .card-left {
-        padding: 14px 8px 14px 14px !important;
+        padding: 12px 6px 12px 12px !important;
+        flex: 1.4 !important;
+    }
+
+    .completion-card .card-left h3 {
+        font-size: 1.1rem !important;
+        margin-bottom: 4px !important;
+    }
+
+    .completion-card .routine-step-list {
+        margin-bottom: 8px !important;
+    }
+    
+    .completion-card .routine-step-list li {
+        padding-bottom: 4px !important;
+        margin-bottom: 4px !important;
     }
     
     .completion-mascot {
-        margin-right: -15px !important;
-        width: 140% !important; /* Scale down slightly to fit tighter card */
+        margin-right: -10px !important;
+        width: 130% !important; /* Scale down slightly to fit tighter card */
     }
 
     /* Settings Specific Scroll Relief */
