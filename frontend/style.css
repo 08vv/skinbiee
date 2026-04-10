@@ -3433,7 +3433,7 @@ input:checked+.slider:before {
         overflow-x: hidden !important;
         background-color: #f0f7ff !important;
         border-radius: 36px !important;
-        margin: 8px 10px 16px 10px !important; /* Closer to top (8px), wider (10px sides) */
+        margin: 6px 6px 16px 6px !important; /* Wider (6px sides) */
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
         border: none !important;
     }
@@ -3478,10 +3478,10 @@ input:checked+.slider:before {
     .action-card.clean-card, 
     .home-streak-card.clean-card, 
     .home-settings-card.clean-card {
-        padding: 18px 12px !important;
-        border-radius: 28px !important;
+        padding: 24px 16px !important;
+        border-radius: 32px !important;
         background: #ffffff !important;
-        min-height: 100px !important;
+        min-height: 125px !important;
         height: auto !important;
         display: flex;
         flex-direction: column;
