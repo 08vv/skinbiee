@@ -1678,7 +1678,7 @@ input:checked+.slider:before {
 }
 
 .home-view-container {
-    background-color: #f0f7ff;
+    background-color: var(--bg-app);
     border-radius: 0;
     margin-top: 0;
     padding: 0 20px 40px 20px;
@@ -2543,13 +2543,19 @@ input:checked+.slider:before {
 }
 
 /* HERO MASCOT */
+.home-view-container {
+    background-color: var(--bg-app);
+}
+
 .home-hero {
     height: 35vh;
-    min-height: 180px;
+    min-height: 200px;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: var(--bg-app); /* Solid color matching parent — no gradient seam */
+    background: radial-gradient(circle at center, rgba(116, 192, 252, 0.15) 0%, var(--bg-app) 70%);
+    position: relative;
+    overflow: hidden;
 }
 
 .hero-mascot-large {
@@ -2598,7 +2604,7 @@ input:checked+.slider:before {
 
     box-shadow:
         0 10px 25px rgba(165, 216, 255, 0.25),
-        inset 0 1px 2px rgba(255, 255, 255, 0.6);
+        inset 0 1px 2px var(--shadow-inner);
 
     transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -3457,7 +3463,7 @@ input:checked+.slider:before {
         min-height: 0 !important;
         overflow-y: hidden !important; /* No internal scroll */
         overflow-x: hidden !important;
-        background-color: #f0f7ff !important;
+        background-color: var(--bg-app) !important;
         border-radius: 36px !important;
         margin: 6px 6px 16px 6px !important; /* Wider (6px sides) */
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
