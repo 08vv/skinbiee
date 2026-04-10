@@ -163,7 +163,7 @@ a {
 
 /* HOME: seamless background behind mascot + cards */
 #view-home.active {
-    background: linear-gradient(to bottom, #eef6fc, #f8fbff 40%, #f8fbff);
+    background: #f0f7ff; /* Solid color — no seam */
     padding: 0;
     margin: 0 -24px;
     padding-left: 24px;

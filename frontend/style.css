@@ -1648,7 +1648,8 @@ input:checked+.slider:before {
    HOME TAB ENHANCEMENTS & GRID (STRICT 2x2 FIX)
    ========================================================================== */
 #view-home {
-    overflow: hidden !important; /* Disable Home page scrolling globally */
+    overflow-y: auto !important; /* Allow scrolling if needed */
+    overflow-x: hidden !important;
     height: calc(100vh - 100px);
     display: none;
 }
@@ -1659,14 +1660,14 @@ input:checked+.slider:before {
 }
 
 .home-view-container {
-    background-color: #f0f7ff; /* Standard soft blue */
-    border-radius: 40px 40px 0 0;
-    margin-top: 10px;
-    padding: 24px 20px 40px 20px;
+    background-color: #f0f7ff;
+    border-radius: 0;
+    margin-top: 0;
+    padding: 0 20px 40px 20px;
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow: hidden !important; /* Secondary lock for Home container */
+    overflow: visible !important; /* Allow cards to render fully */
 }
 
 .home-actions-clean {
@@ -1696,7 +1697,7 @@ input:checked+.slider:before {
     border: none;
     text-align: center;
     width: 100%;
-    aspect-ratio: 1/1 !important; /* Forces equal width and height */
+    min-height: 100px;
     box-sizing: border-box;
     position: relative;
 }
@@ -1765,11 +1766,11 @@ input:checked+.slider:before {
    PLANNER TAB ENHANCEMENTS
    ========================================================================== */
 #view-planner {
-    background-color: #f0f7ff; /* Matched to Analyzer reference */
-    border-radius: 40px 40px 0 0; /* Soft rounded top edges */
-    margin-top: 10px; /* Layered effect standard */
+    background-color: #f0f7ff;
+    border-radius: 0; /* Remove rounded top — prevents gap */
+    margin-top: 0;
     min-height: calc(100dvh - 100px);
-    padding: 24px 20px 120px 20px; /* Standardized spacing + Nav clearance */
+    padding: 10px 20px 120px 20px;
     display: flex;
     flex-direction: column;
 }
@@ -2538,11 +2539,12 @@ input:checked+.slider:before {
 
 /* HERO MASCOT */
 .home-hero {
-    height: 45vh;
+    height: 35vh;
+    min-height: 180px;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(to bottom, #eef6fc, #f8fbff);
+    background: #f0f7ff; /* Solid color matching parent — no gradient seam */
 }
 
 .hero-mascot-large {
@@ -3426,7 +3428,9 @@ input:checked+.slider:before {
         display: none;
         flex-direction: column;
         height: auto !important;
-        background-color: #f0f7ff !important; /* Solid color only */
+        overflow-y: auto !important; /* Allow scroll on mobile */
+        overflow-x: hidden !important;
+        background-color: #f0f7ff !important;
         box-shadow: none !important;
         border: none !important;
     }
@@ -3474,7 +3478,7 @@ input:checked+.slider:before {
         padding: 18px 12px !important;
         border-radius: 28px !important;
         background: #ffffff !important;
-        min-height: 125px !important; /* Unclip cards - allow growth */
+        min-height: 100px !important;
         height: auto !important;
         display: flex;
         flex-direction: column;
@@ -3486,16 +3490,16 @@ input:checked+.slider:before {
     /* 3. Planner Tab: Visibility Restoration */
     #planner-main-dashboard {
         background-color: #f0f7ff !important;
-        border-radius: 40px 40px 0 0 !important;
-        margin: 10px 0 0 0 !important; /* Zero bleed to stop artifacts */
-        padding: 24px 15px 120px 15px !important;
+        border-radius: 0 !important; /* No rounded top — kills the gap */
+        margin: 0 !important;
+        padding: 10px 15px 120px 15px !important;
         height: auto !important;
         min-height: 0 !important;
     }
 
     /* Settings Specific Scroll Relief */
     #view-settings {
-        padding-bottom: 260px !important; /* Ensure Logout is visible */
+        padding-bottom: 100px !important; /* Just enough for nav clearance */
     }
 
     .planner-card {
@@ -3547,6 +3551,6 @@ input:checked+.slider:before {
     /* Ensure no parent kills momentum */
     .view.active {
         height: 100%;
-        overflow: visible;
+        overflow-y: auto;
     }
 }
