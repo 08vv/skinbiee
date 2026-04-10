@@ -3406,30 +3406,27 @@ input:checked+.slider:before {
    Targeting: Layout Balance, Scrollbars, Sticky Buttons, and Momentum
    ========================================================================== */
 @media (max-width: 768px) {
-    /* 1. Global Layout & Scroll Recovery */
+    /* 1. Global Layout: Stable App Shell (Settings Fix) */
     .app-container {
         height: 100dvh !important;
-        overflow-x: hidden !important;
-        overflow-y: visible !important; /* Restore shell accessibility */
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important; /* Critical for fixed header/footer */
     }
 
     .content-area {
+        flex: 1 !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 180px !important; /* Ensure Logout is visible */
+        padding-bottom: 240px !important; /* Guaranteed Logout visibility */
     }
 
-    /* 2. Home Tab: Unified Unified Premium UI */
+    /* 2. Home Tab: Unified SOS "Single Sheet" UI */
     #view-home {
         display: none;
         flex-direction: column;
-        height: calc(100dvh - 100px);
-        background-color: #f0f7ff !important; /* Unified Background */
-        overflow-y: auto !important;
-    }
-
-    #view-home::-webkit-scrollbar {
-        display: none !important;
+        height: auto !important; /* Allow internal content height */
+        background-color: #f0f7ff !important;
     }
 
     #view-home.active {
@@ -3437,69 +3434,68 @@ input:checked+.slider:before {
     }
 
     .home-hero {
-        height: 35dvh !important; /* Premium scaling */
-        flex-shrink: 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding-top: 5px;
-        background-color: transparent !important;
+        height: auto !important;
+        padding: 40px 20px 20px 20px !important;
+        background-color: #f0f7ff !important; /* Bleed into background */
+        margin: 0 !important;
     }
 
     .hero-mascot-large {
-        width: clamp(140px, 35dvh, 180px) !important;
-        height: clamp(140px, 35dvh, 180px) !important;
+        width: 160px !important;
+        height: 160px !important;
+        margin: 0 auto !important;
     }
 
     .home-view-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        padding: 10px 15px 30px 15px !important;
-        margin-top: 0 !important;
-        background-color: transparent !important; /* Flow with parent */
-        border-radius: 40px 40px 0 0 !important;
+        flex: none !important; /* Don't grow to fill screen */
+        background-color: #f0f7ff !important;
+        padding: 10px 20px 60px 20px !important;
+        margin: 0 !important;
+        border-radius: 0 !important; /* Unified Sheet */
     }
 
     .home-actions-clean {
-        flex: 1;
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
-        gap: 15px !important; 
-        align-content: center;
-        margin: 0 !important;
+        gap: 20px !important;
+        margin-top: 10px !important;
     }
 
     .action-card.clean-card, 
     .home-streak-card.clean-card, 
     .home-settings-card.clean-card {
         padding: 15px 10px !important;
-        min-height: 110px !important; /* Premium size */
+        border-radius: 24px !important;
+        background: #ffffff !important;
+        height: 120px !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        align-items: center;
     }
 
     .action-card.clean-card i, 
     .home-settings-card.clean-card i {
-        font-size: 1.5rem !important;
-        margin-bottom: 8px !important;
+        font-size: 1.8rem !important;
+        margin-bottom: 10px !important;
     }
 
-    /* 3. Planner Table: Consistency Fix */
+    /* 3. Planner Tab: Stable Component Fix */
     #planner-main-dashboard {
         background-color: #f0f7ff !important;
         border-radius: 40px 40px 0 0 !important;
-        margin: 15px -20px 0 -20px !important; /* Bleed into edges */
-        padding: 24px 20px 60px 20px !important;
-        min-height: 100%;
+        margin: 20px 0 0 0 !important; 
+        padding: 24px 15px 120px 15px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     .planner-card {
+        width: 100% !important;
+        margin-bottom: 16px !important;
         background: #ffffff !important;
-        border: none !important;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03) !important;
+        border-radius: 28px !important;
+        box-sizing: border-box !important;
     }
 
     /* 4. Hide Mobile Scrollbars (Global) */
