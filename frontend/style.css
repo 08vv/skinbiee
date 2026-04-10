@@ -1562,9 +1562,7 @@ input:checked+.slider:before {
     flex-direction: column;
 }
 
-.ing-card.red-border {
-    border-left: 4px solid var(--danger);
-}
+
 
 .accordion-header {
     display: flex;
@@ -2843,7 +2841,7 @@ input:checked+.slider:before {
 
 .product-rec-card {
     background: var(--bg-surface);
-    border: 1px solid var(--accent-blue);
+    border: 1px solid var(--border-color);
     border-radius: var(--border-radius-md);
     padding: 16px;
     display: flex;

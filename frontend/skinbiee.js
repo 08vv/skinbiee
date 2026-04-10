@@ -1136,7 +1136,6 @@ function renderSkinResults(results, imgUrl) {
 
         const card = document.createElement('div');
         card.className = 'ing-card mb-3';
-        card.style.borderLeft = `5px solid ${borderColor}`;
         card.innerHTML = `
             <div class="flex-between">
                 <strong>${res.concern}</strong>

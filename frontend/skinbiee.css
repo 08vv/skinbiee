@@ -1416,9 +1416,7 @@ input:checked+.slider:before {
     flex-direction: column;
 }
 
-.ing-card.red-border {
-    border-left: 4px solid var(--danger);
-}
+
 
 .accordion-header {
     display: flex;
