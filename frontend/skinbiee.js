@@ -1920,14 +1920,19 @@ function getReminderStorageKey(period, dateKey, timeValue) {
     return `sc-reminder-scheduled-${state.userId || 'guest'}-${period}-${dateKey}-${timeValue}`;
 }
 
-function calculateNextReminderTime(timeValue) {
+function calculateNextReminderTime(timeValue, offsetMinutes = 0) {
     if (!timeValue || !/^\d{2}:\d{2}$/.test(timeValue)) return null;
     const [hours, minutes] = timeValue.split(':').map(Number);
     const now = new Date();
+    
+    // Create date in local time
     const scheduledDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0, 0);
     
-    // If time has already passed today, schedule for tomorrow
-    if (scheduledDate.getTime() <= now.getTime()) {
+    // Apply optional offset (for testing)
+    if (offsetMinutes > 0) {
+        scheduledDate.setTime(now.getTime() + (offsetMinutes * 60 * 1000));
+    } else if (scheduledDate.getTime() <= now.getTime()) {
+        // If time has already passed today, schedule for tomorrow
         scheduledDate.setDate(scheduledDate.getDate() + 1);
     }
     
@@ -2005,43 +2010,65 @@ async function showReminderNotification(period) {
     }
 }
 
-async function scheduleLocalNotification(period, timeValue) {
+async function scheduleLocalNotification(period, timeValue, isTest = false) {
     if (!('Notification' in window) || Notification.permission !== 'granted') {
         console.warn('[REMINDERS] Cannot schedule: Notifications not granted');
         return;
     }
 
-    const nextTime = calculateNextReminderTime(timeValue);
+    const nextTime = calculateNextReminderTime(timeValue, isTest ? 1 : 0);
     if (!nextTime) return;
 
-    const title = period === 'am' ? 'Morning Sunshine ☀️' : 'Night Glow 🌙';
-    const body = period === 'am'
-        ? 'Time for your routine. Keep your Skinbiee streak glowing today!'
-        : 'Your evening routine is ready. A quick check-in keeps the streak alive.';
+    const title = isTest 
+        ? 'Skinbiee System Check 🧸'
+        : (period === 'am' ? 'Morning Sunshine ☀️' : 'Night Glow 🌙');
+    
+    const body = isTest
+        ? 'Notification system is working! You can close the app now.'
+        : (period === 'am'
+            ? 'Time for your routine. Keep your Skinbiee streak glowing today!'
+            : 'Your evening routine is ready. A quick check-in keeps the streak alive.');
     
     const options = {
         body,
         icon: 'assets/app-icon-192.png',
         badge: 'assets/app-icon-32.png',
-        tag: `skinbiee-reminder-${period}`,
+        tag: isTest ? 'skinbiee-test-v2' : `skinbiee-reminder-${period}-v2`,
         renotify: true,
-        vibrate: [200, 100, 200],
+        vibrate: [200, 100, 200, 100, 200, 100, 400],
+        requireInteraction: true,
+        silent: false,
+        timestamp: Date.now(),
+        actions: [
+            {
+                action: 'open-planner',
+                title: 'Check Planner 📅',
+                icon: 'assets/app-icon-32.png'
+            }
+        ],
         data: {
             url: '/skinbiee.html?tab=planner',
             period,
-            scheduledTime: nextTime.getTime()
+            scheduledTime: nextTime.getTime(),
+            isTest
         }
     };
 
     // Use Notification Triggers if available (Local Scheduling that works when closed)
-    if ('showTrigger' in Notification.prototype || 'TimestampTrigger' in window) {
+    const hasTriggers = 'showTrigger' in ServiceWorkerRegistration.prototype || (typeof TimestampTrigger !== 'undefined');
+    
+    if (hasTriggers) {
         try {
             const registration = await navigator.serviceWorker.getRegistration();
             if (registration && 'showNotification' in registration) {
-                // @ts-ignore - Experimental API
-                options.showTrigger = new TimestampTrigger(nextTime.getTime());
+                // @ts-ignore - Experimental API check
+                if (typeof TimestampTrigger !== 'undefined') {
+                    // @ts-ignore
+                    options.showTrigger = new TimestampTrigger(nextTime.getTime());
+                }
                 await registration.showNotification(title, options);
-                console.log(`[REMINDERS] SUCCESS: Scheduled ${period} reminder for ${nextTime.toLocaleString()} using Triggers`);
+                console.log(`[REMINDERS] SUCCESS: Scheduled ${period} for ${nextTime.toLocaleString()} (Trigger Epoch: ${nextTime.getTime()})`);
+                if (isTest) showToast("Test notification scheduled for 1 minute from now!");
                 return;
             }
         } catch (e) {
@@ -2049,8 +2076,9 @@ async function scheduleLocalNotification(period, timeValue) {
         }
     }
 
-    // Fallback: Just log it for now - standard browsers still need the app open for Interval
+    // Fallback: Just log it for now
     console.log(`[REMINDERS] Browser lacks Triggers. Scheduled ${period} for ${nextTime.toLocaleString()} (requires app open)`);
+    if (isTest) showToast("System check: Check back in 1 minute!");
 }
 
 async function runReminderSchedulerTick() {
@@ -2097,6 +2125,9 @@ function startReminderScheduler() {
     // 1. Immediate Schedule for Background (PWA Magic)
     if (reminders.amActive) scheduleLocalNotification('am', reminders.amTime);
     if (reminders.pmActive) scheduleLocalNotification('pm', reminders.pmTime);
+    
+    // 1.5 Verification Schedule (for the user to see it working NOW)
+    scheduleLocalNotification('test', '00:00', true);
 
     // 2. Keep Interval as fallback for foreground
     reminderSchedulerId = window.setInterval(() => {

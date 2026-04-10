@@ -56,7 +56,12 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const urlToOpen = event.notification.data?.url || '/';
+    
+    // Handle specific action buttons if clicked
+    const action = event.action;
+    const urlToOpen = action === 'open-planner' 
+        ? '/skinbiee.html?tab=planner' 
+        : (event.notification.data?.url || '/');
     
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
