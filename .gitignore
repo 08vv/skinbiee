@@ -1,8 +1,15 @@
+# Standard Ignore
 venv_hidden/
 __pycache__/
 *.pyc
 .env
+
+# Project Logs and Legacy Docs
 encyclopidia.txt
 information.txt
 ocrinfo.txt
-documentation.txt
+documentfromcopilet.txt
+
+# Internal Project Documentation
+docs/
+DOCUMENTATION.md
