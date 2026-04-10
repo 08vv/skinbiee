@@ -3495,7 +3495,8 @@ input:checked+.slider:before {
     }
 
     #planner-main-dashboard {
-        width: auto !important; /* Fixes container bleeding off-screen */
+        width: 100% !important;
+        max-width: calc(100% - 12px) !important; /* STRICT width enforcement to stop off-screen overflow */
         box-sizing: border-box !important;
         background-color: #f0f7ff !important;
         border-radius: 36px !important;
@@ -3528,6 +3529,10 @@ input:checked+.slider:before {
 
     .planner-card {
         width: 100% !important;
+        max-width: 100% !important; /* Stop Mascot flex overflow from expanding card */
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
         margin-bottom: 12px !important; /* Tightened spacing */
         background: #ffffff !important;
         border-radius: 36px !important; /* Consistent with home tab */
