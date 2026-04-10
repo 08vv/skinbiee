@@ -3406,27 +3406,29 @@ input:checked+.slider:before {
    Targeting: Layout Balance, Scrollbars, Sticky Buttons, and Momentum
    ========================================================================== */
 @media (max-width: 768px) {
-    /* 1. Global Layout: Stable App Shell (Settings Fix) */
+    /* 1. Global Shell Stabilization: Standard Flex-Scroll Pattern */
     .app-container {
         height: 100dvh !important;
         display: flex !important;
         flex-direction: column !important;
-        overflow: hidden !important; /* Critical for fixed header/footer */
+        overflow: hidden !important; /* Shell must stay fixed */
     }
 
     .content-area {
         flex: 1 !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
-        padding-bottom: 240px !important; /* Guaranteed Logout visibility */
+        padding-bottom: 240px !important; /* Base clearance */
     }
 
-    /* 2. Home Tab: Unified SOS "Single Sheet" UI */
+    /* 2. Home Tab: Absolute "Unified Sheet" UI (No Seams) */
     #view-home {
         display: none;
         flex-direction: column;
-        height: auto !important; /* Allow internal content height */
-        background-color: #f0f7ff !important;
+        height: auto !important;
+        background-color: #f0f7ff !important; /* Solid color only */
+        box-shadow: none !important;
+        border: none !important;
     }
 
     #view-home.active {
@@ -3435,8 +3437,11 @@ input:checked+.slider:before {
 
     .home-hero {
         height: auto !important;
+        min-height: 28dvh !important;
         padding: 40px 20px 20px 20px !important;
-        background-color: #f0f7ff !important; /* Bleed into background */
+        background: #f0f7ff !important; /* Kill gradients/shadows */
+        box-shadow: none !important;
+        border: none !important;
         margin: 0 !important;
     }
 
@@ -3447,11 +3452,13 @@ input:checked+.slider:before {
     }
 
     .home-view-container {
-        flex: none !important; /* Don't grow to fill screen */
-        background-color: #f0f7ff !important;
-        padding: 10px 20px 60px 20px !important;
+        flex: none !important;
+        background: #f0f7ff !important;
+        padding: 10px 20px 80px 20px !important;
         margin: 0 !important;
-        border-radius: 0 !important; /* Unified Sheet */
+        border-radius: 0 !important; /* Unified Sheet - No Rims */
+        box-shadow: none !important;
+        border: none !important;
     }
 
     .home-actions-clean {
@@ -3464,30 +3471,31 @@ input:checked+.slider:before {
     .action-card.clean-card, 
     .home-streak-card.clean-card, 
     .home-settings-card.clean-card {
-        padding: 15px 10px !important;
-        border-radius: 24px !important;
+        padding: 18px 12px !important;
+        border-radius: 28px !important;
         background: #ffffff !important;
-        height: 120px !important;
+        min-height: 125px !important; /* Unclip cards - allow growth */
+        height: auto !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.04) !important;
     }
 
-    .action-card.clean-card i, 
-    .home-settings-card.clean-card i {
-        font-size: 1.8rem !important;
-        margin-bottom: 10px !important;
-    }
-
-    /* 3. Planner Tab: Stable Component Fix */
+    /* 3. Planner Tab: Visibility Restoration */
     #planner-main-dashboard {
         background-color: #f0f7ff !important;
         border-radius: 40px 40px 0 0 !important;
-        margin: 20px 0 0 0 !important; 
+        margin: 10px 0 0 0 !important; /* Zero bleed to stop artifacts */
         padding: 24px 15px 120px 15px !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    /* Settings Specific Scroll Relief */
+    #view-settings {
+        padding-bottom: 260px !important; /* Ensure Logout is visible */
     }
 
     .planner-card {
