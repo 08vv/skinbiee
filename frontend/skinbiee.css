@@ -137,7 +137,8 @@ a {
     padding-bottom: calc(85px + env(safe-area-inset-bottom)); 
     /* Top bar height + safe area */
     padding-top: 75px; 
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: hidden;
     position: relative;
     min-height: 0;
     z-index: 10;
@@ -148,22 +149,43 @@ a {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     animation: fadeInFadeUp 0.4s ease forwards;
     height: 100%;
 }
 
 .view.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
     height: 100%;
 }
+
+/* HOME: seamless background behind mascot + cards */
+#view-home.active {
+    background: linear-gradient(to bottom, #eef6fc, #f8fbff 40%, #f8fbff);
+    padding: 0;
+    margin: 0 -24px;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
 #view-planner.active {
     background: var(--bg-app);
     padding-top: 10px;
 }
 
+/* SETTINGS: ensure full scroll */
+#view-settings.active {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 #planner-main-dashboard {
     width: 100%;
+    padding-bottom: 20px;
 }
 
 /* ==========================================================================
@@ -1861,6 +1883,110 @@ input:checked+.slider:before {
     flex-shrink: 0;
 }
 
+/* --- Planner Card System (missing definitions) --- */
+.planner-card {
+    background: var(--bg-surface);
+    border-radius: var(--border-radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-soft);
+}
+
+.planner-card.calendar-card {
+    padding: 20px;
+}
+
+.planner-card.completion-card {
+    display: flex;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
+}
+
+.completion-card .card-left {
+    flex: 1;
+    padding: 20px;
+}
+
+.completion-card .card-right {
+    width: 120px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.completion-card .completion-mascot {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.completion-blur-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    border-radius: var(--border-radius-lg);
+}
+
+.blur-cta-btn {
+    padding: 14px 28px;
+    font-size: 1rem;
+}
+
+.edit-routine-btn {
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    font-weight: 700;
+    font-family: var(--font-heading);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.mini-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.mini-checklist li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.completion-status {
+    border-top: 1px solid var(--glass-border);
+    padding-top: 12px;
+}
+
+.cal-nav-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.cal-nav-btn:hover {
+    background: var(--bg-app);
+}
+
 /* ==========================================================================
    TAB 4: SETTINGS
    ========================================================================== */
@@ -1868,8 +1994,41 @@ input:checked+.slider:before {
     margin-bottom: 24px;
 }
 
+.settings-list {
+    flex: 1;
+}
+
+.settings-group-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 16px 12px 8px 12px;
+}
+
+.settings-destructive-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: none;
+    color: var(--danger);
+    font-weight: 600;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    padding: 16px 20px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.settings-footer {
+    padding: 20px 0 40px 0;
+    flex-shrink: 0;
+}
+
 .settings-section {
-    margin-bottom: 30px;
+    margin-bottom: 8px;
 }
 
 .settings-section h3 {
@@ -2013,10 +2172,12 @@ input:checked+.slider:before {
 /* HERO MASCOT */
 .home-hero {
     height: 45vh;
+    min-height: 220px;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(to bottom, #eef6fc, #f8fbff);
+    /* Transparent — background comes from #view-home now */
+    background: transparent;
 }
 
 .hero-mascot-large {
@@ -2039,12 +2200,13 @@ input:checked+.slider:before {
 
 /* ACTION AREA */
 .home-actions-clean {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 16px;
-    padding: 20px;
-    margin-top: -60px;
+    padding: 0 20px 20px 20px;
+    margin-top: -40px;
+    /* Transparent — background comes from #view-home */
+    background: transparent;
 }
 
 .clean-card {
@@ -2056,9 +2218,8 @@ input:checked+.slider:before {
     align-items: center;
     justify-content: center;
     gap: 12px;
-    flex: 1;
-    aspect-ratio: 1 / 1;
-    max-width: 160px;
+    width: 100%;
+    min-height: 100px;
     font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
