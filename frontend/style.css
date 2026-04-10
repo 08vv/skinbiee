@@ -3401,3 +3401,114 @@ input:checked+.slider:before {
     }
 }
 
+/* ==========================================================================
+   MOBILE EXPERIENCE OPTIMIZATIONS (SOS Branch)
+   Targeting: Layout Balance, Scrollbars, Sticky Buttons, and Momentum
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* 1. Home Tab: Jumble Fix & Responsive Scaling */
+    .app-container {
+        height: 100dvh !important;
+        overflow: hidden !important;
+    }
+
+    #view-home {
+        display: none;
+        flex-direction: column;
+        height: calc(100dvh - 100px); /* Account for top bar and padding */
+        overflow: hidden !important;
+    }
+
+    #view-home.active {
+        display: flex;
+    }
+
+    .home-hero {
+        height: 38dvh !important; /* Flexible height for mascot area */
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding-top: 10px;
+    }
+
+    .hero-mascot-large {
+        width: clamp(140px, 35dvh, 180px) !important;
+        height: clamp(140px, 35dvh, 180px) !important;
+    }
+
+    .home-view-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 20px 20px 30px 20px !important;
+        margin-top: 5px !important;
+        border-radius: 30px 30px 0 0 !important;
+        overflow: hidden !important; /* Ensure no scroll on home */
+    }
+
+    .home-actions-clean {
+        flex: 1;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important; /* Slightly tighter for breathing room */
+        align-content: center;
+        margin: 0 !important;
+    }
+
+    .action-card.clean-card, 
+    .home-streak-card.clean-card, 
+    .home-settings-card.clean-card {
+        padding: 15px !important;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    /* 2. Hide Mobile Scrollbars (Settings & Global) */
+    .content-area,
+    .sub-page-overlay,
+    .overlay-screen,
+    .settings-list,
+    .routine-step-list {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        -webkit-overflow-scrolling: touch !important;
+        scroll-behavior: smooth !important;
+    }
+
+    .content-area::-webkit-scrollbar,
+    .sub-page-overlay::-webkit-scrollbar,
+    .overlay-screen::-webkit-scrollbar,
+    .settings-list::-webkit-scrollbar,
+    .routine-step-list::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* 3. Sticky Primary Buttons (Prevent cut-off) */
+    .sub-page-overlay .primary-btn,
+    .overlay-screen .primary-btn,
+    .onboarding-header + .ob-footer .primary-btn,
+    #reminder-schedule-item .primary-btn {
+        position: sticky !important;
+        bottom: 10px !important;
+        z-index: 100;
+        box-shadow: 0 -10px 20px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Ensure specific onboarding continue button is visible */
+    #ob-next-btn {
+        position: sticky !important;
+        bottom: 20px !important;
+        margin-bottom: 20px !important;
+    }
+
+    /* 4. Momentum Scrolling Audit */
+    /* Ensure no parent kills momentum */
+    .view.active {
+        height: 100%;
+        overflow: visible;
+    }
+}
