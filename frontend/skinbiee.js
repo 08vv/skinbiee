@@ -2128,17 +2128,52 @@ function markReminderFired(period, timeValue, now = new Date()) {
     safeStorage.set(getReminderStorageKey(period, getLocalDateKey(now), timeValue), '1');
 }
 
-// 🎵 Skinbiee Signature Reminder Sound (Cute Bubble Chime)
-const SKINBIEE_CHIME_B64 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGFtZTMuOThyBK8AAAAAAAAAAAAAAf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVC7gEAgCACAIAI+mX+X+X/////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////v/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVEvAAh+X+X+X+X/////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////v/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVV';
-
-function playReminderSound() {
+// 🎵 Skinbiee Signature Procedural Audio Engine (Modern & Cute)
+function playSkinbieeChime(type = 'am') {
     try {
-        const audio = new Audio(SKINBIEE_CHIME_B64);
-        audio.volume = 0.5;
-        audio.play().catch(e => console.warn('[SOUND] Auto-play blocked or failed', e));
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+
+        const playTone = (freq, start, duration, volume = 0.3) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            // Soft sine wave for a "cute" bubble feel
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, start);
+            
+            gain.gain.setValueAtTime(0, start);
+            gain.gain.linearRampToValueAtTime(volume, start + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(start);
+            osc.stop(start + duration);
+        };
+
+        if (type === 'am' || type === 'test') {
+            // "Sunshine" - Bright rising pentatonic (C5, E5, G5, C6)
+            playTone(523.25, now, 0.6);        // C5
+            playTone(659.25, now + 0.1, 0.6);  // E5
+            playTone(783.99, now + 0.2, 0.6);  // G5
+            playTone(1046.50, now + 0.3, 0.8, 0.2); // C6
+        } else {
+            // "Night Glow" - Soft descending dreamy chime (G5, E5, C5)
+            playTone(783.99, now, 0.8, 0.2);   // G5
+            playTone(659.25, now + 0.15, 0.8); // E5
+            playTone(523.25, now + 0.3, 1.0);  // C5
+        }
     } catch (e) {
-        console.error('[SOUND] Audio playback error', e);
+        console.error('[AUDIO] Procedural chime failed', e);
     }
+}
+
+function playReminderSound(period = 'am') {
+    playSkinbieeChime(period);
 }
 
 async function ensureReminderPermission() {
@@ -2186,7 +2221,7 @@ async function showReminderNotification(period) {
         }
     };
 
-    playReminderSound();
+    playReminderSound(period);
 
     try {
         if ('serviceWorker' in navigator) {
@@ -2211,7 +2246,7 @@ async function scheduleLocalNotification(period, timeValue, isTest = false) {
     const nextTime = calculateNextReminderTime(timeValue, isTest ? 1 : 0);
     if (!nextTime) return;
 
-    if (isTest) playReminderSound();
+    if (isTest) playReminderSound(period);
 
     const title = isTest 
         ? 'Skinbiee System Check 🧸'
