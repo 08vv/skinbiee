@@ -357,38 +357,45 @@ function registerServiceWorker() {
 async function init() {
     console.log("[DEBUG] init started");
     try {
-        // Register Service Worker for PWA functionality
+        // 1. Basic initialization (fast)
         registerServiceWorker();
-        
-        // Setup Theme
         const savedTheme = localStorage.getItem('sc-theme');
-        if (savedTheme === 'dark') {
-            toggleTheme();
-        }
+        if (savedTheme === 'dark') { toggleTheme(); }
 
+        // 2. Auth State Check (Immediate UI direction)
         const hadSession = restoreSession();
-        // Auth Flow Listeners
+        
+        // Listeners & Components (can happen while loading data)
         setupAuthListeners();
-
-        // Onboarding Listeners
         setupOnboardingListeners();
-
-        // App Navigation
         setupBottomNav();
-
-        await loadGlowBotChatData();
-
-        // Mascot Listeners
         setupMascotChat();
-
-        // Feature specific listeners
         setupAnalyzer();
         setupSettings();
-        
-        if (hadSession) {
+
+        // 3. Routing Logic
+        if (!hadSession) {
+            // No session? Go straight to login.
+            console.log("[AUTH] No session found, showing login.");
+            switchView("auth");
+        } else {
+            // Session exists. Stay on splash while fetching fresh data.
+            console.log("[AUTH] Session exists, refreshing data...");
+            const statusEl = document.getElementById('splash-status');
+            if (statusEl) statusEl.textContent = "Syncing your routine...";
+            
             await refreshUserDataFromServer();
-            switchView("home");
+            
+            // If still authenticated after refresh, go home.
+            // (refreshUserDataFromServer handles 401 -> switchView('auth'))
+            if (state.userId) {
+                switchView("home");
+            }
         }
+        
+        // Background tasks
+        loadGlowBotChatData().catch(e => console.error("GlowBot data failed", e));
+
         console.log("[DEBUG] init completed successfully");
     } catch (err) {
         console.error("[CRITICAL] init failed:", err);
@@ -422,7 +429,7 @@ function switchView(viewName) {
 
 
     // Toggle Shell elements Visibility
-    const isAuthOrOnboarding = (viewName === 'auth' || viewName === 'onboarding');
+    const isAuthOrOnboarding = (viewName === 'auth' || viewName === 'onboarding' || viewName === 'splash');
     
     if (topBar) {
         topBar.style.display = isAuthOrOnboarding ? 'none' : 'flex';

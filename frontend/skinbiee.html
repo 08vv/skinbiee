@@ -53,8 +53,32 @@
 
         <!-- MAIN SCROLLABLE CONTENT AREA -->
         <main class="content-area" id="main-content">
+            <!-- SPLASH SCREEN (Initial State) -->
+            <section id="view-splash" class="view active">
+                <div class="splash-wrapper">
+                    <div class="mascot-auth-container">
+                        <div class="mascot-blob thinking">
+                            <div class="mascot-face">
+                                <div class="eye left"></div>
+                                <div class="eye right"></div>
+                                <div class="mouth o-shape"></div>
+                                <div class="blush left"></div>
+                                <div class="blush right"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="splash-content">
+                        <h2>Skinbiee</h2>
+                        <div class="loading-dots">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <p id="splash-status">Loading your routine...</p>
+                    </div>
+                </div>
+            </section>
+
             <!-- SECTION 3: AUTH FLOW (LOGIN/SIGNUP) -->
-            <section id="view-auth" class="view active">
+            <section id="view-auth" class="view">
                 <div class="auth-wrapper">
                     <div class="auth-header">
                         <h1>Skinbiee</h1>
