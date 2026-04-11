@@ -32,7 +32,7 @@ from modules.history_db import (
     get_active_routine, get_user_by_id, get_user_by_username, get_user_preferences,
     get_user_skin_condition, save_progress_photo, save_routine, save_user_preferences,
 )
-from modules.auth import login_user, register_user, create_token, verify_token
+from modules.auth import login_user, register_user, create_token, verify_token, google_auth
 
 # ── ML Inference bridge ──────────────────────────────────────────────────────
 ML_INFERENCE_URL = os.getenv(
@@ -596,6 +596,35 @@ def api_logout():
     return resp
 
 
+@app.route('/api/auth/google', methods=['POST'])
+@limiter.limit("10 per minute")
+def api_google_auth():
+    """Authenticate a user via Google ID token (sign-up or login)."""
+    data = request.get_json(silent=True) or {}
+    id_token = data.get('id_token') or data.get('credential') or ''
+    if not id_token:
+        return jsonify({"error": "Google ID token is required"}), 400
+
+    result = google_auth(id_token)
+    if not result:
+        return jsonify({"error": "Google authentication failed. Please try again."}), 401
+
+    user = result["user"]
+    token = result["token"]
+
+    resp = make_response(jsonify({
+        "status": "success",
+        "token": token,
+        "user_id": user["id"],
+        "username": user["username"]
+    }))
+    resp.set_cookie(
+        "access_token", token,
+        httponly=True, secure=True, samesite='Lax', max_age=7*24*60*60
+    )
+    return resp
+
+
 @app.route('/api/internal/storage-failures', methods=['GET'])
 def storage_failures():
     return jsonify({"status": "success", "counts": STORAGE_FAILURE_COUNTS}), 200
@@ -962,15 +991,17 @@ def get_data():
         # Fetch user profile directly by authenticated user id.
         user_record = get_user_by_id(u_id)
         join_date_raw = user_record.get("created_at") if user_record else None
-        join_date = join_date_raw[:10] if join_date_raw else None # YYYY-MM-DD
+        email = user_record.get("email") if user_record else None
+        
+        pref = get_user_preferences(u_id)
+        join_iso = join_date_raw[:10] if join_date_raw else None # YYYY-MM-DD
 
         scans = get_all_scans(u_id)
         logs = get_daily_logs(u_id)
-        prefs = get_user_preferences(u_id)
         routine = get_active_routine(u_id)
         s = list_to_json_serializable(scans)
         l = list_to_json_serializable(logs)
-        planner_prefs = normalize_planner_preferences(prefs.get("planner"), join_date)
+        planner_prefs = normalize_planner_preferences(pref.get("planner"), join_iso)
         planner_start_date = planner_prefs.get("planner_start_date")
 
         filtered_logs = l
@@ -980,8 +1011,8 @@ def get_data():
         active_dates, streak = compute_streak_and_active_dates(filtered_logs)
         
         # Filter active dates to ensure they are on or after join date (sanity check)
-        if join_date:
-            active_dates = {d for d in active_dates if d >= join_date}
+        if join_iso:
+            active_dates = {d for d in active_dates if d >= join_iso}
         if planner_start_date:
             active_dates = {d for d in active_dates if d >= planner_start_date}
 
@@ -997,12 +1028,12 @@ def get_data():
             }
 
         if routine_payload and not planner_prefs.get("onboarding_completed"):
-            fallback_completed_at = (routine_payload.get("created_at") or "")[:10] or join_date
+            fallback_completed_at = (routine_payload.get("created_at") or "")[:10] or join_iso
             planner_prefs = normalize_planner_preferences({
                 **planner_prefs,
                 "onboarding_completed": True,
                 "onboarding_completed_at": fallback_completed_at
-            }, join_date)
+            }, join_iso)
             try:
                 save_user_preferences(u_id, planner=planner_prefs)
             except Exception as e:
@@ -1010,19 +1041,75 @@ def get_data():
 
         return jsonify({
             "status": "success",
-            "user_id": u_id,
+            "active_dates": sorted(active_dates),
+            "join_date": join_iso,
             "scans": s,
             "logs": l,
-            "streak": streak,
-            "active_dates": sorted(active_dates),
-            "join_date": join_date,
+            "profile": pref.get("profile", {}),
             "planner": planner_prefs,
-            "routine": routine_payload,
-            "profile": prefs["profile"],
-            "reminders": prefs["reminders"]
-        })
+            "reminders": pref.get("reminders", {}),
+            "email": email,
+            "routine": routine_payload
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/user/email', methods=['POST'])
+def update_email():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    data = request.get_json(silent=True) or {}
+    new_email = (data.get('email') or '').strip()
+    if not new_email:
+        return jsonify({"error": "Email is required"}), 400
+        
+    try:
+        from modules.history_db import update_user_email
+        success = update_user_email(user["user_id"], new_email)
+        if success:
+            return jsonify({"status": "success", "message": "Email updated successfully"}), 200
+        else:
+            return jsonify({"error": "Email update failed. It may already be in use."}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/user/password', methods=['POST'])
+def update_password():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+        
+    data = request.get_json(silent=True) or {}
+    old_password = data.get('old_password') or ''
+    new_password = data.get('new_password') or ''
+    
+    if len(new_password) < 6:
+        return jsonify({"error": "New password must be at least 6 characters long"}), 400
+        
+    from modules.history_db import update_user_password, get_user_by_id
+    from modules.auth import verify_password, hash_password
+    
+    user_record = get_user_by_id(user["user_id"])
+    if not user_record:
+        return jsonify({"error": "User not found"}), 404
+        
+    # If the user has a password set, require the old password to match
+    if user_record.get('password_hash'):
+        if not old_password:
+            return jsonify({"error": "Old password is required"}), 400
+        if not verify_password(user_record['password_hash'], old_password):
+            return jsonify({"error": "Incorrect old password"}), 401
+            
+    # Update to new password
+    hashed = hash_password(new_password)
+    success = update_user_password(user["user_id"], hashed)
+    
+    if success:
+        return jsonify({"status": "success", "message": "Password updated successfully"}), 200
+    return jsonify({"error": "Failed to update password"}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

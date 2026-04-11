@@ -1,11 +1,20 @@
 import hashlib
 import os
+import random
+import string
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
+import requests as http_requests
 
-from modules.history_db import create_db_user, get_user_by_username, update_user_password_hash
+from modules.history_db import (
+    create_db_user, get_user_by_username, update_user_password_hash,
+    create_google_user, get_user_by_google_id, get_user_by_email
+)
+
+# ── Google OAuth configuration ───────────────────────────────────────────────
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
 # ── Legacy SHA-256 salt (kept ONLY for migration verification) ────────────────
 _LEGACY_SALT = "skincare_app_secure_salt_2026"
@@ -109,3 +118,108 @@ def login_user(username: str, password: str):
         return user
 
     return None
+
+
+# ── Google OAuth ─────────────────────────────────────────────────────────────
+
+def verify_google_token(id_token_str: str) -> dict | None:
+    """
+    Verify a Google ID token by calling Google's tokeninfo endpoint.
+    Returns the decoded payload (email, name, sub, etc.) or None.
+    """
+    if not id_token_str:
+        print("[GoogleAuth] Empty ID token")
+        return None
+
+    try:
+        resp = http_requests.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": id_token_str},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            print(f"[GoogleAuth] Token verification failed ({resp.status_code}): {resp.text}")
+            return None
+
+        payload = resp.json()
+
+        # Validate audience (client ID) to prevent token substitution attacks
+        token_aud = payload.get("aud", "")
+        if GOOGLE_CLIENT_ID and token_aud != GOOGLE_CLIENT_ID:
+            print(f"[GoogleAuth] Token audience mismatch: {token_aud} != {GOOGLE_CLIENT_ID}")
+            return None
+
+        # Ensure the token has the required fields
+        if not payload.get("sub") or not payload.get("email"):
+            print("[GoogleAuth] Token missing 'sub' or 'email'")
+            return None
+
+        return payload
+
+    except Exception as e:
+        print(f"[GoogleAuth] Token verification error: {e}")
+        return None
+
+
+def _generate_unique_username(display_name: str) -> str:
+    """
+    Generate a unique username from a Google display name.
+    E.g. "Jane Doe" → "janedoe" → "janedoe_a3x" if taken.
+    """
+    base = "".join(c for c in display_name.lower() if c.isalnum())
+    if not base:
+        base = "user"
+
+    # Try the base name first
+    if not get_user_by_username(base):
+        return base
+
+    # Append random suffix until unique
+    for _ in range(20):
+        suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=3))
+        candidate = f"{base}_{suffix}"
+        if not get_user_by_username(candidate):
+            return candidate
+
+    # Extreme fallback
+    return f"{base}_{int(datetime.now().timestamp())}"
+
+
+def google_auth(id_token_str: str) -> dict | None:
+    """
+    Full Google sign-in flow:
+      1. Verify the Google ID token
+      2. Look up user by google_id (returning user)
+      3. If not found, auto-create a new account
+      4. Return {"user": {...}, "token": "..."}
+    """
+    payload = verify_google_token(id_token_str)
+    if not payload:
+        return None
+
+    google_id = payload["sub"]
+    email = payload["email"]
+    display_name = payload.get("name") or email.split("@")[0]
+
+    # ── Path A: Returning Google user ────────────────────────────────────
+    user = get_user_by_google_id(google_id)
+    if user:
+        token = create_token(user["id"], user["username"])
+        return {"user": user, "token": token}
+
+    # ── Path B: New Google user → auto-register ──────────────────────────
+    username = _generate_unique_username(display_name)
+    success = create_google_user(email, google_id, username)
+    if not success:
+        print(f"[GoogleAuth] Failed to create user for {email}")
+        return None
+
+    # Fetch the newly created user
+    user = get_user_by_google_id(google_id)
+    if not user:
+        print(f"[GoogleAuth] Created user but couldn't retrieve for {email}")
+        return None
+
+    token = create_token(user["id"], user["username"])
+    print(f"[GoogleAuth] New user created: {username} (Google: {email})")
+    return {"user": user, "token": token}

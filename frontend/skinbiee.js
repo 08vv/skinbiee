@@ -177,6 +177,7 @@ async function refreshUserDataFromServer() {
             state.userProfile = data.profile && typeof data.profile === 'object' ? data.profile : {};
             state.reminders = data.reminders && typeof data.reminders === 'object' ? data.reminders : {};
             state.plannerMeta = data.planner && typeof data.planner === 'object' ? data.planner : {};
+            state.email = data.email || '';
             applyUserProfile(state.userProfile);
             plannerState.streak = data.streak || 0;
             plannerState.hasSetup = Boolean(
@@ -690,6 +691,140 @@ function setupAuthListeners() {
                 icon.classList.toggle('fa-eye-slash');
             }
         };
+    }
+
+    // ── Google Sign-In ──────────────────────────────────────────────────
+    initGoogleSignIn();
+}
+
+/* --------------------------------------------------------------------------
+   GOOGLE SIGN-IN (Google Identity Services)
+   -------------------------------------------------------------------------- */
+
+// The Client ID is injected via a meta tag or set here directly.
+// Replace with your actual Google Client ID once created.
+const GOOGLE_CLIENT_ID = (() => {
+    const meta = document.querySelector('meta[name="google-client-id"]');
+    return meta ? meta.content : 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+})();
+
+function initGoogleSignIn() {
+    const googleBtn = document.getElementById('google-signin-btn');
+    if (!googleBtn) return;
+
+    // Wait for GIS library to load (it's async)
+    function onGISReady() {
+        if (typeof google === 'undefined' || !google.accounts) {
+            // Retry in 500ms — GIS script is still loading
+            setTimeout(onGISReady, 500);
+            return;
+        }
+
+        // Initialize Google Identity Services
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+        });
+
+        // Wire up our custom button to trigger Google's popup
+        googleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            // Use the prompt (One Tap) popup
+            google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed()) {
+                    console.log('[GoogleAuth] One Tap not displayed:', notification.getNotDisplayedReason());
+                    // Fallback: render an invisible Google button and click it
+                    const hiddenDiv = document.createElement('div');
+                    hiddenDiv.id = 'g_id_hidden';
+                    hiddenDiv.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+                    document.body.appendChild(hiddenDiv);
+
+                    google.accounts.id.renderButton(hiddenDiv, {
+                        type: 'standard',
+                        size: 'large',
+                        theme: 'outline',
+                    });
+
+                    // Auto-click the rendered Google button
+                    setTimeout(() => {
+                        const gBtn = hiddenDiv.querySelector('[role="button"], button, div[tabindex]');
+                        if (gBtn) gBtn.click();
+                    }, 200);
+                } else if (notification.isSkippedMoment()) {
+                    console.log('[GoogleAuth] Prompt skipped:', notification.getSkippedReason());
+                }
+            });
+        });
+
+        console.log('[GoogleAuth] Google Sign-In initialized');
+    }
+
+    onGISReady();
+}
+
+async function handleGoogleCredentialResponse(response) {
+    console.log('[GoogleAuth] Credential response received');
+
+    if (!response || !response.credential) {
+        showToast('Google sign-in was cancelled');
+        return;
+    }
+
+    showLoading('Signing in with Google...');
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_token: response.credential })
+        });
+
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            hideLoading();
+            showToast('Server error: Invalid response format');
+            return;
+        }
+
+        const data = await res.json();
+        hideLoading();
+
+        if (!res.ok) {
+            showToast(data.error || 'Google sign-in failed');
+            return;
+        }
+
+        if (!Number.isFinite(parseInt(data.user_id, 10))) {
+            showToast('Server did not return a valid user session');
+            return;
+        }
+
+        // Same flow as normal login — persist session + navigate
+        persistSession(data.user_id, data.username, data.token);
+        refreshUserDataFromServer().catch(e => console.error("Initial refresh failed", e));
+        
+        // New Google users go to onboarding, returning users go home
+        // Check if user has profile data — if not, it's a new sign-up
+        try {
+            const userDataRes = await fetch(`${API_BASE_URL}/api/user/data`, {
+                headers: authHeadersRaw()
+            });
+            const userData = await userDataRes.json();
+            const hasProfile = userData.profile && Object.keys(userData.profile).length > 0;
+            switchView(hasProfile ? 'home' : 'onboarding');
+        } catch {
+            // Default to onboarding for safety
+            switchView('onboarding');
+        }
+
+        showToast('Welcome to Skinbiee! 🌿');
+    } catch (err) {
+        hideLoading();
+        console.error('[GoogleAuth] Error:', err);
+        showToast('Connection error during Google sign-in');
     }
 }
 
@@ -2073,6 +2208,13 @@ function openSettingsSubPage(pageId) {
     const normalized = String(pageId || '').startsWith('settings-') ? pageId : `settings-${pageId}`;
     const overlay = document.getElementById(normalized);
     if (overlay) overlay.style.display = 'block';
+
+    if (pageId === 'account-details' || pageId === 'settings-account-details') {
+        const emailInput = document.getElementById('profile-edit-email');
+        if (emailInput && state.email) {
+            emailInput.value = state.email;
+        }
+    }
 }
 
 function closeSettingsSubPage(pageId) {
@@ -2411,13 +2553,13 @@ function togglePasswordChange() {
 
 /* Legacy duplicates removed — server-backed versions below handle all saves */
 
-function performPasswordChange() {
+async function performPasswordChange() {
     const oldPassword = document.getElementById('old-password')?.value || '';
     const newPassword = document.getElementById('new-password')?.value || '';
     const confirmPassword = document.getElementById('confirm-password')?.value || '';
 
-    if (!oldPassword || !newPassword || !confirmPassword) {
-        showToast('Please fill all password fields');
+    if (!newPassword || !confirmPassword) {
+        showToast('Please fill new password fields');
         return;
     }
     if (newPassword !== confirmPassword) {
@@ -2428,7 +2570,32 @@ function performPasswordChange() {
         showToast('Password must be at least 6 characters');
         return;
     }
-    showToast('Password update is not connected yet');
+
+    try {
+        showLoading('Updating...');
+        const res = await fetch(`${API_BASE_URL}/api/user/password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...authHeadersRaw()
+            },
+            body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+        });
+        const data = await res.json();
+        hideLoading();
+        if (!res.ok) {
+            showToast(data.error || 'Failed to update password');
+        } else {
+            showToast('Password updated! ?');
+            document.getElementById('old-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+            if (typeof togglePasswordChange === 'function') togglePasswordChange();
+        }
+    } catch (err) {
+        hideLoading();
+        showToast('Failed to connect to server');
+    }
 }
 
 function executeExportData() {
@@ -2654,7 +2821,7 @@ async function saveRoutine(routine = plannerState.routine, condition = getGlowBo
     }
 }
 
-function saveAccountDetails() {
+async function saveAccountDetails() {
     const profile = loadUserProfile() || {};
     const input = byId('profile-edit-username', 'onboarding-profile-username');
     if (input && input.value.trim()) {
@@ -2663,6 +2830,32 @@ function saveAccountDetails() {
         updateDisplayedUsername();
         safeStorage.set('sc-username', state.username);
     }
+    
+    // Save email
+    const emailInput = document.getElementById('profile-edit-email');
+    if (emailInput && emailInput.value) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/user/email`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeadersRaw()
+                },
+                body: JSON.stringify({ email: emailInput.value.trim() })
+            });
+            if (res.ok) {
+                state.email = emailInput.value.trim();
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Could not save email');
+                return;
+            }
+        } catch (e) {
+            showToast('Failed to connect to server');
+            return;
+        }
+    }
+
     saveUserProfile(profile)
         .then(() => {
             closeSettingsSubPage('account-details');

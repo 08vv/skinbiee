@@ -13,7 +13,7 @@
 
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- PWA Setup -->
     <link rel="manifest" href="manifest.json?v=946">
     <link rel="icon" type="image/png" sizes="32x32" href="assets/app-icon-32.png">
@@ -22,6 +22,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Skinbiee">
+
+    <!-- Google Identity Services (Sign in with Google) -->
+    <!-- ⚠️ Replace YOUR_GOOGLE_CLIENT_ID with your actual Client ID from Google Cloud Console -->
+    <meta name="google-client-id"
+        content="229737132243-23s9llr5e2cq3603hvle3sehrhlhq2en.apps.googleusercontent.com">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
@@ -30,11 +36,15 @@
         <header class="top-bar" id="top-bar" style="display: none;">
             <div class="logo-area">
                 <span class="app-name">Skinbiee</span>
-                <span id="deployment-check" style="font-size: 0.6rem; background: #e0f0ff; color: #4a90e2; padding: 2px 8px; border-radius: 12px; margin-left: 10px; vertical-align: middle; font-weight: 800; border: 1px solid #c0dfff;">#946</span>
-                <span id="user-display-name" style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 10px; font-weight: 500;"></span>
+                <span id="deployment-check"
+                    style="font-size: 0.6rem; background: #e0f0ff; color: #4a90e2; padding: 2px 8px; border-radius: 12px; margin-left: 10px; vertical-align: middle; font-weight: 800; border: 1px solid #c0dfff;">#946</span>
+                <span id="user-display-name"
+                    style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 10px; font-weight: 500;"></span>
             </div>
             <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
-                <div class="user-avatar-image" id="header-avatar" style="width: 32px; height: 32px; background: var(--bg-app); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--primary); background-size: cover; background-position: center; border: 1px solid var(--border-light); cursor: pointer;" onclick="openSettingsSubPage('account-details')">
+                <div class="user-avatar-image" id="header-avatar"
+                    style="width: 32px; height: 32px; background: var(--bg-app); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--primary); background-size: cover; background-position: center; border: 1px solid var(--border-light); cursor: pointer;"
+                    onclick="openSettingsSubPage('account-details')">
                     <i class="fa-regular fa-user"></i>
                 </div>
                 <button class="icon-btn dark-mode-toggle" id="theme-toggle" style="margin: 0;">
@@ -86,9 +96,9 @@
 
                     <div class="divider"><span>or</span></div>
 
-                    <button class="google-btn full-width">
-                        <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png"
-                            alt="Google" style="width: 20px; height: 20px; margin-right: 8px;">
+                    <button class="google-btn full-width" id="google-signin-btn">
+                        <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google"
+                            style="width: 20px; height: 20px; margin-right: 8px;">
                         Continue with Google
                     </button>
 
@@ -134,7 +144,8 @@
                                 <button type="button" class="pill" data-val="Female">Female</button>
                                 <button type="button" class="pill" data-val="Male">Male</button>
                                 <button type="button" class="pill" data-val="Non-binary">Non-binary</button>
-                                <button type="button" class="pill" data-val="Prefer not to say">Prefer not to say</button>
+                                <button type="button" class="pill" data-val="Prefer not to say">Prefer not to
+                                    say</button>
                             </div>
                         </div>
                     </div>
@@ -209,8 +220,8 @@
                             <label>Time per session?</label>
                             <div class="pill-group single-select">
                                 <button type="button" class="pill">Quick (&lt; 5m)</button>
-                                        <button type="button" class="pill">Medium (5-10m)</button>
-                                        <button type="button" class="pill">Full (10m+)</button>
+                                <button type="button" class="pill">Medium (5-10m)</button>
+                                <button type="button" class="pill">Full (10m+)</button>
                             </div>
                         </div>
                         <div class="form-group flex-between">
@@ -312,11 +323,12 @@
 
                     <!-- Detail Views (Hidden by default) -->
                     <div id="analyzer-detail-view" style="display: none;">
-                        
+
                         <!-- Skin Analysis Sub-mode -->
                         <div class="sub-view" id="sub-skin-analysis" style="display: none;">
                             <div class="sub-view-back-row">
-                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i
+                                        class="fa-solid fa-arrow-left"></i></button>
                             </div>
 
                             <div class="sub-view-visual-header">
@@ -330,8 +342,10 @@
                                 </div>
 
                                 <div class="centered-action-group">
-                                    <button class="secondary-btn" id="btn-skin-camera"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
-                                    <button class="secondary-btn" id="btn-skin-gallery"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
+                                    <button class="secondary-btn" id="btn-skin-camera"><i
+                                            class="fa-solid fa-camera"></i> <span>Camera</span></button>
+                                    <button class="secondary-btn" id="btn-skin-gallery"><i
+                                            class="fa-solid fa-image"></i> <span>Gallery</span></button>
                                 </div>
                                 <p class="micro-text text-center mt-3">Max 5MB • JPG, PNG</p>
                                 <input type="file" id="skin-file-input" accept="image/*" hidden>
@@ -342,38 +356,48 @@
                                         <p>Make sure your face is clearly visible and well-lit.</p>
                                     </div>
                                     <div class="img-container">
-                                        <img src="" id="skin-img-preview" alt="Preview" style="width: 100%; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
-                                        <button class="icon-btn remove-img" id="remove-skin-preview" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border-radius: 50%; width: 32px; height: 32px;"><i class="fa-solid fa-xmark"></i></button>
+                                        <img src="" id="skin-img-preview" alt="Preview"
+                                            style="width: 100%; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);">
+                                        <button class="icon-btn remove-img" id="remove-skin-preview"
+                                            style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border-radius: 50%; width: 32px; height: 32px;"><i
+                                                class="fa-solid fa-xmark"></i></button>
                                     </div>
-                                    <button class="primary-btn full-width mt-4" id="btn-analyze-skin">Actually Analyze My Skin</button>
+                                    <button class="primary-btn full-width mt-4" id="btn-analyze-skin">Actually Analyze
+                                        My Skin</button>
                                 </div>
                             </div>
 
                             <!-- Analysis Processing State -->
-                            <div class="processing-state text-center py-5" id="skin-processing-state" style="display:none;">
+                            <div class="processing-state text-center py-5" id="skin-processing-state"
+                                style="display:none;">
                                 <div class="scan-container mb-4">
                                     <div class="scan-line"></div>
-                                    <img src="" id="skin-img-processing" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
+                                    <img src="" id="skin-img-processing"
+                                        style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
                                 </div>
                                 <div class="circle-spinner"></div>
-                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;"></div>
+                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;">
+                                </div>
                                 <h3>Analyzing your skin...</h3>
                                 <p class="text-muted">Our AI is detecting concerns and patterns.</p>
                             </div>
 
                             <div class="results-state" id="skin-results-state" style="display:none;">
                                 <div class="sub-view-visual-header">
-                                    <img src="" id="skin-result-img" class="large-scan-illustration" alt="Analyzed Face" style="border-radius: 30px; object-fit: cover; margin-bottom: 20px;">
+                                    <img src="" id="skin-result-img" class="large-scan-illustration" alt="Analyzed Face"
+                                        style="border-radius: 30px; object-fit: cover; margin-bottom: 20px;">
                                 </div>
                                 <div class="result-header text-center">
                                     <h2 class="condition-title" id="skin-result-title">Analysis Complete</h2>
-                                    <div id="skin-result-badges" class="mt-2" style="display: flex; gap: 8px; justify-content: center;">
+                                    <div id="skin-result-badges" class="mt-2"
+                                        style="display: flex; gap: 8px; justify-content: center;">
                                         <!-- Badges like <span class="severity-badge badge-yellow">Moderate Acne</span> -->
                                     </div>
                                 </div>
 
                                 <div class="explanation-box card-glass mt-4">
-                                    <p id="skin-result-desc">We've analyzed your photo. Here is what our trained models detected on your skin.</p>
+                                    <p id="skin-result-desc">We've analyzed your photo. Here is what our trained models
+                                        detected on your skin.</p>
                                 </div>
 
                                 <div class="detected-concerns-list mt-4" id="skin-concerns-list">
@@ -381,9 +405,11 @@
                                 </div>
 
                                 <div class="action-buttons mt-5">
-                                    <button class="primary-btn full-width" id="btn-go-products">Would you like to see recommended products?</button>
+                                    <button class="primary-btn full-width" id="btn-go-products">Would you like to see
+                                        recommended products?</button>
                                     <div id="product-rec-container"></div>
-                                    <button class="text-btn full-width mt-3" onclick="resetAnalyzer()">Scan Another Photo</button>
+                                    <button class="text-btn full-width mt-3" onclick="resetAnalyzer()">Scan Another
+                                        Photo</button>
                                 </div>
                             </div>
                         </div>
@@ -391,11 +417,13 @@
                         <!-- Ingredient Scanner Sub-mode -->
                         <div class="sub-view" id="sub-ingredient-scanner" style="display: none;">
                             <div class="sub-view-back-row">
-                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i
+                                        class="fa-solid fa-arrow-left"></i></button>
                             </div>
 
                             <div class="sub-view-visual-header">
-                                <img src="assets/scan-product.png" class="large-scan-illustration" alt="Product Scan Header">
+                                <img src="assets/scan-product.png" class="large-scan-illustration"
+                                    alt="Product Scan Header">
                             </div>
 
                             <div class="input-state" id="ing-input-state">
@@ -405,27 +433,35 @@
                                 </div>
 
                                 <div class="centered-action-group">
-                                    <button class="secondary-btn" id="btn-prod-camera"><i class="fa-solid fa-camera"></i> <span>Camera</span></button>
-                                    <button class="secondary-btn" id="btn-prod-gallery"><i class="fa-solid fa-image"></i> <span>Gallery</span></button>
+                                    <button class="secondary-btn" id="btn-prod-camera"><i
+                                            class="fa-solid fa-camera"></i> <span>Camera</span></button>
+                                    <button class="secondary-btn" id="btn-prod-gallery"><i
+                                            class="fa-solid fa-image"></i> <span>Gallery</span></button>
                                 </div>
                                 <input type="file" id="prod-file-input" accept="image/*" hidden>
 
                                 <div class="preview-zone mt-4" id="prod-preview-zone" style="display:none;">
                                     <div class="img-container">
-                                        <img src="" id="prod-img-preview" alt="Product Preview" style="width: 100%; border-radius: 20px;">
-                                        <button class="icon-btn remove-img" id="remove-prod-preview"><i class="fa-solid fa-xmark"></i></button>
+                                        <img src="" id="prod-img-preview" alt="Product Preview"
+                                            style="width: 100%; border-radius: 20px;">
+                                        <button class="icon-btn remove-img" id="remove-prod-preview"><i
+                                                class="fa-solid fa-xmark"></i></button>
                                     </div>
-                                    <button class="primary-btn full-width mt-4" id="btn-analyze-prod">Analyze Ingredients</button>
+                                    <button class="primary-btn full-width mt-4" id="btn-analyze-prod">Analyze
+                                        Ingredients</button>
                                 </div>
                             </div>
 
-                            <div class="processing-state text-center py-5" id="prod-processing-state" style="display:none;">
+                            <div class="processing-state text-center py-5" id="prod-processing-state"
+                                style="display:none;">
                                 <div class="scan-container mb-4">
                                     <div class="scan-line"></div>
-                                    <img src="" id="prod-img-processing" style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
+                                    <img src="" id="prod-img-processing"
+                                        style="width: 100%; opacity: 0.5; filter: grayscale(50%);">
                                 </div>
                                 <div class="circle-spinner"></div>
-                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;"></div>
+                                <div class="mascot-blob thinking smaller mb-4" style="margin: 0 auto; display:none;">
+                                </div>
                                 <h3 id="prod-processing-title">Reading ingredients...</h3>
                                 <p id="prod-processing-subtitle" class="text-muted">Using AI to scan your label.</p>
                             </div>
@@ -434,8 +470,9 @@
                                 <!-- Card 1: Verdict -->
                                 <div class="verdict-card card-glass text-center p-4">
                                     <h2 id="prod-verdict-title" class="mb-1">Checking safety...</h2>
-                                    <p id="prod-verdict-subtitle" class="micro-text text-muted mb-4">Evaluating for your skin condition</p>
-                                    
+                                    <p id="prod-verdict-subtitle" class="micro-text text-muted mb-4">Evaluating for your
+                                        skin condition</p>
+
                                     <div class="score-container mt-2">
                                         <div class="score-bar-bg">
                                             <div id="prod-score-fill" class="score-bar-fill"></div>
@@ -460,14 +497,16 @@
                                     <p id="prod-ingredients-text" class="micro-text text-muted mt-2"></p>
                                 </div>
 
-                                <button class="primary-btn secondary-style full-width mt-4" onclick="openAnalyzerDetail('sub-ingredient-scanner')">Scan Another Product</button>
+                                <button class="primary-btn secondary-style full-width mt-4"
+                                    onclick="openAnalyzerDetail('sub-ingredient-scanner')">Scan Another Product</button>
                             </div>
                         </div>
 
                         <!-- Timeline Gallery Sub-mode -->
                         <div class="sub-view" id="sub-timeline" style="display: none;">
                             <div class="sub-view-back-row">
-                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i class="fa-solid fa-arrow-left"></i></button>
+                                <button class="back-btn-minimal" onclick="closeAnalyzerDetail()"><i
+                                        class="fa-solid fa-arrow-left"></i></button>
                             </div>
                             <div class="instruction-section">
                                 <h3>Scan History</h3>
@@ -502,7 +541,8 @@
                                 <img src="assets/girl_normal.png" alt="Glow Bot" class="setup-mascot">
                             </div>
                             <h2 class="mt-4">Let's build your perfect skincare routine!</h2>
-                            <p class="micro-text text-muted mt-2">Answer a few quick questions so I can personalise your routine.</p>
+                            <p class="micro-text text-muted mt-2">Answer a few quick questions so I can personalise your
+                                routine.</p>
                             <button class="primary-btn mt-4 px-5" onclick="startPlannerOnboarding()">Let's Go!</button>
                         </div>
                     </div>
@@ -527,7 +567,8 @@
                                 <img src="assets/girl_thumbs.png" alt="Glow Bot" class="setup-mascot">
                             </div>
                             <h2 class="mt-3" style="text-align:center;">Your routines are ready! ✨</h2>
-                            <p class="micro-text text-muted mt-1 mb-4" style="text-align:center;">Here's what I've created just for you.</p>
+                            <p class="micro-text text-muted mt-1 mb-4" style="text-align:center;">Here's what I've
+                                created just for you.</p>
 
                             <!-- Morning Routine Card -->
                             <div class="planner-reveal-card mb-3">
@@ -570,9 +611,11 @@
                             </div>
                         </div>
                         <div class="calendar-header mt-3">
-                            <button class="cal-nav-btn" onclick="navMonth(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+                            <button class="cal-nav-btn" onclick="navMonth(-1)"><i
+                                    class="fa-solid fa-chevron-left"></i></button>
                             <h4 id="calendar-month-year">April 2026</h4>
-                            <button class="cal-nav-btn" onclick="navMonth(1)"><i class="fa-solid fa-chevron-right"></i></button>
+                            <button class="cal-nav-btn" onclick="navMonth(1)"><i
+                                    class="fa-solid fa-chevron-right"></i></button>
                         </div>
                         <div class="calendar-days-header mt-3">
                             <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -605,7 +648,13 @@
                                 <p class="bold mb-0">All done!</p>
                                 <p class="micro-text text-muted">Capture your glow</p>
                                 <button class="primary-btn small mt-2" onclick="openSelfieCamera('morning')">
-                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1">
+                                        <path
+                                            d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                                        </path>
+                                        <circle cx="12" cy="13" r="4"></circle>
+                                    </svg>
                                     Snap a Selfie
                                 </button>
                             </div>
@@ -638,7 +687,13 @@
                                 <p class="bold mb-0">All done!</p>
                                 <p class="micro-text text-muted">Capture your glow</p>
                                 <button class="primary-btn small mt-2" onclick="openSelfieCamera('night')">
-                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mr-1">
+                                        <path
+                                            d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                                        </path>
+                                        <circle cx="12" cy="13" r="4"></circle>
+                                    </svg>
                                     Snap a Selfie
                                 </button>
                             </div>
@@ -658,7 +713,8 @@
                             <h1 class="mb-0" id="checklist-title">Today's Routine</h1>
                             <span class="text-muted" id="checklist-subtitle">Morning Routine</span>
                         </div>
-                        <button class="edit-routine-btn" id="checklist-edit-btn" onclick="openRoutineEditorFromChecklist()">Edit</button>
+                        <button class="edit-routine-btn" id="checklist-edit-btn"
+                            onclick="openRoutineEditorFromChecklist()">Edit</button>
                     </div>
                     <div class="checklist-body p-4">
                         <div class="checklist-items" id="routine-checklist-items">
@@ -668,15 +724,24 @@
                             <div class="camera-action-card" onclick="openSelfieFromChecklist()">
                                 <p class="mb-3 bold">All steps complete!</p>
                                 <button class="camera-svg-btn">
-                                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor"
+                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path
+                                            d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
+                                        </path>
+                                        <circle cx="12" cy="13" r="4"></circle>
+                                    </svg>
                                 </button>
-                                <p class="micro-text text-muted mt-3">Tap to snap your daily progress selfie (optional)</p>
+                                <p class="micro-text text-muted mt-3">Tap to snap your daily progress selfie (optional)
+                                </p>
                             </div>
-                            <input type="file" id="selfie-upload-input" accept="image/*" hidden onchange="handleSelfieUpload(this)">
+                            <input type="file" id="selfie-upload-input" accept="image/*" hidden
+                                onchange="handleSelfieUpload(this)">
                         </div>
                     </div>
                     <div class="checklist-footer p-4">
-                        <button class="primary-btn full-width" id="finish-checklist-btn" onclick="finishChecklist()">Submit</button>
+                        <button class="primary-btn full-width" id="finish-checklist-btn"
+                            onclick="finishChecklist()">Submit</button>
                     </div>
                 </div>
 
@@ -733,11 +798,13 @@
                             <i class="fa-regular fa-bell icon"></i>
                             <span>Routine Reminders</span>
                             <label class="switch">
-                                <input type="checkbox" id="settings-reminder-toggle" onchange="toggleReminderScheduleItem()">
+                                <input type="checkbox" id="settings-reminder-toggle"
+                                    onchange="toggleReminderScheduleItem()">
                                 <span class="slider round"></span>
                             </label>
                         </div>
-                        <div class="set-item" id="reminder-schedule-item" style="display: none;" onclick="openSettingsSubPage('settings-routine-reminders')">
+                        <div class="set-item" id="reminder-schedule-item" style="display: none;"
+                            onclick="openSettingsSubPage('settings-routine-reminders')">
                             <i class="fa-solid fa-clock icon"></i>
                             <span>Schedule Reminders</span>
                             <i class="fa-solid fa-chevron-right arrow"></i>
@@ -771,7 +838,8 @@
                 </div>
 
                 <div class="settings-footer text-center mt-4">
-                    <p class="micro-text mb-4">Your profile data is stored locally. Images are stored securely on encrypted external servers.</p>
+                    <p class="micro-text mb-4">Your profile data is stored locally. Images are stored securely on
+                        encrypted external servers.</p>
                     <button class="secondary-btn" id="logout-btn">Log Out</button>
                 </div>
 
@@ -782,53 +850,62 @@
             </section>
 
             <!-- SETTINGS OVERLAYS -->
-                <div id="settings-account-details" class="sub-page-overlay">
-                    <div class="sub-page-header">
-                        <button class="sub-page-back-btn" onclick="closeSettingsSubPage('account-details')"><i class="fa-solid fa-chevron-left"></i></button>
-                        <h2 class="sub-page-title">Account Details</h2>
-                    </div>
-                    <div class="sub-page-card">
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <input type="file" id="profile-pic-input" accept="image/*" style="opacity: 0; position: absolute; pointer-events: none; width: 0; height: 0;" onchange="handleProfilePicUpload(this)">
-                            <div class="user-avatar-image" id="profile-avatar-preview" style="width: 80px; height: 80px; background: var(--bg-app); border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--primary); background-size: cover; background-position: center; border: 2px solid var(--primary-light);">
-                                <i class="fa-regular fa-user"></i>
-                            </div>
-                            <button class="text-btn mt-2" style="color: var(--primary); font-size: 0.9rem;" onclick="openProfilePicCamera()">Change Photo</button>
-                        </div>
-                        <div>
-                            <label class="micro-text bold mb-2" style="display:block;">Display Name</label>
-                            <input type="text" id="profile-edit-username" class="sub-page-input" placeholder="Your Name">
-                        </div>
-                        <div class="mt-3">
-                            <label class="micro-text bold mb-2" style="display:block;">Email Address</label>
-                            <input type="email" class="sub-page-input" placeholder="you@example.com">
-                        </div>
-                        
-                        <button class="text-btn mt-3" id="btn-change-password-toggle" style="color: var(--primary); align-self: flex-start; padding: 0;" onclick="togglePasswordChange()">Change Password</button>
-
-                        <div id="password-change-section" style="display: none; flex-direction: column; gap: 12px; margin-top: 10px; width: 100%;">
-                            <div class="form-group">
-                                <label>Old Password</label>
-                                <input type="password" id="old-password" class="kawaii-input" placeholder="••••••••">
-                            </div>
-                            <div class="form-group">
-                                <label>New Password</label>
-                                <input type="password" id="new-password" class="kawaii-input" placeholder="••••••••">
-                            </div>
-                            <div class="form-group">
-                                <label>Confirm New Password</label>
-                                <input type="password" id="confirm-password" class="kawaii-input" placeholder="••••••••">
-                            </div>
-                            <button class="primary-btn btn-sm" onclick="performPasswordChange()">Update Password</button>
-                        </div>
-                    </div>
-                    <button class="primary-btn mt-4 full-width" onclick="saveAccountDetails()">Save Changes</button>
+            <div id="settings-account-details" class="sub-page-overlay">
+                <div class="sub-page-header">
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('account-details')"><i
+                            class="fa-solid fa-chevron-left"></i></button>
+                    <h2 class="sub-page-title">Account Details</h2>
                 </div>
+                <div class="sub-page-card">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <input type="file" id="profile-pic-input" accept="image/*"
+                            style="opacity: 0; position: absolute; pointer-events: none; width: 0; height: 0;"
+                            onchange="handleProfilePicUpload(this)">
+                        <div class="user-avatar-image" id="profile-avatar-preview"
+                            style="width: 80px; height: 80px; background: var(--bg-app); border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--primary); background-size: cover; background-position: center; border: 2px solid var(--primary-light);">
+                            <i class="fa-regular fa-user"></i>
+                        </div>
+                        <button class="text-btn mt-2" style="color: var(--primary); font-size: 0.9rem;"
+                            onclick="openProfilePicCamera()">Change Photo</button>
+                    </div>
+                    <div>
+                        <label class="micro-text bold mb-2" style="display:block;">Display Name</label>
+                        <input type="text" id="profile-edit-username" class="sub-page-input" placeholder="Your Name">
+                    </div>
+                    <div class="mt-3">
+                        <label class="micro-text bold mb-2" style="display:block;">Email Address</label>
+                        <input type="email" class="sub-page-input" placeholder="you@example.com">
+                    </div>
+
+                    <button class="text-btn mt-3" id="btn-change-password-toggle"
+                        style="color: var(--primary); align-self: flex-start; padding: 0;"
+                        onclick="togglePasswordChange()">Change Password</button>
+
+                    <div id="password-change-section"
+                        style="display: none; flex-direction: column; gap: 12px; margin-top: 10px; width: 100%;">
+                        <div class="form-group">
+                            <label>Old Password</label>
+                            <input type="password" id="old-password" class="kawaii-input" placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="new-password" class="kawaii-input" placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="confirm-password" class="kawaii-input" placeholder="••••••••">
+                        </div>
+                        <button class="primary-btn btn-sm" onclick="performPasswordChange()">Update Password</button>
+                    </div>
+                </div>
+                <button class="primary-btn mt-4 full-width" onclick="saveAccountDetails()">Save Changes</button>
+            </div>
 
 
             <div id="settings-skin-profile" class="sub-page-overlay">
                 <div class="sub-page-header">
-                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('skin-profile')"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('skin-profile')"><i
+                            class="fa-solid fa-chevron-left"></i></button>
                     <h2 class="sub-page-title">Skin Profile</h2>
                 </div>
                 <div class="sub-page-card" data-profile-key="skintype">
@@ -855,11 +932,13 @@
 
             <div id="settings-export-data" class="sub-page-overlay">
                 <div class="sub-page-header">
-                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('export-data')"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('export-data')"><i
+                            class="fa-solid fa-chevron-left"></i></button>
                     <h2 class="sub-page-title">Export</h2>
                 </div>
                 <div class="sub-page-card">
-                    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 8px;">Download a spreadsheet of all your Skinbiee data</p>
+                    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 8px;">Download a
+                        spreadsheet of all your Skinbiee data</p>
                     <ul class="data-export-list">
                         <li><strong>User Info</strong> — name, skin type, tone, concerns</li>
                         <li><strong>Face Scans</strong> — dates, results, detected concerns</li>
@@ -872,15 +951,18 @@
 
             <div id="settings-routine-reminders" class="sub-page-overlay">
                 <div class="sub-page-header">
-                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('routine-reminders')"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="sub-page-back-btn" onclick="closeSettingsSubPage('routine-reminders')"><i
+                            class="fa-solid fa-chevron-left"></i></button>
                     <h2 class="sub-page-title">Reminders</h2>
                 </div>
                 <div class="sub-page-card">
-                    <p class="micro-text text-muted mb-4" style="text-align: center;">Pick your glow-up times! We'll send a cute nudge to keep your streak alive. ✨</p>
-                    
+                    <p class="micro-text text-muted mb-4" style="text-align: center;">Pick your glow-up times! We'll
+                        send a cute nudge to keep your streak alive. ✨</p>
+
                     <div class="reminder-time-row mb-4">
                         <div class="flex-between align-center mb-2">
-                            <span class="bold"><i class="fa-solid fa-sun" style="color: #f6a623; margin-right: 8px;"></i>Morning Sunshine</span>
+                            <span class="bold"><i class="fa-solid fa-sun"
+                                    style="color: #f6a623; margin-right: 8px;"></i>Morning Sunshine</span>
                             <label class="switch switch-sm">
                                 <input type="checkbox" id="am-reminder-active" checked>
                                 <span class="slider round"></span>
@@ -891,7 +973,8 @@
 
                     <div class="reminder-time-row">
                         <div class="flex-between align-center mb-2">
-                            <span class="bold"><i class="fa-solid fa-moon" style="color: #7c8cf8; margin-right: 8px;"></i>Night Glow</span>
+                            <span class="bold"><i class="fa-solid fa-moon"
+                                    style="color: #7c8cf8; margin-right: 8px;"></i>Night Glow</span>
                             <label class="switch switch-sm">
                                 <input type="checkbox" id="pm-reminder-active" checked>
                                 <span class="slider round"></span>
@@ -900,7 +983,8 @@
                         <input type="time" id="pm-reminder-time" class="sub-page-input" value="21:30">
                     </div>
                 </div>
-                <p class="micro-text text-center mt-3 px-4" style="color: var(--text-secondary);">Notifications will appear on this device even if the app is closed. Enable browser notifications when prompted!</p>
+                <p class="micro-text text-center mt-3 px-4" style="color: var(--text-secondary);">Notifications will
+                    appear on this device even if the app is closed. Enable browser notifications when prompted!</p>
                 <button class="primary-btn mt-4 full-width" onclick="saveReminders()">Save Reminders 🔔</button>
             </div>
 
@@ -908,7 +992,8 @@
             <div id="clear-data-modal" class="clear-data-modal-overlay">
                 <div class="clear-data-modal-card">
                     <h2 style="font-weight: 800; margin-bottom: 12px; color: var(--text-primary);">Clear all data?</h2>
-                    <p style="color: var(--text-secondary); font-size: 0.95rem;">This will permanently delete all your scans, routines, and personal information. This cannot be undone.</p>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem;">This will permanently delete all your
+                        scans, routines, and personal information. This cannot be undone.</p>
                     <div class="modal-actions">
                         <button class="outline-pill-btn" onclick="closeClearDataModal()">Cancel</button>
                         <button class="danger-pill-btn" onclick="executeClearData()">Clear Data</button>
@@ -974,7 +1059,8 @@
             </div>
             <div class="chat-input-row">
                 <input type="text" id="chat-input-compact" placeholder="Ask GlowBot something..." class="kawaii-input">
-                <button class="icon-btn send-btn" id="chat-send-compact"><i class="fa-solid fa-paper-plane"></i></button>
+                <button class="icon-btn send-btn" id="chat-send-compact"><i
+                        class="fa-solid fa-paper-plane"></i></button>
             </div>
         </div>
 
@@ -1030,7 +1116,9 @@
                 </div>
                 <div style="margin-bottom: 12px;">
                     <label style="font-weight: 700; color: var(--text-primary);">Username</label>
-                    <input type="text" id="onboarding-profile-username" class="editor-input" style="width:100%; border-bottom: 2px solid var(--primary); padding: 10px 0;" placeholder="Your Name">
+                    <input type="text" id="onboarding-profile-username" class="editor-input"
+                        style="width:100%; border-bottom: 2px solid var(--primary); padding: 10px 0;"
+                        placeholder="Your Name">
                 </div>
                 <button class="primary-btn full-width mt-5" onclick="saveAccountDetails()">Save Changes</button>
             </div>
@@ -1039,23 +1127,31 @@
         <!-- TOAST CONTAINER -->
         <div id="toast-container"></div>
         <!-- PWA INSTALL MODAL -->
-        <div id="pwa-install-overlay" class="overlay-screen" style="display: none; z-index: 3000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5);">
+        <div id="pwa-install-overlay" class="overlay-screen"
+            style="display: none; z-index: 3000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5);">
             <div class="result-card" style="margin: 0 20px; padding: 25px; text-align: center; max-width: 350px;">
                 <div class="mascot-blob idle micro mb-3" style="margin: 0 auto;"></div>
                 <h2 style="font-size: 20px; margin-bottom: 8px;">Install Skinbiee App</h2>
-                <p class="text-muted micro-text" style="margin-bottom: 20px;">Download the app to your Home Screen to easily track your daily routines and keep your streak alive!</p>
+                <p class="text-muted micro-text" style="margin-bottom: 20px;">Download the app to your Home Screen to
+                    easily track your daily routines and keep your streak alive!</p>
                 <button class="primary-btn full-width mb-2" id="pwa-install-btn">Install Now 🌟</button>
-                <button class="secondary-btn full-width" onclick="document.getElementById('pwa-install-overlay').style.display='none'">Maybe Later</button>
+                <button class="secondary-btn full-width"
+                    onclick="document.getElementById('pwa-install-overlay').style.display='none'">Maybe Later</button>
             </div>
         </div>
 
         <!-- IOS INSTALL BANNER -->
-        <div id="ios-install-banner" style="display: none; position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); z-index: 10000; border-top-left-radius: 20px; border-top-right-radius: 20px;">
+        <div id="ios-install-banner"
+            style="display: none; position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.15); z-index: 10000; border-top-left-radius: 20px; border-top-right-radius: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <strong style="color: var(--text-primary);">Install on iOS 🍎</strong>
-                <button class="icon-btn" onclick="document.getElementById('ios-install-banner').style.display='none'" style="width: 30px; height: 30px; border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
+                <button class="icon-btn" onclick="document.getElementById('ios-install-banner').style.display='none'"
+                    style="width: 30px; height: 30px; border-radius: 50%;"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <p class="micro-text mb-0" style="color: var(--text-secondary);">To install Skinbiee, tap the <strong>Share</strong> button <i class="fa-solid fa-arrow-up-from-bracket"></i> below and select <strong>"Add to Home Screen"</strong>.</p>
+            <p class="micro-text mb-0" style="color: var(--text-secondary);">To install Skinbiee, tap the
+                <strong>Share</strong> button <i class="fa-solid fa-arrow-up-from-bracket"></i> below and select
+                <strong>"Add to Home Screen"</strong>.
+            </p>
         </div>
 
     </div>

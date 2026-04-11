@@ -67,12 +67,16 @@ def init_db():
         id {id_type},
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        email TEXT,
+        google_id TEXT UNIQUE,
         created_at TEXT
     )
     ''')
     
     # Migration for existing users table
     _safe_add_column(cursor, "users", "created_at TEXT")
+    _safe_add_column(cursor, "users", "email TEXT")
+    _safe_add_column(cursor, "users", "google_id TEXT UNIQUE")
     
     cursor.execute(f'''
     CREATE TABLE IF NOT EXISTS scans (
@@ -149,6 +153,62 @@ def create_db_user(username, password_hash):
     conn.close()
     return True
 
+def create_google_user(email, google_id, username):
+    """Create a user authenticated via Google OAuth. No real password."""
+    conn = get_connection()
+    c = conn.cursor()
+    created_at = datetime.now().isoformat()
+    # Store a placeholder hash — Google users never authenticate via password
+    placeholder_hash = "GOOGLE_OAUTH_NO_PASSWORD"
+    try:
+        c.execute(
+            'INSERT INTO users (username, password_hash, email, google_id, created_at) VALUES (%s, %s, %s, %s, %s)',
+            (username, placeholder_hash, email, google_id, created_at)
+        )
+        conn.commit()
+    except Exception as e:
+        print(f"Error creating Google user: {e}")
+        conn.close()
+        return False
+    conn.close()
+    return True
+
+def get_user_by_google_id(google_id):
+    """Look up a user by their Google account ID."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, username, password_hash, created_at, email, google_id FROM users WHERE google_id = %s', (google_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return {
+            "id": row[0],
+            "username": row[1],
+            "password_hash": row[2],
+            "created_at": row[3],
+            "email": row[4],
+            "google_id": row[5]
+        }
+    return None
+
+def get_user_by_email(email):
+    """Look up a user by email address."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, username, password_hash, created_at, email, google_id FROM users WHERE email = %s', (email,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return {
+            "id": row[0],
+            "username": row[1],
+            "password_hash": row[2],
+            "created_at": row[3],
+            "email": row[4],
+            "google_id": row[5]
+        }
+    return None
+
 def get_user_by_username(username):
     conn = get_connection()
     c = conn.cursor()
@@ -167,7 +227,7 @@ def get_user_by_username(username):
 def get_user_by_id(user_id):
     conn = get_connection()
     c = conn.cursor()
-    c.execute('SELECT id, username, password_hash, created_at FROM users WHERE id = %s', (int(user_id),))
+    c.execute('SELECT id, username, password_hash, created_at, email FROM users WHERE id = %s', (int(user_id),))
     row = c.fetchone()
     conn.close()
     if row:
@@ -175,9 +235,34 @@ def get_user_by_id(user_id):
             "id": row[0],
             "username": row[1],
             "password_hash": row[2],
-            "created_at": row[3]
+            "created_at": row[3],
+            "email": row[4]
         }
     return None
+
+def update_user_email(user_id: int, new_email: str) -> bool:
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute('UPDATE users SET email = %s WHERE id = %s', (new_email, int(user_id)))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DB] Error updating email: {e}")
+        return False
+
+def update_user_password(user_id: int, hashed_password: str) -> bool:
+    try:
+        conn = get_connection()
+        c = conn.cursor()
+        c.execute('UPDATE users SET password_hash = %s WHERE id = %s', (hashed_password, int(user_id)))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[DB] Error updating password: {e}")
+        return False
 
 def update_user_password_hash(user_id: int, new_hash: str):
     """Update the password_hash for a user (used for SHA-256→bcrypt migration)."""
