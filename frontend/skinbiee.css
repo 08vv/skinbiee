@@ -1698,6 +1698,10 @@ input:checked+.slider:before {
     font-weight: 600;
 }
 
+.streak-active-fire {
+    color: #3da9fc !important;
+}
+
 .streak-badge {
     background: #e7f3ff;
     color: var(--primary);

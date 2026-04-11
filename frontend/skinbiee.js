@@ -1995,6 +1995,16 @@ function renderPlannerDashboard() {
     if (morningBlur) morningBlur.style.display = plannerState.amDone ? 'none' : 'flex';
     if (nightBlur) nightBlur.style.display = plannerState.pmDone ? 'none' : 'flex';
 
+    // Update Fire Icons (Blue Fire Logic)
+    const homeFireIcon = document.querySelector('.home-streak-icon');
+    const plannerFireIcon = document.querySelector('.streak-flame-icon');
+    if (homeFireIcon) {
+        homeFireIcon.classList.toggle('streak-active-fire', plannerState.dailyDone);
+    }
+    if (plannerFireIcon) {
+        plannerFireIcon.classList.toggle('streak-active-fire', plannerState.dailyDone);
+    }
+
     renderPlannerCalendar();
     requestAnimationFrame(() => renderPlannerCalendar());
     renderMainChecklist();
@@ -2069,7 +2079,13 @@ function renderPlannerCalendar() {
             dayEl.appendChild(dayNum);
             
             const isStartedDay = Boolean(startDateKey && dateKey >= startDateKey && dateKey <= todayKey);
-            const streakType = streakDates.get(dateKey);
+            let streakType = streakDates.get(dateKey);
+
+            // Force current day to be active if any task is done
+            if (dateKey === todayKey && plannerState.dailyDone) {
+                streakType = 'current';
+            }
+
             if (streakType || isStartedDay) {
                 dayEl.classList.add('has-streak');
                 const flame = document.createElement('i');
