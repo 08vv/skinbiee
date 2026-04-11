@@ -194,6 +194,7 @@ async function refreshUserDataFromServer() {
             plannerState.dailyDone = plannerState.amDone || plannerState.pmDone;
             state.streak = plannerState.streak;
             state.userDataLoaded = true;
+            applyRemindersToUI();
             startReminderScheduler();
             renderScanHistory();
             if (state.view === 'planner') setupPlanner();
@@ -281,7 +282,8 @@ const state = {
     reminders: {},
     plannerMeta: {},
     userDataLoaded: false,
-    userDataLoading: false
+    userDataLoading: false,
+    hasShownTriggerWarning: false
 };
 
 // DOM Elements
@@ -2126,6 +2128,19 @@ function markReminderFired(period, timeValue, now = new Date()) {
     safeStorage.set(getReminderStorageKey(period, getLocalDateKey(now), timeValue), '1');
 }
 
+// 🎵 Skinbiee Signature Reminder Sound (Cute Bubble Chime)
+const SKINBIEE_CHIME_B64 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGFtZTMuOThyBK8AAAAAAAAAAAAAAf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U0AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVC7gEAgCACAIAI+mX+X+X/////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////v/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVEvAAh+X+X+X+X/////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////vX//////////////////////////////////////////////////////////////////////////////////////////v/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7UwAAAAAAAAAAAAAAAAAAAAAAVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/7U2AAAAAAAAAAAAAAAAAAAAAAAFVVVVVVVV';
+
+function playReminderSound() {
+    try {
+        const audio = new Audio(SKINBIEE_CHIME_B64);
+        audio.volume = 0.5;
+        audio.play().catch(e => console.warn('[SOUND] Auto-play blocked or failed', e));
+    } catch (e) {
+        console.error('[SOUND] Audio playback error', e);
+    }
+}
+
 async function ensureReminderPermission() {
     if (!('Notification' in window)) {
         showToast('This browser does not support notifications');
@@ -2171,6 +2186,8 @@ async function showReminderNotification(period) {
         }
     };
 
+    playReminderSound();
+
     try {
         if ('serviceWorker' in navigator) {
             const registration = await navigator.serviceWorker.getRegistration();
@@ -2193,6 +2210,8 @@ async function scheduleLocalNotification(period, timeValue, isTest = false) {
 
     const nextTime = calculateNextReminderTime(timeValue, isTest ? 1 : 0);
     if (!nextTime) return;
+
+    if (isTest) playReminderSound();
 
     const title = isTest 
         ? 'Skinbiee System Check 🧸'
@@ -2253,7 +2272,15 @@ async function scheduleLocalNotification(period, timeValue, isTest = false) {
 
     // Fallback: Just log it for now
     console.log(`[REMINDERS] Browser lacks Triggers. Scheduled ${period} for ${nextTime.toLocaleString()} (requires app open)`);
-    if (isTest) showToast("System check: Check back in 1 minute!");
+    if (isTest) {
+        showToast("System check: Check back in 1 minute! Keep the tab open.");
+    } else {
+        // Show a helpful hint once per session if triggers are missing
+        if (!state.hasShownTriggerWarning) {
+            console.warn("[REMINDERS] Recommendation: Use 'Add to Home Screen' for best results.");
+            state.hasShownTriggerWarning = true;
+        }
+    }
 }
 
 async function runReminderSchedulerTick() {
@@ -2302,12 +2329,43 @@ function startReminderScheduler() {
     if (reminders.pmActive) scheduleLocalNotification('pm', reminders.pmTime);
     
     // 1.5 Verification Schedule (for the user to see it working NOW)
-    scheduleLocalNotification('test', '00:00', true);
-
+    // Removed 00:00 default test to avoid confusion, only triggers if explicitly requested usually
+    
     // 2. Keep Interval as fallback for foreground
     reminderSchedulerId = window.setInterval(() => {
         runReminderSchedulerTick().catch(e => console.error('[REMINDERS] Tick error', e));
     }, 30000);
+}
+
+function applyRemindersToUI() {
+    const reminders = state.reminders || {};
+    const toggle = document.getElementById('settings-reminder-toggle');
+    if (toggle) {
+        toggle.checked = Boolean(reminders.enabled);
+        toggleReminderScheduleItem();
+    }
+    
+    const amActive = document.getElementById('am-reminder-active');
+    if (amActive) amActive.checked = reminders.amActive !== false;
+    
+    const pmActive = document.getElementById('pm-reminder-active');
+    if (pmActive) pmActive.checked = reminders.pmActive !== false;
+
+    if (reminders.amTime && reminders.amTime.includes(':')) {
+        const [h, m] = reminders.amTime.split(':');
+        const hEl = document.getElementById('am-hour');
+        const mEl = document.getElementById('am-minute');
+        if (hEl) hEl.value = h;
+        if (mEl) mEl.value = m;
+    }
+    
+    if (reminders.pmTime && reminders.pmTime.includes(':')) {
+        const [h, m] = reminders.pmTime.split(':');
+        const hEl = document.getElementById('pm-hour');
+        const mEl = document.getElementById('pm-minute');
+        if (hEl) hEl.value = h;
+        if (mEl) mEl.value = m;
+    }
 }
 
 function togglePasswordChange() {
@@ -2610,12 +2668,17 @@ function saveSkinProfile() {
 }
 
 function saveReminders() {
+    const amH = document.getElementById('am-hour')?.value || '08';
+    const amM = document.getElementById('am-minute')?.value || '00';
+    const pmH = document.getElementById('pm-hour')?.value || '21';
+    const pmM = document.getElementById('pm-minute')?.value || '30';
+
     const reminderSettings = {
         enabled: Boolean(document.getElementById('settings-reminder-toggle')?.checked),
         amActive: Boolean(document.getElementById('am-reminder-active')?.checked),
-        amTime: document.getElementById('am-reminder-time')?.value || '08:00',
+        amTime: `${amH}:${amM}`,
         pmActive: Boolean(document.getElementById('pm-reminder-active')?.checked),
-        pmTime: document.getElementById('pm-reminder-time')?.value || '21:30'
+        pmTime: `${pmH}:${pmM}`
     };
 
     Promise.resolve(reminderSettings.enabled ? ensureReminderPermission() : true)
