@@ -992,60 +992,92 @@
                             <span class="reminder-time-chip">AM</span>
                             <div class="simple-time-picker">
                                 <select id="am-hour" class="time-select">
+                                    <option value="04">04</option>
+                                    <option value="05">05</option>
                                     <option value="06">06</option>
                                     <option value="07">07</option>
                                     <option value="08" selected>08</option>
                                     <option value="09">09</option>
                                     <option value="10">10</option>
                                     <option value="11">11</option>
+                                    <option value="12">12</option>
+                                    <option value="13">01</option>
+                                    <option value="14">02</option>
+                                    <option value="15">03</option>
+                                    <option value="16">04</option>
+                                    <option value="17">05</option>
                                 </select>
                                 <span class="time-separator">:</span>
                                 <select id="am-minute" class="time-select">
                                     <option value="00" selected>00</option>
+                                    <option value="05">05</option>
+                                    <option value="10">10</option>
                                     <option value="15">15</option>
+                                    <option value="20">20</option>
+                                    <option value="25">25</option>
                                     <option value="30">30</option>
+                                    <option value="35">35</option>
+                                    <option value="40">40</option>
                                     <option value="45">45</option>
+                                    <option value="50">50</option>
+                                    <option value="55">55</option>
                                 </select>
                             </div>
                             <input type="hidden" id="am-reminder-time" value="08:00">
                         </div>
-                    </div>
+                        
+                        <!-- Divider between Morning and Night (optional, based on layout) -->
+                        <div style="height: 1px; background: var(--border); margin: 16px 0;"></div>
 
-                    <div class="flex-between align-center mb-2">
-                        <span class="bold"><i class="fa-solid fa-moon"
-                                style="color: #7c8cf8; margin-right: 8px;"></i>Night Glow</span>
-                        <label class="switch switch-sm">
-                            <input type="checkbox" id="pm-reminder-active" checked>
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-                    <div class="reminder-time-input-wrap">
-                        <span class="reminder-time-chip">PM</span>
-                        <div class="simple-time-picker">
-                            <select id="pm-hour" class="time-select">
-                                <option value="18">06</option>
-                                <option value="19">07</option>
-                                <option value="20">08</option>
-                                <option value="21" selected>09</option>
-                                <option value="22">10</option>
-                                <option value="23">11</option>
-                            </select>
-                            <span class="time-separator">:</span>
-                            <select id="pm-minute" class="time-select">
-                                <option value="00">00</option>
-                                <option value="15">15</option>
-                                <option value="30" selected>30</option>
-                                <option value="45">45</option>
-                            </select>
+                        <div class="flex-between align-center mb-2">
+                            <span class="bold"><i class="fa-solid fa-moon"
+                                    style="color: #7c8cf8; margin-right: 8px;"></i>Night Glow</span>
+                            <label class="switch switch-sm">
+                                <input type="checkbox" id="pm-reminder-active" checked>
+                                <span class="slider round"></span>
+                            </label>
                         </div>
-                        <input type="hidden" id="pm-reminder-time" value="21:30">
-                    </div>
-                </div>
-    </div>
-    <p class="micro-text text-center mt-3 px-4 reminder-note" style="color: var(--text-secondary);">Allow browser
-        notifications so your morning and night reminders can pop up on this device.</p>
-    <button class="primary-btn mt-4 full-width" onclick="saveReminders()">Save Reminders 🔔</button>
-    </div>
+                        <div class="reminder-time-input-wrap">
+                            <span class="reminder-time-chip">PM</span>
+                            <div class="simple-time-picker">
+                                <select id="pm-hour" class="time-select">
+                                    <option value="17">05</option>
+                                    <option value="18">06</option>
+                                    <option value="19">07</option>
+                                    <option value="20">08</option>
+                                    <option value="21" selected>09</option>
+                                    <option value="22">10</option>
+                                    <option value="23">11</option>
+                                    <option value="00">12</option>
+                                    <option value="01">01</option>
+                                    <option value="02">02</option>
+                                    <option value="03">03</option>
+                                    <option value="04">04</option>
+                                </select>
+                                <span class="time-separator">:</span>
+                                <select id="pm-minute" class="time-select">
+                                    <option value="00">00</option>
+                                    <option value="05">05</option>
+                                    <option value="10">10</option>
+                                    <option value="15">15</option>
+                                    <option value="20">20</option>
+                                    <option value="25">25</option>
+                                    <option value="30" selected>30</option>
+                                    <option value="35">35</option>
+                                    <option value="40">40</option>
+                                    <option value="45">45</option>
+                                    <option value="50">50</option>
+                                    <option value="55">55</option>
+                                </select>
+                            </div>
+                            <input type="hidden" id="pm-reminder-time" value="21:30">
+                        </div>
+                    </div> <!-- Ends sub-page-card -->
+
+                    <p class="micro-text text-center mt-3 px-4 reminder-note" style="color: var(--text-secondary);">Allow browser
+                        notifications so your morning and night reminders can pop up on this device.</p>
+                    <button class="primary-btn mt-4 full-width" onclick="saveReminders()">Save Reminders 🔔</button>
+                </div> <!-- Ends settings-routine-reminders overlay -->
 
     </section>
 

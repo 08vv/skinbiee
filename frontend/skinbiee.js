@@ -2171,6 +2171,18 @@ function startPlannerOnboardingLegacy() {
 
 
 function startRoutineChecklist(period = 'morning') {
+    const hour = new Date().getHours();
+    
+    if (period === 'morning' && (hour < 4 || hour >= 17)) {
+        showToast('Morning routine is only available 4 AM - 5 PM 🌤️');
+        return;
+    }
+    
+    if (period === 'night' && (hour >= 4 && hour < 17)) {
+        showToast('Night routine is only available 5 PM - 4 AM 🌙');
+        return;
+    }
+
     const overlay = document.getElementById('routine-checklist-overlay');
     const title = document.getElementById('checklist-title');
     const subtitle = document.getElementById('checklist-subtitle');
