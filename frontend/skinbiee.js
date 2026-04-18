@@ -2394,6 +2394,10 @@ async function showReminderNotification(period) {
         tag: `skinbiee-reminder-${period}`,
         renotify: true,
         vibrate: [200, 100, 200],
+        requireInteraction: true,
+        actions: [
+            { action: 'open-planner', title: 'Open Planner 📅' }
+        ],
         data: {
             url: '/skinbiee.html?tab=planner',
             period
@@ -2402,17 +2406,59 @@ async function showReminderNotification(period) {
 
     playReminderSound(period);
 
+    let notificationShown = false;
+
+    // Strategy 1: Use ServiceWorker (REQUIRED for PWA standalone mode on mobile)
+    // navigator.serviceWorker.ready guarantees a resolved, active registration
+    // unlike getRegistration() which can return undefined on scope mismatch
     try {
-        if ('serviceWorker' in navigator) {
-            const registration = await navigator.serviceWorker.getRegistration();
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            const registration = await navigator.serviceWorker.ready;
             if (registration && 'showNotification' in registration) {
                 await registration.showNotification(title, options);
-                return;
+                console.log(`[REMINDERS] ✅ ${period} notification shown via SW.ready`);
+                notificationShown = true;
             }
         }
-        new Notification(title, options);
-    } catch (error) {
-        console.error('[REMINDERS] Failed to show notification', error);
+    } catch (swErr) {
+        console.warn('[REMINDERS] SW notification failed, trying fallbacks...', swErr);
+    }
+
+    // Strategy 2: Try getRegistration() as backup (different scope resolution)
+    if (!notificationShown) {
+        try {
+            if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.getRegistration();
+                if (reg && 'showNotification' in reg) {
+                    await reg.showNotification(title, options);
+                    console.log(`[REMINDERS] ✅ ${period} notification shown via getRegistration()`);
+                    notificationShown = true;
+                }
+            }
+        } catch (regErr) {
+            console.warn('[REMINDERS] getRegistration fallback also failed', regErr);
+        }
+    }
+
+    // Strategy 3: Direct Notification constructor (works in browser tabs, NOT in PWA standalone on mobile)
+    if (!notificationShown) {
+        try {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body: options.body, icon: options.icon, tag: options.tag });
+                console.log(`[REMINDERS] ✅ ${period} notification shown via Notification constructor`);
+                notificationShown = true;
+            }
+        } catch (notifErr) {
+            console.warn('[REMINDERS] Notification constructor failed (expected in PWA mode)', notifErr);
+        }
+    }
+
+    // Strategy 4: Last resort — show an in-app toast so the user still gets reminded
+    if (!notificationShown) {
+        console.error('[REMINDERS] All notification strategies failed for', period);
+        showToast(period === 'am'
+            ? '☀️ Time for your morning routine!'
+            : '🌙 Time for your night routine!');
     }
 }
 
