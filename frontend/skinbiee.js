@@ -2412,7 +2412,7 @@ async function showReminderNotification(period) {
     // navigator.serviceWorker.ready guarantees a resolved, active registration
     // unlike getRegistration() which can return undefined on scope mismatch
     try {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        if ('serviceWorker' in navigator) {
             const registration = await navigator.serviceWorker.ready;
             if (registration && 'showNotification' in registration) {
                 await registration.showNotification(title, options);
