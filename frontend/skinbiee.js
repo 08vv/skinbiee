@@ -71,6 +71,8 @@ function resetGlowBotState() {
 }
 
 let reminderSchedulerId = null;
+let reminderTimeoutIds = [];
+let reminderVisibilityHandler = null;
 
 function resetUserRuntimeState(options = {}) {
     const { preserveIdentity = false } = options;
@@ -2423,75 +2425,46 @@ async function scheduleLocalNotification(period, timeValue, isTest = false) {
     const nextTime = calculateNextReminderTime(timeValue, isTest ? 1 : 0);
     if (!nextTime) return;
 
-    if (isTest) playReminderSound(period);
+    const now = Date.now();
+    const delayMs = nextTime.getTime() - now;
 
-    const title = isTest 
-        ? 'Skinbiee System Check 🧸'
-        : (period === 'am' ? 'Morning Sunshine ☀️' : 'Night Glow 🌙');
-    
-    const body = isTest
-        ? 'Notification system is working! You can close the app now.'
-        : (period === 'am'
-            ? 'Time for your routine. Keep your Skinbiee streak glowing today!'
-            : 'Your evening routine is ready. A quick check-in keeps the streak alive.');
-    
-    const options = {
-        body,
-        icon: 'assets/app-icon-192.png',
-        badge: 'assets/app-icon-32.png',
-        tag: isTest ? 'skinbiee-test-v2' : `skinbiee-reminder-${period}-v2`,
-        renotify: true,
-        vibrate: [200, 100, 200, 100, 200, 100, 400],
-        requireInteraction: true,
-        silent: false,
-        timestamp: Date.now(),
-        actions: [
-            {
-                action: 'open-planner',
-                title: 'Check Planner 📅',
-                icon: 'assets/app-icon-32.png'
-            }
-        ],
-        data: {
-            url: '/skinbiee.html?tab=planner',
-            period,
-            scheduledTime: nextTime.getTime(),
-            isTest
-        }
-    };
-
-    // Use Notification Triggers if available (Local Scheduling that works when closed)
-    const hasTriggers = 'showTrigger' in ServiceWorkerRegistration.prototype || (typeof TimestampTrigger !== 'undefined');
-    
-    if (hasTriggers) {
-        try {
-            const registration = await navigator.serviceWorker.getRegistration();
-            if (registration && 'showNotification' in registration) {
-                // @ts-ignore - Experimental API check
-                if (typeof TimestampTrigger !== 'undefined') {
-                    // @ts-ignore
-                    options.showTrigger = new TimestampTrigger(nextTime.getTime());
-                }
-                await registration.showNotification(title, options);
-                console.log(`[REMINDERS] SUCCESS: Scheduled ${period} for ${nextTime.toLocaleString()} (Trigger Epoch: ${nextTime.getTime()})`);
-                if (isTest) showToast("Test notification scheduled for 1 minute from now!");
-                return;
-            }
-        } catch (e) {
-            console.error('[REMINDERS] Notification Triggers failed, falling back', e);
-        }
+    if (delayMs < 0) {
+        console.warn(`[REMINDERS] Scheduled time is in the past for ${period}, skipping setTimeout`);
+        return;
     }
 
-    // Fallback: Just log it for now
-    console.log(`[REMINDERS] Browser lacks Triggers. Scheduled ${period} for ${nextTime.toLocaleString()} (requires app open)`);
-    if (isTest) {
-        showToast("System check: Check back in 1 minute! Keep the tab open.");
-    } else {
-        // Show a helpful hint once per session if triggers are missing
-        if (!state.hasShownTriggerWarning) {
-            console.warn("[REMINDERS] Recommendation: Use 'Add to Home Screen' for best results.");
-            state.hasShownTriggerWarning = true;
+    // Cap at 24 hours to avoid browser overflow issues with large setTimeout values
+    const maxDelay = 24 * 60 * 60 * 1000;
+    if (delayMs > maxDelay) {
+        console.log(`[REMINDERS] ${period} reminder is >24h away (${Math.round(delayMs / 3600000)}h). Will re-schedule on next tick.`);
+        return;
+    }
+
+    if (isTest) playReminderSound(period);
+
+    // Schedule a real setTimeout that fires the notification at the right time
+    const timeoutId = setTimeout(async () => {
+        try {
+            const dateKey = getLocalDateKey(new Date());
+            const storageKey = `sc-reminder-fired-${state.userId}-${period}-${dateKey}`;
+            if (safeStorage.get(storageKey) === '1') {
+                console.log(`[REMINDERS] ${period} already fired today, skipping`);
+                return;
+            }
+            safeStorage.set(storageKey, '1');
+            await showReminderNotification(period);
+            console.log(`[REMINDERS] ✅ ${period} notification delivered via setTimeout!`);
+        } catch (e) {
+            console.error(`[REMINDERS] setTimeout delivery error for ${period}`, e);
         }
+    }, delayMs);
+
+    reminderTimeoutIds.push(timeoutId);
+    const minutesAway = Math.round(delayMs / 60000);
+    console.log(`[REMINDERS] ⏰ ${period} scheduled via setTimeout in ${minutesAway} min (${nextTime.toLocaleTimeString()})`);
+
+    if (isTest) {
+        showToast(`Test reminder will fire in ~${Math.max(1, Math.ceil(delayMs / 60000))} minute(s). Keep this tab open!`);
     }
 }
 
@@ -2501,11 +2474,16 @@ async function runReminderSchedulerTick() {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
     const now = new Date();
-    // Improved check: fire if within the same minute and not fired yet today
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Wider match window: fire if within 0-2 minutes AFTER target time.
+    // This handles browser throttling of background-tab timers.
     const checkFire = (period, timeValue) => {
-        if (!timeValue) return false;
+        if (!timeValue || !/^\d{2}:\d{2}$/.test(timeValue)) return false;
         const [h, m] = timeValue.split(':').map(Number);
-        if (now.getHours() === h && now.getMinutes() === m) {
+        const targetMinutes = h * 60 + m;
+        const diff = nowMinutes - targetMinutes;
+        if (diff >= 0 && diff <= 2) {
             const dateKey = getLocalDateKey(now);
             const storageKey = `sc-reminder-fired-${state.userId}-${period}-${dateKey}`;
             if (safeStorage.get(storageKey) !== '1') {
@@ -2518,9 +2496,11 @@ async function runReminderSchedulerTick() {
 
     if (reminders.amActive && checkFire('am', reminders.amTime)) {
         await showReminderNotification('am');
+        console.log('[REMINDERS] ✅ AM notification fired via polling tick');
     }
     if (reminders.pmActive && checkFire('pm', reminders.pmTime)) {
         await showReminderNotification('pm');
+        console.log('[REMINDERS] ✅ PM notification fired via polling tick');
     }
 }
 
@@ -2529,6 +2509,14 @@ function stopReminderScheduler() {
         clearInterval(reminderSchedulerId);
         reminderSchedulerId = null;
     }
+    // Clear all pending setTimeout reminder timers
+    reminderTimeoutIds.forEach(id => clearTimeout(id));
+    reminderTimeoutIds = [];
+    // Remove visibility change handler
+    if (reminderVisibilityHandler) {
+        document.removeEventListener('visibilitychange', reminderVisibilityHandler);
+        reminderVisibilityHandler = null;
+    }
 }
 
 function startReminderScheduler() {
@@ -2536,17 +2524,33 @@ function startReminderScheduler() {
     const reminders = state.reminders || {};
     if (!state.userId || !reminders.enabled) return;
 
-    // 1. Immediate Schedule for Background (PWA Magic)
-    if (reminders.amActive) scheduleLocalNotification('am', reminders.amTime);
-    if (reminders.pmActive) scheduleLocalNotification('pm', reminders.pmTime);
-    
-    // 1.5 Verification Schedule (for the user to see it working NOW)
-    // Removed 00:00 default test to avoid confusion, only triggers if explicitly requested usually
-    
-    // 2. Keep Interval as fallback for foreground
+    // 1. Schedule precise setTimeout timers for each active reminder
+    if (reminders.amActive && reminders.amTime) scheduleLocalNotification('am', reminders.amTime);
+    if (reminders.pmActive && reminders.pmTime) scheduleLocalNotification('pm', reminders.pmTime);
+
+    // 2. Polling fallback every 30s (catches edge cases while tab is open)
     reminderSchedulerId = window.setInterval(() => {
         runReminderSchedulerTick().catch(e => console.error('[REMINDERS] Tick error', e));
     }, 30000);
+
+    // 3. Catch-up on tab re-focus: re-check immediately when user returns
+    reminderVisibilityHandler = () => {
+        if (document.visibilityState === 'visible') {
+            console.log('[REMINDERS] Tab became visible — running catch-up tick');
+            runReminderSchedulerTick().catch(e => console.error('[REMINDERS] Visibility tick error', e));
+            // Re-schedule setTimeout timers (browser may have killed them while backgrounded)
+            reminderTimeoutIds.forEach(id => clearTimeout(id));
+            reminderTimeoutIds = [];
+            const r = state.reminders || {};
+            if (r.amActive && r.amTime) scheduleLocalNotification('am', r.amTime);
+            if (r.pmActive && r.pmTime) scheduleLocalNotification('pm', r.pmTime);
+        }
+    };
+    document.addEventListener('visibilitychange', reminderVisibilityHandler);
+
+    // 4. Run an immediate tick on startup in case we're already past a reminder time
+    runReminderSchedulerTick().catch(e => console.error('[REMINDERS] Initial tick error', e));
+    console.log('[REMINDERS] 🟢 Scheduler started with setTimeout + polling + visibility catch-up');
 }
 
 function applyRemindersToUI() {
